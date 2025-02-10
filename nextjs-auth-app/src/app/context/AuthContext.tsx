@@ -15,7 +15,7 @@ export function AuthProvider({ children }) {
     }, []);
 
     const login = async (username, password) => {
-        const res = await fetch('http://localhost:5000/users');
+        const res = await fetch('http://localhost:3001/users');
         const users = await res.json();
         const foundUser = users.find(u => u.username === username && u.password === password);
 
