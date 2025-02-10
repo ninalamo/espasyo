@@ -1,17 +1,12 @@
-
-import Navbar from "../components/Navbar";
-import  AuthWrapper  from "../components/AuthWrapper";
-import "./globals.css";
-import { AuthProvider } from "./context/AuthContext";
+'use client';
+import { SessionProvider } from 'next-auth/react';
 
 export default function RootLayout({ children }) {
-  return (
-    <html lang="en">
-      <body>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-      </body>
-    </html>
-  );
+    return (
+        <html lang="en">
+            <body>
+                <SessionProvider>{children}</SessionProvider>
+            </body>
+        </html>
+    );
 }

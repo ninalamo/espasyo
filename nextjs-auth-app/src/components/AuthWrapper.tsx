@@ -1,18 +1,21 @@
 'use client';
 
-import { useAuth } from '../app/context/AuthContext';
+import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 export default function AuthWrapper({ children }) {
-    const { user } = useAuth();
+    const { data: session, status } = useSession();
     const router = useRouter();
 
     useEffect(() => {
-        if (!user) {
+        if (status === 'unauthenticated') {
             router.push('/login');
         }
-    }, [user, router]);
+    }, [status, router]);
 
-    return user ? children : null;
+    if (status === 'loading') return <p>Loading...</p>;
+    if (!session) return null;
+
+    return <>{children}</>;
 }
