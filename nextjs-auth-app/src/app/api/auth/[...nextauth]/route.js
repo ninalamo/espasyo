@@ -6,20 +6,20 @@ export const authOptions = {
         CredentialsProvider({
             name: "Credentials",
             credentials: {
-                username: { label: "Username", type: "text" },
+                email: { label: "Email", type: "text" },
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
                 const res = await fetch("http://localhost:3001/users");
                 const users = await res.json();
                 const user = users.find(
-                    (u) => u.username === credentials.username && u.password === credentials.password
+                    (u) => u.email === credentials.email && u.password === credentials.password
                 );
 
                 if (user) {
                     return {
                         id: user.id,
-                        username: user.username,
+                        name: user.username,  // Use username as the 'name' for session
                         email: user.email,
                         token: `jwt-${user.token}`, // Replace with real token if available
                     };
@@ -38,7 +38,7 @@ export const authOptions = {
         async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
-                token.username = user.username;
+                token.name = user.username;  // Set name in the JWT
                 token.email = user.email;
                 token.token = user.token; // Store the JWT in the session
             }
@@ -47,7 +47,7 @@ export const authOptions = {
         async session({ session, token }) {
             session.user = {
                 id: token.id,
-                username: token.username,
+                name: token.name,  // Ensure name is accessed correctly from token
                 email: token.email,
                 token: token.token, // Include the JWT token in the session
             };
