@@ -6,15 +6,9 @@ import { useState, useEffect, useRef } from 'react';
 import { User, ChevronDown } from 'lucide-react'; // Import caret icon
 import Link from 'next/link';
 
-// Define types for session data
-interface SessionUser {
-    name: string | null;
-    email: string | null;
-    token: string | null;
-}
 
 export default function Navbar() {
-    const { data: session } = useSession(); // session is typed automatically by NextAuth
+    const { data: session } = useSession(); // session is typed automatically by NextAuth | https://next-auth.js.org/getting-started/client#usesession
     const router = useRouter();
     const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
     const dropdownRef = useRef<HTMLDivElement | null>(null);

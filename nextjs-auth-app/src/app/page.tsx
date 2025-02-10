@@ -5,22 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import withAuth from './hoc/withAuth'; // Assuming HOC withAuth is also typed
 
-// Define the types for the session (if not already inferred by next-auth)
-interface User {
-    id: string;
-    username?: string;
-    email: string;
-    token: string;
-}
-
-interface Session {
-    user?: User;
-    expires: string;
-}
 
 // Define component props if needed
 const Home = () => {
-    const { data: session, status } = useSession<Session>(); // Type the session with your custom Session interface
+    const { data: session, status } = useSession(); // Type the session with your custom Session interface
     const router = useRouter();
 
     useEffect(() => {
@@ -41,7 +29,7 @@ const Home = () => {
         <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 text-gray-900">
             <div className="bg-white shadow-md rounded-lg p-6 w-full max-w-md">
                 <h1 className="text-2xl font-semibold text-center mb-4">
-                    Welcome, {session.user?.username || session.user?.email}!
+                    Welcome, {session.user?.name || session.user?.email}!
                 </h1>
                 <div>Session: {JSON.stringify(session, null, 2)}</div>
 
