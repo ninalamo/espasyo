@@ -4,7 +4,12 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function AuthWrapper({ children }) {
+// Define the type for the component props
+interface AuthWrapperProps {
+    children: React.ReactNode; // This ensures that the 'children' prop can be any valid React child
+}
+
+export default function AuthWrapper({ children }: AuthWrapperProps) {
     const { data: session, status } = useSession();
     const router = useRouter();
 

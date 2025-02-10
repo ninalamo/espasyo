@@ -3,15 +3,29 @@
 import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import withAuth from './hoc/withAuth';
+import withAuth from './hoc/withAuth'; // Assuming HOC withAuth is also typed
 
-function Home() {
-    const { data: session, status } = useSession();
+// Define the types for the session (if not already inferred by next-auth)
+interface User {
+    id: string;
+    username?: string;
+    email: string;
+    token: string;
+}
+
+interface Session {
+    user?: User;
+    expires: string;
+}
+
+// Define component props if needed
+const Home = () => {
+    const { data: session, status } = useSession<Session>(); // Type the session with your custom Session interface
     const router = useRouter();
 
     useEffect(() => {
         if (status === 'unauthenticated') {
-            router.push('/login'); // Redirect to login page
+            router.push('/login'); // Redirect to login page if unauthenticated
         }
     }, [status, router]);
 
@@ -40,6 +54,7 @@ function Home() {
             </div>
         </div>
     );
-}
+};
 
+// Wrapping the component with the withAuth HOC to enforce authentication
 export default withAuth(Home);

@@ -6,6 +6,22 @@ import { useState, useEffect } from 'react';
 import AddCrimeModal from './AddCrimeModal';
 import withAuth from '../hoc/withAuth';
 
+// Define types for the crime record data
+interface CrimeRecord {
+  id: number;
+  date: string;
+  type: string;
+  location: string;
+  status: string;
+}
+
+// Define types for the modal props
+interface AddCrimeModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (newRecord: { date: string; type: string; location: string; status: string }) => Promise<void>;
+}
+
 function CrimeRecord() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -25,9 +41,7 @@ function CrimeRecord() {
     return null; // Avoid rendering anything while redirecting
   }
 
-  const [crimeRecords, setCrimeRecords] = useState<
-    { id: number; date: string; type: string; location: string; status: string }[]
-  >([]);
+  const [crimeRecords, setCrimeRecords] = useState<CrimeRecord[]>([]); // Crime records state
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 

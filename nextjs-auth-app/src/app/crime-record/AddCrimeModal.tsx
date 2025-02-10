@@ -9,19 +9,28 @@ interface AddCrimeModalProps {
 }
 
 export default function AddCrimeModal({ isOpen, onClose, onSave }: AddCrimeModalProps) {
-  const [newRecord, setNewRecord] = useState({ date: "", type: "", location: "", status: "" });
+  // State for holding the new crime record input
+  const [newRecord, setNewRecord] = useState<{ date: string; type: string; location: string; status: string }>({
+    date: "",
+    type: "",
+    location: "",
+    status: "",
+  });
 
+  // Handle input change for both input fields and select dropdown
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setNewRecord({ ...newRecord, [e.target.name]: e.target.value });
   };
 
+  // Submit the new record and reset the form
   const handleSubmit = () => {
-    if (!newRecord.date || !newRecord.type || !newRecord.location || !newRecord.status) return;
-    onSave(newRecord);
+    if (!newRecord.date || !newRecord.type || !newRecord.location || !newRecord.status) return; // Prevent empty submission
+    onSave(newRecord); // Pass new record to parent
     setNewRecord({ date: "", type: "", location: "", status: "" }); // Reset form
-    onClose();
+    onClose(); // Close modal
   };
 
+  // If modal is not open, don't render anything
   if (!isOpen) return null;
 
   return (
@@ -29,6 +38,7 @@ export default function AddCrimeModal({ isOpen, onClose, onSave }: AddCrimeModal
       <div className="bg-white p-6 rounded-lg shadow-lg w-96">
         <h2 className="text-xl font-semibold mb-4">Add New Crime Record</h2>
 
+        {/* Form fields */}
         <div className="space-y-2">
           <input
             type="date"
@@ -66,6 +76,7 @@ export default function AddCrimeModal({ isOpen, onClose, onSave }: AddCrimeModal
           </select>
         </div>
 
+        {/* Buttons for cancel and save actions */}
         <div className="flex justify-end mt-4">
           <button className="bg-gray-400 text-white px-4 py-2 rounded-md mr-2" onClick={onClose}>
             Cancel
