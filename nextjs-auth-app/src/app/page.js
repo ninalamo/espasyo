@@ -3,8 +3,9 @@
 import { signOut, useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
+import withAuth from './hoc/withAuth';
 
-export default function Home() {
+function Home() {
     const { data: session, status } = useSession();
     const router = useRouter();
 
@@ -40,3 +41,5 @@ export default function Home() {
         </div>
     );
 }
+
+export default withAuth(Home);

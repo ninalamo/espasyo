@@ -1,10 +1,30 @@
-"use client";
+'use client';
 
-import AuthWrapper from "../../components/AuthWrapper";
-import { useState, useEffect } from "react";
-import AddCrimeModal from "./AddCrimeModal";
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import AddCrimeModal from './AddCrimeModal';
+import withAuth from '../hoc/withAuth';
 
-export default function CrimeRecord() {
+function CrimeRecord() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  // Redirect to login if the user is not authenticated
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      router.push('/login'); // Redirect to login page
+    }
+  }, [status, router]);
+
+  if (status === 'loading') {
+    return <div className="flex items-center justify-center min-h-screen text-gray-700">Loading...</div>;
+  }
+
+  if (!session) {
+    return null; // Avoid rendering anything while redirecting
+  }
+
   const [crimeRecords, setCrimeRecords] = useState<
     { id: number; date: string; type: string; location: string; status: string }[]
   >([]);
@@ -15,9 +35,9 @@ export default function CrimeRecord() {
     // Simulate an API call
     setTimeout(() => {
       setCrimeRecords([
-        { id: 1, date: "2024-02-10", type: "Theft", location: "Downtown", status: "Ongoing" },
-        { id: 2, date: "2024-02-09", type: "Assault", location: "City Park", status: "Resolved" },
-        { id: 3, date: "2024-02-08", type: "Burglary", location: "Suburb", status: "Ongoing" },
+        { id: 1, date: '2024-02-10', type: 'Theft', location: 'Downtown', status: 'Ongoing' },
+        { id: 2, date: '2024-02-09', type: 'Assault', location: 'City Park', status: 'Resolved' },
+        { id: 3, date: '2024-02-08', type: 'Burglary', location: 'Suburb', status: 'Ongoing' },
       ]);
       setIsLoading(false);
     }, 1000);
@@ -29,7 +49,7 @@ export default function CrimeRecord() {
   };
 
   return (
-    <AuthWrapper>
+    <>
       <div className="container mx-auto p-6">
         <h1 className="text-2xl font-semibold mb-4">Crime Records</h1>
 
@@ -85,6 +105,8 @@ export default function CrimeRecord() {
         {/* Modal */}
         <AddCrimeModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={addNewRecord} />
       </div>
-    </AuthWrapper>
+    </>
   );
 }
+
+export default withAuth(CrimeRecord);
