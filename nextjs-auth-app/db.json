@@ -3,7 +3,9 @@
     {
       "id": 1,
       "username": "admin",
-      "password": "admin1234!"
+      "password": "admin1234!",
+      "email": "admin@example.com",
+      "token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwidXNlcm5hbWUiOiJKb2huIERvZSIsImVtYWlsIjoiYWRtaW5AZXhhbXBsZS5jb20iLCJpYXQiOjE1MTYyMzkwMjJ9.GXuVJaOzxuph84LNCIioN5Q1IZXX9Dfg50V9zQhFeYM"
     }
   ]
 }

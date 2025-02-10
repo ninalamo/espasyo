@@ -10,7 +10,6 @@ export const authOptions = {
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                // Simulating fetching users (replace with DB query)
                 const res = await fetch("http://localhost:3001/users");
                 const users = await res.json();
                 const user = users.find(
@@ -18,7 +17,12 @@ export const authOptions = {
                 );
 
                 if (user) {
-                    return user;
+                    return {
+                        id: user.id,
+                        username: user.username,
+                        email: user.email,
+                        token: `jwt-${user.token}`, // Replace with real token if available
+                    };
                 }
                 return null;
             },
@@ -29,6 +33,26 @@ export const authOptions = {
     },
     session: {
         strategy: "jwt",
+    },
+    callbacks: {
+        async jwt({ token, user }) {
+            if (user) {
+                token.id = user.id;
+                token.username = user.username;
+                token.email = user.email;
+                token.token = user.token; // Store the JWT in the session
+            }
+            return token;
+        },
+        async session({ session, token }) {
+            session.user = {
+                id: token.id,
+                username: token.username,
+                email: token.email,
+                token: token.token, // Include the JWT token in the session
+            };
+            return session;
+        },
     },
     secret: process.env.NEXTAUTH_SECRET, // Set this in `.env.local`
 };
