@@ -7,5 +7,27 @@
       "email": "admin@example.com",
       "token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiZW1haWwiOiJhZG1pbkBleGFtcGxlLmNvbSIsImlhdCI6MTUxNjIzOTAyMn0.2LEpfjZOOMrw74ZgBVwpf1tML4RhXV0QnJqUyvSu19E"
     }
+  ],
+  "crimes": [
+    {
+      "id": 1,
+      "caseId": "C-20240210-001",
+      "crimeType": "Theft",
+      "address": "Downtown",
+      "severity": "Moderate",
+      "datetime": "2024-02-10 14:30",
+      "motive": "Financial Gain",
+      "status": "Ongoing"
+    },
+    {
+      "id": 2,
+      "caseId": "C-20240209-002",
+      "crimeType": "Assault",
+      "address": "City Park",
+      "severity": "High",
+      "datetime": "2024-02-09 19:45",
+      "motive": "Personal Dispute",
+      "status": "Resolved"
+    }
   ]
 }

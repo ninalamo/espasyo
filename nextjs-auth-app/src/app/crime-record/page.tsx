@@ -3,33 +3,20 @@
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import AddCrimeModal from './AddCrimeModal';
+import Link from 'next/link';
 import withAuth from '../hoc/withAuth';
+import { EditCrimeDto } from './EditCrimeDto';
 
-// Define types for the crime record data
-interface CrimeRecord {
-  id: number;
-  date: string;
-  type: string;
-  location: string;
-  status: string;
-}
-
-// Define types for the modal props
-interface AddCrimeModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: (newRecord: { date: string; type: string; location: string; status: string }) => Promise<void>;
-}
-
-function CrimeRecord() {
+const CrimeList = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [crimeRecords, setCrimeRecords] = useState<EditCrimeDto[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   // Redirect to login if the user is not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
-      router.push('/login'); // Redirect to login page
+      router.push('/login');
     }
   }, [status, router]);
 
@@ -38,89 +25,97 @@ function CrimeRecord() {
   }
 
   if (!session) {
-    return null; // Avoid rendering anything while redirecting
+    return null;
   }
 
-  const [crimeRecords, setCrimeRecords] = useState<CrimeRecord[]>([]); // Crime records state
-  const [isLoading, setIsLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
+  // Fetch crime records from json-server API
   useEffect(() => {
-    // Simulate an API call
-    setTimeout(() => {
-      setCrimeRecords([
-        { id: 1, date: '2024-02-10', type: 'Theft', location: 'Downtown', status: 'Ongoing' },
-        { id: 2, date: '2024-02-09', type: 'Assault', location: 'City Park', status: 'Resolved' },
-        { id: 3, date: '2024-02-08', type: 'Burglary', location: 'Suburb', status: 'Ongoing' },
-      ]);
-      setIsLoading(false);
-    }, 1000);
+    const fetchCrimeRecords = async () => {
+      try {
+        const response = await fetch('http://localhost:3001/crimes'); // json-server API endpoint
+        if (!response.ok) {
+          throw new Error('Failed to fetch crime records');
+        }
+        const data = await response.json();
+        setCrimeRecords(data);
+      } catch (error) {
+        console.error('Error fetching crime records:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCrimeRecords();
   }, []);
 
-  const addNewRecord = async (newRecord: { date: string; type: string; location: string; status: string }) => {
-    await new Promise((resolve) => setTimeout(resolve, 500)); // Simulate API delay
-    setCrimeRecords((prev) => [...prev, { id: prev.length + 1, ...newRecord }]);
-  };
-
   return (
-    <>
-      <div className="container mx-auto p-6">
-        <h1 className="text-2xl font-semibold mb-4">Crime Records</h1>
+    <div className="container mx-auto p-6">
+      <h1 className="text-2xl font-semibold mb-4">Crime Records</h1>
 
-        {/* Add New Entry Button */}
-        <div className="mb-4">
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
-            onClick={() => setIsModalOpen(true)}
-          >
+      {/* Navigation to Add New Crime and Bulk Upload Pages */}
+      <div className="mb-4 flex space-x-4">
+        <Link href="/crime-record/add">
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
             Add New Entry
           </button>
-        </div>
+        </Link>
 
-        {/* Loader */}
-        {isLoading ? (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-          </div>
-        ) : crimeRecords.length === 0 ? (
-          <div className="text-center text-gray-500 mt-6 text-lg">Nothing to display</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-gray-300">
-              <thead>
-                <tr className="bg-gray-100 text-left">
-                  <th className="border p-2">ID</th>
-                  <th className="border p-2">Date</th>
-                  <th className="border p-2">Type</th>
-                  <th className="border p-2">Location</th>
-                  <th className="border p-2">Status</th>
-                  <th className="border p-2">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {crimeRecords.map((record) => (
-                  <tr key={record.id} className="hover:bg-gray-50">
-                    <td className="border p-2">{record.id}</td>
-                    <td className="border p-2">{record.date}</td>
-                    <td className="border p-2">{record.type}</td>
-                    <td className="border p-2">{record.location}</td>
-                    <td className="border p-2">{record.status}</td>
-                    <td className="border p-2">
-                      <button className="text-blue-600 hover:underline mr-2">Edit</button>
-                      <button className="text-red-600 hover:underline">Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Modal */}
-        <AddCrimeModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} onSave={addNewRecord} />
+        <Link href="/crime-record/bulk-upload">
+          <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
+            Bulk Upload
+          </button>
+        </Link>
       </div>
-    </>
+
+      {/* Loader */}
+      {isLoading ? (
+        <div className="flex justify-center items-center h-40">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+        </div>
+      ) : crimeRecords.length === 0 ? (
+        <div className="text-center text-gray-500 mt-6 text-lg">Nothing to display</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse border border-gray-300">
+            <thead>
+              <tr className="bg-gray-100 text-left">
+                <th className="border p-2">ID</th>
+                <th className="border p-2">Case ID</th>
+                <th className="border p-2">Crime Type</th>
+                <th className="border p-2">Address</th>
+                <th className="border p-2">Severity</th>
+                <th className="border p-2">Date & Time</th>
+                <th className="border p-2">Motive</th>
+                <th className="border p-2">Status</th>
+                <th className="border p-2">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {crimeRecords.map((record) => (
+                <tr key={record.id} className="hover:bg-gray-50">
+                  <td className="border p-2">{record.id}</td>
+                  <td className="border p-2">{record.caseId}</td>
+                  <td className="border p-2">{record.crimeType}</td>
+                  <td className="border p-2">{record.address}</td>
+                  <td className="border p-2">{record.severity}</td>
+                  <td className="border p-2">{record.datetime}</td>
+                  <td className="border p-2">{record.motive}</td>
+                  <td className="border p-2">{record.status}</td>
+                  <td className="border p-2">
+                    <Link href={`/crime-record/${record.id}`}>
+                      <button className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+                        View
+                      </button>
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }
 
-export default withAuth(CrimeRecord);
+export default withAuth(CrimeList);
