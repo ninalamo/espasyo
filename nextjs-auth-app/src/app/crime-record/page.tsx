@@ -5,13 +5,15 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import withAuth from '../hoc/withAuth';
-import { EditCrimeDto } from './EditCrimeDto';
+import { CrimeListItemDto } from './CrimeListItemDto';
+import {apiService} from '../api/utils/apiService'; // Import apiService
 
 const CrimeList = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [crimeRecords, setCrimeRecords] = useState<EditCrimeDto[]>([]);
+  const [crimeRecords, setCrimeRecords] = useState<CrimeListItemDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Redirect to login if the user is not authenticated
   useEffect(() => {
@@ -28,24 +30,13 @@ const CrimeList = () => {
     return null;
   }
 
-  // Fetch crime records from json-server API
+  // Fetch crime records using apiService
   useEffect(() => {
-    const fetchCrimeRecords = async () => {
-      try {
-        const response = await fetch('http://localhost:3001/crimes'); // json-server API endpoint
-        if (!response.ok) {
-          throw new Error('Failed to fetch crime records');
-        }
-        const data = await response.json();
-        setCrimeRecords(data);
-      } catch (error) {
-        console.error('Error fetching crime records:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchCrimeRecords();
+    apiService
+      .get<CrimeListItemDto[]>('/crimes')
+      .then(setCrimeRecords)
+      .catch(() => setError('Failed to load crime records'))
+      .finally(() => setIsLoading(false));
   }, []);
 
   return (
@@ -67,11 +58,13 @@ const CrimeList = () => {
         </Link>
       </div>
 
-      {/* Loader */}
+      {/* Loader & Error Handling */}
       {isLoading ? (
         <div className="flex justify-center items-center h-40">
           <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
         </div>
+      ) : error ? (
+        <div className="text-center text-red-500 mt-6 text-lg">{error}</div>
       ) : crimeRecords.length === 0 ? (
         <div className="text-center text-gray-500 mt-6 text-lg">Nothing to display</div>
       ) : (
@@ -116,6 +109,6 @@ const CrimeList = () => {
       )}
     </div>
   );
-}
+};
 
 export default withAuth(CrimeList);

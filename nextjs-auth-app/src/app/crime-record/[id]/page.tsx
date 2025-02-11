@@ -4,23 +4,35 @@ import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CrimeDetailDto } from './CrimeDetailDto';
+import {apiService} from '../../api/utils/apiService';
 import withAuth from '../../hoc/withAuth';
 
- const CrimeDetailsPage = () => {
+const CrimeDetailsPage = () => {
   const router = useRouter();
-
-  // Retrieve crime record based on id from query parameters
-  const { id } = useParams();
+  const { id } = useParams(); // Get crime ID from the URL
   const [crimeRecord, setCrimeRecord] = useState<CrimeDetailDto | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (id) {
-      // Fetch crime record from API or state management
-      // Example: fetchCrimeRecordById(id).then(setCrimeRecord);
+      apiService
+        .get<CrimeDetailDto>(`/crimes/${id}`)
+        .then(setCrimeRecord)
+        .catch(() => setError("Failed to load crime record"))
+        .finally(() => setLoading(false));
     }
   }, [id]);
 
-  if (!crimeRecord) {
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen text-gray-700">
+        <h1 className="text-xl font-semibold mb-4">Loading Crime Record...</h1>
+      </div>
+    );
+  }
+
+  if (error || !crimeRecord) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-gray-700">
         <h1 className="text-xl font-semibold mb-4">Crime Record Not Found</h1>
@@ -73,6 +85,6 @@ import withAuth from '../../hoc/withAuth';
       </div>
     </div>
   );
-}
+};
 
 export default withAuth(CrimeDetailsPage);

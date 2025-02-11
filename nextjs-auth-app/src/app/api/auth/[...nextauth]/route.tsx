@@ -3,11 +3,15 @@ import CredentialsProvider from "next-auth/providers/credentials";
 
 // Define the shape of the user object
 interface CustomUser extends User {
-    username: string;  // Add custom field for username
-    token: string;     // Add custom token field
+    username: string;
+    token: string;
 }
 
-// Define the NextAuth options with correct types
+// Determine the API URL based on the environment
+const API_URL = process.env.NODE_ENV === "development"
+    ? "http://localhost:3001/users"  // JSON-Server for local development
+    : "https://your-production-api.com/auth/login"; // Replace with actual production API
+
 export const authOptions: NextAuthOptions = {
     providers: [
         CredentialsProvider({
@@ -17,54 +21,79 @@ export const authOptions: NextAuthOptions = {
                 password: { label: "Password", type: "password" },
             },
             async authorize(credentials) {
-                const res = await fetch("http://localhost:3001/users");
-                const users = await res.json();
-                const user = users.find(
-                    (u) => u.email === credentials?.email && u.password === credentials?.password
-                );
+                try {
+                    let user;
 
-                if (user) {
-                    return {
-                        id: user.id,
-                        name: user.username, // Use username as the 'name' for session
-                        email: user.email,
-                        token: `jwt-${user.token}`, // Replace with real token if available
-                    } as CustomUser; // Cast to CustomUser type
+                    if (process.env.NODE_ENV === "development") {
+                        // Fetch from json-server
+                        const res = await fetch(API_URL);
+                        const users = await res.json();
+                        user = users.find(
+                            (u) => u.email === credentials?.email && u.password === credentials?.password
+                        );
+                    } else {
+                        // Make a POST request to the production API
+                        const res = await fetch(API_URL, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                email: credentials?.email,
+                                password: credentials?.password,
+                            }),
+                        });
+
+                        if (!res.ok) throw new Error("Invalid credentials");
+
+                        user = await res.json();
+                    }
+
+                    if (user) {
+                        return {
+                            id: user.id,
+                            name: user.username,
+                            email: user.email,
+                            token: user.token, // Store token if available
+                        } as CustomUser;
+                    }
+
+                    return null;
+                } catch (error) {
+                    console.error("Auth error:", error);
+                    return null;
                 }
-                return null;
             },
         }),
     ],
     pages: {
-        signIn: "/login", // Custom login page
+        signIn: "/login",
     },
     session: {
         strategy: "jwt",
     },
     callbacks: {
         async jwt({ token, user }) {
-            if (user) {
-                token.id = user.id;
-                const customUser = user as CustomUser;
-                token.name = customUser.username; // Set name in the JWT
+            const customUser = user as CustomUser;
+            if (customUser) {
+                token.id = customUser.id;
+                token.name = customUser.username;
                 token.email = customUser.email;
-                token.token = customUser.token; // Store the JWT in the session
+                token.token = customUser.token;
             }
             return token;
         },
         async session({ session, token }) {
             session.user = {
                 id: token.id,
-                name: token.name,  // Ensure name is accessed correctly from token
+                name: token.name,
                 email: token.email,
-                token: token.token, // Include the JWT token in the session
-            } as Session["user"]; // Cast to Session['user'] type
+                token: token.token,
+            } as Session["user"];
             return session;
         },
     },
-    secret: process.env.NEXTAUTH_SECRET, // Set this in `.env.local`
+    secret: process.env.NEXTAUTH_SECRET,
 };
 
-// The handler is exported as both GET and POST
+// Export NextAuth handler for both GET and POST
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };

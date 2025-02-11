@@ -1,6 +1,6 @@
 'use client';
 // Define types for crime record data
-export interface EditCrimeDto {
+export interface CrimeListItemDto {
   id: number;
   caseId: string;
   crimeType: string;

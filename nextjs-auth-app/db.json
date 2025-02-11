@@ -28,6 +28,16 @@
       "datetime": "2024-02-09 19:45",
       "motive": "Personal Dispute",
       "status": "Resolved"
+    },
+    {
+      "id": 3,
+      "caseId": "C-20240209-003",
+      "crimeType": "Drunk Driving",
+      "address": "City Park",
+      "severity": "Low",
+      "datetime": "2024-02-09 19:45",
+      "motive": "Personal Dispute",
+      "status": "Ongoing"
     }
   ]
 }
