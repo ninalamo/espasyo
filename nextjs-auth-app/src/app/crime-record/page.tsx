@@ -7,11 +7,12 @@ import Link from 'next/link';
 import withAuth from '../hoc/withAuth';
 import { CrimeListItemDto } from './CrimeListItemDto';
 import {apiService} from '../api/utils/apiService'; // Import apiService
+import { IncidentDto } from './IncidentDto';
 
 const CrimeList = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [crimeRecords, setCrimeRecords] = useState<CrimeListItemDto[]>([]);
+  const [crimeRecords, setCrimeRecords] = useState<IncidentDto[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,8 +34,16 @@ const CrimeList = () => {
   // Fetch crime records using apiService
   useEffect(() => {
     apiService
-      .get<CrimeListItemDto[]>('/crimes')
-      .then(setCrimeRecords)
+      .get<CrimeListItemDto>('/incident?pageNumber=1&pageSize=10')
+      .then((response) => {
+        console.log(response);
+        if (response && response.items) {
+          console.log(response);
+          setCrimeRecords(response.items);  // Adjust based on response structure
+        } else {
+          setError('No crime records available');
+        }
+      })
       .catch(() => setError('Failed to load crime records'))
       .finally(() => setIsLoading(false));
   }, []);
@@ -72,28 +81,26 @@ const CrimeList = () => {
           <table className="w-full border-collapse border border-gray-300">
             <thead>
               <tr className="bg-gray-100 text-left">
-                <th className="border p-2">ID</th>
                 <th className="border p-2">Case ID</th>
                 <th className="border p-2">Crime Type</th>
                 <th className="border p-2">Address</th>
                 <th className="border p-2">Severity</th>
                 <th className="border p-2">Date & Time</th>
                 <th className="border p-2">Motive</th>
-                <th className="border p-2">Status</th>
+
                 <th className="border p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
               {crimeRecords.map((record) => (
                 <tr key={record.id} className="hover:bg-gray-50">
-                  <td className="border p-2">{record.id}</td>
                   <td className="border p-2">{record.caseId}</td>
-                  <td className="border p-2">{record.crimeType}</td>
+                  <td className="border p-2">{record.crimeTypeText}</td>
                   <td className="border p-2">{record.address}</td>
-                  <td className="border p-2">{record.severity}</td>
-                  <td className="border p-2">{record.datetime}</td>
-                  <td className="border p-2">{record.motive}</td>
-                  <td className="border p-2">{record.status}</td>
+                  <td className="border p-2">{record.severityText}</td>
+                  <td className="border p-2">{record.timeStamp}</td>
+                  <td className="border p-2">{record.motiveText}</td>
+
                   <td className="border p-2">
                     <Link href={`/crime-record/${record.id}`}>
                       <button className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
