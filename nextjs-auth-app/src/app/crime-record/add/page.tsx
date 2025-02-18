@@ -4,7 +4,17 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AddIncidentDto } from "./AddIncidentDto";
 import withAuth from "../../hoc/withAuth";
-import { apiService } from '../../api/utils/apiService'; // Import the apiService
+import { apiService } from '../../api/utils/apiService';
+
+const precinctZipCodes: { [key: number]: string } = {
+  1: "1799",
+  2: "1772",
+  3: "1771",
+  4: "1776",
+  5: "1772",
+  7: "1773",
+  8: "1780",
+};
 
 const AddCrimePage = () => {
   const router = useRouter();
@@ -16,44 +26,29 @@ const AddCrimePage = () => {
     timeStamp: "",
     motive: 0,
     weather: 0,
-    precinct: 0
+    precinct: 0,
+    additionalInfo: "" // New field
   });
 
-  // State to store fetched dropdown values
+  const [location, setLocation] = useState("");
   const [crimeTypes, setCrimeTypes] = useState<string[]>([]);
   const [severities, setSeverities] = useState<string[]>([]);
   const [weathers, setWeathers] = useState<string[]>([]);
   const [precincts, setPrecincts] = useState<string[]>([]);
   const [motives, setMotives] = useState<string[]>([]);
-
-  // State for loading and error
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<{ [key: string]: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);  // New state for submit loading
 
-  // Fetch crime types and severity options
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        // Fetch crime types from API
-        const crimeTypeData = await apiService.get<{ [key: string]: string }>("/Incident/enums?name=type");
-        setCrimeTypes(Object.values(crimeTypeData));
-
-        // Fetch severity levels from API
-        const weatherData = await apiService.get<{ [key: string]: string }>("/Incident/enums?name=weather");
-        setWeathers(Object.values(weatherData));
-
-        //fetch precincts
-        const precincts = await apiService.get<{ [key: string]: string }>("/Incident/enums?name=precinct");
-        setPrecincts(Object.values(precincts));
-
-        //fetch motives
-        const motiveData = await apiService.get<{ [key: string]: string }>("/Incident/enums?name=motive");
-        setMotives(Object.values(motiveData));
-
-        // Fetch severity levels from API
-        const severityData = await apiService.get<{ [key: string]: string }>("/Incident/enums?name=severity");
-        setSeverities(Object.values(severityData));
+        setCrimeTypes(Object.values(await apiService.get("/Incident/enums?name=type")));
+        setWeathers(Object.values(await apiService.get("/Incident/enums?name=weather")));
+        setPrecincts(Object.values(await apiService.get("/Incident/enums?name=precinct")));
+        setMotives(Object.values(await apiService.get("/Incident/enums?name=motive")));
+        setSeverities(Object.values(await apiService.get("/Incident/enums?name=severity")));
       } catch (err) {
         setError("Failed to load dropdown data");
       } finally {
@@ -64,19 +59,37 @@ const AddCrimePage = () => {
     fetchDropdownData();
   }, []);
 
-  // Handle input changes
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setIncident({ ...incident, [e.target.name]: e.target.value });
+  const updateAddress = (newLocation: string, precinctIndex: number) => {
+    const precinctName = precincts[precinctIndex - 1] || "";
+    const zipCode = precinctZipCodes[precinctIndex] || "Unknown";
+    const formattedAddress = `${newLocation} ${precinctName} Muntinlupa City, NCR, Philippines`;
+    setIncident((prev) => ({ ...prev, address: formattedAddress.replace('_', ' ') }));
   };
 
-  // Submit the form and navigate back
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+
+    if (name === "location") {
+      setLocation(value);
+      updateAddress(value, incident.precinct);
+    } else if (name === "precinct") {
+      setIncident((prev) => {
+        const updatedIncident = { ...prev, [name]: Number(value) };
+        updateAddress(location, Number(value));
+        return updatedIncident;
+      });
+    } else {
+      setIncident({ ...incident, [name]: value });
+    }
+  };
+
   const handleSubmit = async () => {
-    const { crimeType, address, severity, timeStamp, motive, weather, precinct } = incident;
+    const { caseId, crimeType, severity, timeStamp, motive, weather, precinct, additionalInfo } = incident;
     const errors: { [key: string]: string } = {};
 
-    if (!incident.caseId) errors.caseId = "Case ID is required";
+    if (!caseId) errors.caseId = "Case ID is required";
     if (!crimeType) errors.crimeType = "Crime type is required";
-    if (!address) errors.address = "Address is required";
+    if (!location) errors.address = "Street address is required";
     if (!severity) errors.severity = "Severity is required";
     if (!timeStamp) errors.timeStamp = "Timestamp is required";
     if (!motive) errors.motive = "Motive is required";
@@ -88,144 +101,120 @@ const AddCrimePage = () => {
       return;
     }
 
-    try {
-      // Post to the API
-      await apiService.post("/incident", incident);
+    setIsSubmitting(true);  // Set submitting state to true
 
-      // Navigate back to crime list
+    try {
+      await apiService.post("/incident", incident);
       router.push("/crime-record");
     } catch (err) {
       setError("Failed to save crime record");
+    } finally {
+      setIsSubmitting(false);  // Set submitting state back to false
     }
   };
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="container mx-auto p-6 max-w-4xl">
       <h1 className="text-2xl font-semibold mb-4">Add New Crime Record</h1>
 
       {isLoading ? (
-        <div>Loading dropdown options...</div> // Loading message
+        <div>Loading dropdown options...</div>
       ) : error ? (
-        <div className="text-red-500">{error}</div> // Display error if any
+        <div className="text-red-500">{error}</div>
       ) : (
-        <div className="space-y-2">
-          <input
-            type="text"
-            name="caseId"
-            value={incident.caseId}
-            onChange={handleInputChange}
-            className="w-full border p-2 rounded"
-            placeholder="Case ID"
-          />
-          {validationErrors.caseId && <div className="text-red-500">{validationErrors.caseId}</div>}
+        <div className="space-y-4">
+          {/* Case ID & Timestamp */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <input type="text" name="caseId" value={incident.caseId} onChange={handleInputChange} className="border p-2 rounded w-full" placeholder="Case ID" />
+              {validationErrors.caseId && <p className="text-red-500 text-sm">{validationErrors.caseId}</p>}
+            </div>
+            <div>
+              <input type="datetime-local" name="timeStamp" value={incident.timeStamp} onChange={handleInputChange} className="border p-2 rounded w-full" />
+              {validationErrors.timeStamp && <p className="text-red-500 text-sm">{validationErrors.timeStamp}</p>}
+            </div>
+          </div>
 
-          <input
-            type="datetime-local"
-            name="timeStamp"
-            value={incident.timeStamp}
-            onChange={handleInputChange}
-            className="w-full border p-2 rounded"
-            placeholder="Date & Time"
-          />
-          {validationErrors.timeStamp && <div className="text-red-500">{validationErrors.timeStamp}</div>}
+          {/* Address & Precinct */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <input type="text" name="location" value={location} onChange={handleInputChange} className="border p-2 rounded w-full" placeholder="Street Address" />
+              {validationErrors.address && <p className="text-red-500 text-sm">{validationErrors.address}</p>}
+            </div>
+            <div>
+              <select name="precinct" value={incident.precinct} onChange={handleInputChange} className="border p-2 rounded w-full">
+                <option value="">Select Precinct</option>
+                {precincts.map((precinct, index) => (
+                  <option key={index} value={index + 1}>{precinct}</option>
+                ))}
+              </select>
+              {validationErrors.precinct && <p className="text-red-500 text-sm">{validationErrors.precinct}</p>}
+            </div>
+          </div>
+          <p className="text-gray-600 text-sm">Generated Address: {incident.address}</p>
 
-          <input
-            type="text"
-            name="address"
-            value={incident.address}
-            onChange={handleInputChange}
-            className="w-full border p-2 rounded"
-            placeholder="Location"
-          />
-          {validationErrors.address && <div className="text-red-500">{validationErrors.address}</div>}
+          {/* Crime Type & Severity */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <select name="crimeType" value={incident.crimeType} onChange={handleInputChange} className="border p-2 rounded w-full">
+                <option value="">Select Crime Type</option>
+                {crimeTypes.map((type, index) => (
+                  <option key={index} value={index + 1}>{type}</option>
+                ))}
+              </select>
+              {validationErrors.crimeType && <p className="text-red-500 text-sm">{validationErrors.crimeType}</p>}
+            </div>
+            <div>
+              <select name="severity" value={incident.severity} onChange={handleInputChange} className="border p-2 rounded w-full">
+                <option value="">Select Severity</option>
+                {severities.map((severity, index) => (
+                  <option key={index} value={index + 1}>{severity}</option>
+                ))}
+              </select>
+              {validationErrors.severity && <p className="text-red-500 text-sm">{validationErrors.severity}</p>}
+            </div>
+          </div>
 
-          {/* Crime Type Dropdown */}
-          <select
-            name="crimeType"
-            value={incident.crimeType}
-            onChange={handleInputChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select Crime Type</option>
-            {crimeTypes.map((type, index) => (
-              <option key={index} value={index + 1}>{type}</option>
-            ))}
-          </select>
-          {validationErrors.crimeType && <div className="text-red-500">{validationErrors.crimeType}</div>}
+          {/* Motive & Weather */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <select name="motive" value={incident.motive} onChange={handleInputChange} className="border p-2 rounded w-full">
+                <option value="">Select Motive</option>
+                {motives.map((motive, index) => (
+                  <option key={index} value={index + 1}>{motive}</option>
+                ))}
+              </select>
+              {validationErrors.motive && <p className="text-red-500 text-sm">{validationErrors.motive}</p>}
+            </div>
+            <div>
+              <select name="weather" value={incident.weather} onChange={handleInputChange} className="border p-2 rounded w-full">
+                <option value="">Select Weather</option>
+                {weathers.map((weather, index) => (
+                  <option key={index} value={index + 1}>{weather}</option>
+                ))}
+              </select>
+              {validationErrors.weather && <p className="text-red-500 text-sm">{validationErrors.weather}</p>}
+            </div>
+          </div>
 
-          {/* Severity Dropdown */}
-          <select
-            name="severity"
-            value={incident.severity}
-            onChange={handleInputChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select Severity</option>
-            {severities.map((severity, index) => (
-              <option key={index} value={index + 1}>{severity}</option>
-            ))}
-          </select>
-          {validationErrors.severity && <div className="text-red-500">{validationErrors.severity}</div>}
+          {/* Additional Information */}
+          <div>
+            <textarea name="additionalInfo" value={incident.additionalInfo} onChange={handleInputChange} className="border p-2 rounded w-full h-24" placeholder="Additional Information (optional)" />
+          </div>
 
-          {/* Motive Dropdown */}
-          <select
-            name="motive"
-            value={incident.motive}
-            onChange={handleInputChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select Motive</option>
-            {motives.map((motive, index) => (
-              <option key={index} value={index + 1}>{motive}</option>
-            ))}
-          </select>
-          {validationErrors.motive && <div className="text-red-500">{validationErrors.motive}</div>}
-
-          {/* Precinct Dropdown */}
-          <select
-            name="precinct"
-            value={incident.precinct}
-            onChange={handleInputChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select Precinct</option>
-            {precincts.map((precinct, index) => (
-              <option key={index} value={index + 1}>{precinct}</option>
-            ))}
-          </select>
-          {validationErrors.precinct && <div className="text-red-500">{validationErrors.precinct}</div>}
-
-          {/* Weather Dropdown */}
-          <select
-            name="weather"
-            value={incident.weather}
-            onChange={handleInputChange}
-            className="w-full border p-2 rounded"
-          >
-            <option value="">Select Weather</option>
-            {weathers.map((weather, index) => (
-              <option key={index} value={index + 1}>{weather}</option>
-            ))}
-          </select>
-          {validationErrors.weather && <div className="text-red-500">{validationErrors.weather}</div>}
+          {/* Buttons */}
+          <div className="flex justify-end space-x-2">
+            <button className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500" onClick={() => router.push("/crime-record")}>Cancel</button>
+            <button
+              className={`bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 ${isSubmitting ? 'opacity-50 cursor-not-allowed' : ''}`}
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Saving..." : "Save"}
+            </button>
+          </div>
         </div>
       )}
-
-      {/* Buttons for actions */}
-      <div className="flex justify-end mt-4">
-        <button
-          className="bg-gray-400 text-white px-4 py-2 rounded-md mr-2 hover:bg-gray-500 transition"
-          onClick={() => router.push("/crime-record")}
-        >
-          Cancel
-        </button>
-        <button
-          className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition"
-          onClick={handleSubmit}
-        >
-          Save
-        </button>
-      </div>
     </div>
   );
 };

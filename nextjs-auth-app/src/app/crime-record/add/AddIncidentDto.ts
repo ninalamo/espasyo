@@ -9,4 +9,5 @@ export interface AddIncidentDto {
   motive: number;
   weather: number;
   precinct: number;
+  additionalInfo: string;
 }
