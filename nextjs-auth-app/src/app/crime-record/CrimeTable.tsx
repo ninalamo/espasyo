@@ -1,7 +1,6 @@
 'use client';
 
 import { format } from 'date-fns';
-import { CrimeListItemDto } from "./CrimeListItemDto";
 import Link from "next/link";
 import { IncidentDto } from "./IncidentDto";
 
