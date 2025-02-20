@@ -9,10 +9,10 @@ import { apiService } from '../api/utils/apiService';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { format, subMonths, subDays } from 'date-fns';
+import { ClusterDto, ClusterResponse } from '../analysis/ClusterDto';
+import { ErrorDto } from '../../types/ErrorDto';
 
-const Map = dynamic(() => import('../../components/Map'), {
-  ssr: false // This ensures that the map component only renders on the client side
-});
+const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
 const AnalysisPage = () => {
   const { data: session, status } = useSession();
@@ -20,9 +20,9 @@ const AnalysisPage = () => {
   const [dateFrom, setDateFrom] = useState(format(subMonths(new Date(), 1), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [clusters, setClusters] = useState<ClusterDto[]>([]);
+  const [mapKey, setMapKey] = useState(0); // Add key to force re-render
 
-  // Redirect to login if the user is not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
       router.push('/login');
@@ -33,39 +33,30 @@ const AnalysisPage = () => {
     return <div className="flex items-center justify-center min-h-screen text-gray-700">Loading...</div>;
   }
 
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
-  // Handle form submission for filtering
   const handleFilter = async () => {
     if (!dateFrom || !dateTo) {
-      setError("Please select both start and end dates.");
       toast.error("Please select both start and end dates.");
       return;
     }
 
     setLoading(true);
-    setError(null);
+    setClusters([]);  // Clear the clusters
+    setMapKey((prevKey) => prevKey + 1); // Force re-render of the Map
 
     try {
-      const response = await apiService.put("/incident/clusters", {
-        dateFrom,
-        dateTo
-      });
+      const response = await apiService.put<ClusterResponse | ErrorDto>("/incident/clusters", { dateFrom, dateTo });
 
-      console.log("Cluster data:", response);
-      toast.success("Success");
-      // Handle response (e.g., update state, refresh map data)
-    } catch (err) {
-      if (err.response && err.response.status === 400) {
-        const errorMessage = err.response.data.message || "Failed to generate clusters. Please try again.";
-        setError(errorMessage);
-        toast.error(errorMessage);
+      if ("message" in response) {
+        toast.error(response.message);
       } else {
-        setError("Failed to generate clusters. Please try again.");
-        toast.error("Failed to generate clusters. Please try again.");
+        console.log("Cluster data:", response);
+        setClusters(response.result);
+        toast.success("Clusters generated successfully!");
       }
+    } catch (err: any) {
+      toast.error(`Failed to generate clusters. ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -76,10 +67,6 @@ const AnalysisPage = () => {
       <ToastContainer />
       <h1 className="text-2xl font-semibold mb-4">Crime Analysis</h1>
 
-      {/* Error Message */}
-      {error && <div className="text-red-600 mb-4">{error}</div>}
-
-      {/* Date Range Selection and Filter Button */}
       <div className="mb-4 flex justify-end space-x-4 items-end">
         <div>
           <label htmlFor="dateFrom" className="block mb-2">Start Date:</label>
@@ -112,9 +99,8 @@ const AnalysisPage = () => {
         </button>
       </div>
 
-      {/* Map centered on Muntinlupa City */}
       <div className="mt-6">
-        <Map center={[14.4081, 121.0415]} zoom={14} />
+        <Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} />
       </div>
     </div>
   );
