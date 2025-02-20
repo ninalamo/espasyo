@@ -40,6 +40,9 @@ export default function Navbar() {
                     <Link href="/crime-record" className="hover:underline">
                         Crime Records
                     </Link>
+                    <Link href="/analysis" className="hover:underline">
+                        Analysis
+                    </Link>
 
                     {session && (
                         <div className="relative" ref={dropdownRef}>

@@ -9,7 +9,6 @@ import withAuth from '../hoc/withAuth';
 import { apiService } from '../api/utils/apiService'; // Import apiService
 import CrimeTable from './CrimeTable'; // Import the CrimeTable component
 import { IncidentDto } from './IncidentDto';
-import { CrimeListItemDto } from './CrimeListItemDto';
 
 const CrimeList = () => {
   const { data: session, status } = useSession();

@@ -1,7 +1,6 @@
 'use client';
 
 import { format } from 'date-fns';
-import { CrimeListItemDto } from "./CrimeListItemDto";
 import Link from "next/link";
 import { IncidentDto } from "./IncidentDto";
 
@@ -69,7 +68,7 @@ const CrimeTable: React.FC<CrimeTableProps> = ({
                 <td className="border p-2">{record.motiveText}</td>
                 <td className="border p-2">
                   <Link href={`/crime-record/${record.id}`}>
-                    <button className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+                    <button className="bg-gray-500 text-white px-3 py-1 rounded-md hover:bg-gray-600 transition" disabled title="Disabled">
                       View
                     </button>
                   </Link>
