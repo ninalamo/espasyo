@@ -1,4 +1,3 @@
-// analysis.tsx
 'use client';
 
 import { useSession } from 'next-auth/react';
@@ -6,6 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import withAuth from '../hoc/withAuth';
 import dynamic from 'next/dynamic';
+import { apiService } from '../api/utils/apiService';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { format, subMonths, subDays } from 'date-fns';
 
 const Map = dynamic(() => import('../../components/Map'), {
   ssr: false // This ensures that the map component only renders on the client side
@@ -14,8 +17,10 @@ const Map = dynamic(() => import('../../components/Map'), {
 const AnalysisPage = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [dateFrom, setDateFrom] = useState(format(subMonths(new Date(), 1), 'yyyy-MM-dd'));
+  const [dateTo, setDateTo] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Redirect to login if the user is not authenticated
   useEffect(() => {
@@ -33,34 +38,67 @@ const AnalysisPage = () => {
   }
 
   // Handle form submission for filtering
-  const handleFilter = () => {
-    // Placeholder for filter logic
+  const handleFilter = async () => {
+    if (!dateFrom || !dateTo) {
+      setError("Please select both start and end dates.");
+      toast.error("Please select both start and end dates.");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiService.put("/incident/clusters", {
+        dateFrom,
+        dateTo
+      });
+
+      console.log("Cluster data:", response);
+      toast.success("Success");
+      // Handle response (e.g., update state, refresh map data)
+    } catch (err) {
+      if (err.response && err.response.status === 400) {
+        const errorMessage = err.response.data.message || "Failed to generate clusters. Please try again.";
+        setError(errorMessage);
+        toast.error(errorMessage);
+      } else {
+        setError("Failed to generate clusters. Please try again.");
+        toast.error("Failed to generate clusters. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="container mx-auto p-6">
+      <ToastContainer />
       <h1 className="text-2xl font-semibold mb-4">Crime Analysis</h1>
+
+      {/* Error Message */}
+      {error && <div className="text-red-600 mb-4">{error}</div>}
 
       {/* Date Range Selection and Filter Button */}
       <div className="mb-4 flex justify-end space-x-4 items-end">
         <div>
-          <label htmlFor="startDate" className="block mb-2">Start Date:</label>
+          <label htmlFor="dateFrom" className="block mb-2">Start Date:</label>
           <input
             type="date"
-            id="startDate"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            id="dateFrom"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
             className="border border-gray-300 p-2 rounded-md"
           />
         </div>
 
         <div>
-          <label htmlFor="endDate" className="block mb-2">End Date:</label>
+          <label htmlFor="dateTo" className="block mb-2">End Date:</label>
           <input
             type="date"
-            id="endDate"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
+            id="dateTo"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
             className="border border-gray-300 p-2 rounded-md"
           />
         </div>
@@ -68,8 +106,9 @@ const AnalysisPage = () => {
         <button
           onClick={handleFilter}
           className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition h-10"
+          disabled={loading}
         >
-          Generate Cluster
+          {loading ? "Generating..." : "Generate Cluster"}
         </button>
       </div>
 
