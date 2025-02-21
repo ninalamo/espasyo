@@ -11,6 +11,8 @@ import 'react-toastify/dist/ReactToastify.css';
 import { format, subMonths, subDays } from 'date-fns';
 import { ClusterDto, ClusterResponse } from '../analysis/ClusterDto';
 import { ErrorDto } from '../../types/ErrorDto';
+import ScatterPlot from '../../components/ScatterPlot'; // Import the ScatterPlot component
+import { Tab } from '@headlessui/react';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
@@ -62,6 +64,12 @@ const AnalysisPage = () => {
     }
   };
 
+  const formattedData = clusters.map(d => ({
+    x: d.latitude,
+    y: d.longitude,
+    clusterId: d.clusterId
+  }));
+
   return (
     <div className="container mx-auto p-6">
       <ToastContainer />
@@ -99,9 +107,36 @@ const AnalysisPage = () => {
         </button>
       </div>
 
-      <div className="mt-6">
-        <Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} />
-      </div>
+      <Tab.Group>
+        <Tab.List className="flex p-1 space-x-1 bg-blue-900/20 rounded-xl">
+          <Tab
+            className={({ selected }) =>
+              selected
+                ? 'w-full py-2.5 text-sm leading-5 font-medium text-blue-700 bg-white rounded-lg'
+                : 'w-full py-2.5 text-sm leading-5 font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
+            }
+          >
+            Map
+          </Tab>
+          <Tab
+            className={({ selected }) =>
+              selected
+                ? 'w-full py-2.5 text-sm leading-5 font-medium text-blue-700 bg-white rounded-lg'
+                : 'w-full py-2.5 text-sm leading-5 font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
+            }
+          >
+            Graph
+          </Tab>
+        </Tab.List>
+        <Tab.Panels className="mt-2">
+          <Tab.Panel>
+            <Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} />
+          </Tab.Panel>
+          <Tab.Panel>
+            <ScatterPlot data={formattedData} />
+          </Tab.Panel>
+        </Tab.Panels>
+      </Tab.Group>
     </div>
   );
 };
