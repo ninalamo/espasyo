@@ -12,7 +12,7 @@ import { format, subMonths, subDays } from 'date-fns';
 import { ClusterDto, ClusterResponse } from '../analysis/ClusterDto';
 import { ErrorDto } from '../../types/ErrorDto';
 import ScatterPlot from '../../components/ScatterPlot'; // Import the ScatterPlot component
-import { Tab } from '@headlessui/react';
+import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
@@ -107,8 +107,8 @@ const AnalysisPage = () => {
         </button>
       </div>
 
-      <Tab.Group>
-        <Tab.List className="flex p-1 space-x-1 bg-blue-900/20 rounded-xl">
+      <TabGroup>
+        <TabList className="flex p-1 space-x-1 bg-blue-900/20 rounded-xl">
           <Tab
             className={({ selected }) =>
               selected
@@ -127,16 +127,16 @@ const AnalysisPage = () => {
           >
             Graph
           </Tab>
-        </Tab.List>
-        <Tab.Panels className="mt-2">
-          <Tab.Panel>
+        </TabList>
+        <TabPanels className="mt-2">
+          <TabPanel>
             <Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} />
-          </Tab.Panel>
-          <Tab.Panel>
+          </TabPanel>
+          <TabPanel>
             <ScatterPlot data={formattedData} />
-          </Tab.Panel>
-        </Tab.Panels>
-      </Tab.Group>
+          </TabPanel>
+        </TabPanels>
+      </TabGroup>
     </div>
   );
 };
