@@ -14,13 +14,14 @@ import { ErrorDto } from '../../types/ErrorDto';
 import ScatterPlot from '../../components/ScatterPlot'; // Import the ScatterPlot component
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
+import QueryBar from './QueryBar';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
 const features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "CrimeMotive"];
 
 const AnalysisPage = () => {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
   const [dateFrom, setDateFrom] = useState(format(subMonths(new Date(), 1), 'yyyy-MM-dd'));
   const [dateTo, setDateTo] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
@@ -39,13 +40,7 @@ const AnalysisPage = () => {
     }
   }, [status, router]);
 
-  const handleFeatureChange = (feature: string) => {
-    setSelectedFeature(feature);
-  };
 
-  const handleSelectAll = () => {
-    setSelectedFeatures(features);
-  };
 
   const handleFilter = async () => {
     if (!dateFrom || !dateTo) {
@@ -103,94 +98,17 @@ const AnalysisPage = () => {
       <ToastContainer />
       <h1 className="text-2xl font-semibold mb-4">Crime Analysis</h1>
 
+      <QueryBar
+        dateFrom={dateFrom} setDateFrom={setDateFrom}
+        dateTo={dateTo} setDateTo={setDateTo}
+        numberOfClusters={numberOfClusters} setNumberOfClusters={setNumberOfClusters}
+        numberOfRuns={numberOfRuns} setNumberOfRuns={setNumberOfRuns}
+        selectedFeature={selectedFeature} setSelectedFeature={setSelectedFeature}
+        loading={loading}
+        handleFilter={handleFilter}
+      />
 
-      <div className="mb-4 flex flex-col items-end space-y-2">
-        <div className="flex space-x-4 items-end">
-          <div>
-            <label htmlFor="dateFrom" className="block mb-2">Start Date:</label>
-            <input
-              type="date"
-              id="dateFrom"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="border border-gray-300 p-2 rounded-md"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="dateTo" className="block mb-2">End Date:</label>
-            <input
-              type="date"
-              id="dateTo"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="border border-gray-300 p-2 rounded-md"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="numberOfClusters" className="block mb-2">Number of Clusters:</label>
-            <input
-              type="number"
-              id="numberOfClusters"
-              value={numberOfClusters}
-              onChange={(e) => {
-                const value = Math.min(10, Math.max(3, Number(e.target.value)));
-                setNumberOfClusters(value);
-              }}
-              className="border border-gray-300 p-2 rounded-md"
-            />
-          </div>
-
-          {/* New Number of Runs input */}
-          <div>
-            <label htmlFor="numberOfRuns" className="block mb-2">Number of Runs:</label>
-            <input
-              type="number"
-              id="numberOfRuns"
-              value={numberOfRuns}
-              onChange={(e) => {
-                const value = Math.min(10, Math.max(1, Number(e.target.value)));
-                setNumberOfRuns(value);
-              }}
-              className="border border-gray-300 p-2 rounded-md"
-            />
-          </div>
-
-          <button
-            onClick={handleFilter}
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition h-10"
-            disabled={loading}
-          >
-            {loading ? "Processing..." : "Process"}
-          </button>
-        </div>
-
-        <div className="flex space-x-4 items-center">
-          <span>Select Features:</span>
-          {features.map(feature => (
-            <div key={feature} className="flex items-center">
-              <input
-                type="radio"
-                id={feature}
-                name="selectedFeature"
-                value={feature}
-                checked={selectedFeature === feature}
-                onChange={() => handleFeatureChange(feature)}
-                className="mr-2"
-              />
-              <label htmlFor={feature}>{feature}</label>
-            </div>
-          ))}
-          <button
-            onClick={handleSelectAll}
-            className="text-blue-600 hover:underline transition h-10"
-          >
-            Select All
-          </button>
-        </div>
-      </div>
-
+      {/* Cluster Id Legend */}
       {clusters.length > 0 && (
         <div className="mb-4">
           <h2 className="text-xl font-semibold mb-2">Cluster Legend</h2>
@@ -210,8 +128,6 @@ const AnalysisPage = () => {
           </div>
         </div>
       )}
-
-
 
       <TabGroup>
         <TabList className="flex p-1 space-x-1 bg-blue-900/20 rounded-xl">
