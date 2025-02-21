@@ -13,6 +13,7 @@ import { ClusterDto, ClusterResponse } from '../analysis/ClusterDto';
 import { ErrorDto } from '../../types/ErrorDto';
 import ScatterPlot from '../../components/ScatterPlot'; // Import the ScatterPlot component
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
+import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
@@ -93,16 +94,6 @@ const AnalysisPage = () => {
     }
   };
 
-  const formattedData = clusters.map(d => ({
-    x: d.latitude,
-    y: d.longitude,
-    clusterId: d.clusterId
-  }));
-
-  const clusterColors = [
-    '#FF5733', '#33FF57', '#3357FF', '#F033FF', '#FF33A1',
-    '#33FFF7', '#FFA533', '#FF33D1', '#D1FF33', '#33FF85'
-  ];
 
   const clusterCounts = clusters.reduce((acc, cluster) => {
     acc[cluster.clusterId] = (acc[cluster.clusterId] || 0) + 1;
@@ -172,7 +163,7 @@ const AnalysisPage = () => {
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition h-10"
             disabled={loading}
           >
-            {loading ? "Generating..." : "Generate Cluster"}
+            {loading ? "Processing..." : "Process"}
           </button>
         </div>
 
@@ -203,15 +194,23 @@ const AnalysisPage = () => {
         <div className="mb-4">
           <h2 className="text-xl font-semibold mb-2">Cluster Legend</h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            {[...Array(numberOfClusters)].map((_, index) => (
-              <div key={index} className="flex items-center">
-                <span className={`w-4 h-4 mr-2 inline-block`} style={{ backgroundColor: clusterColors[index % clusterColors.length] }}></span>
-                <span>Cluster {index + 1}: {clusterCounts[index + 1] || 0}</span>
-              </div>
-            ))}
+            {[...Array(numberOfClusters)].map((_, index) => {
+              const clusterId = index + 1;
+              return (
+                <div key={clusterId} className="flex items-center">
+                  <span
+                    className="w-4 h-4 mr-2 inline-block"
+                    style={{ backgroundColor: clusterColorsMapping[clusterId] || '#D3D3D3' }}
+                  ></span>
+                  <span>Cluster {clusterId}: {clusterCounts[clusterId] || 0}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
+
+
 
       <TabGroup>
         <TabList className="flex p-1 space-x-1 bg-blue-900/20 rounded-xl">
@@ -219,8 +218,13 @@ const AnalysisPage = () => {
           <Tab className={({ selected }) => selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg' : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'}>Graph</Tab>
         </TabList>
         <TabPanels className="mt-2">
-          <TabPanel><Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} /></TabPanel>
-          <TabPanel><ScatterPlot data={formattedData} /></TabPanel>
+          <TabPanel><Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} clusterColorsMapping={clusterColorsMapping} /></TabPanel>
+          <TabPanel>
+            <ScatterPlot data={clusters.map(d => ({
+            x: d.latitude,
+            y: d.longitude,
+            clusterId: d.clusterId
+          }))} clusterColorsMapping={clusterColorsMapping} /></TabPanel>
         </TabPanels>
       </TabGroup>
     </div>

@@ -19,18 +19,13 @@ interface Cluster {
 interface MapProps {
   center: [number, number];
   zoom: number;
-  clusters: Cluster[]; // Receive crime data points
+  clusters: Cluster[];
+  clusterColorsMapping: Record<number, string>;
 }
 
-const Map: React.FC<MapProps> = ({ center, zoom, clusters }) => {
+const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
-
-  const clusterColors: Record<number, string> = {
-    1: '#FFB3B3', // Pastel Red
-    2: '#FFD966', // Pastel Yellow
-    3: '#A2D39B', // Pastel Green
-  };
 
   useEffect(() => {
     if (mapRef.current && !leafletMap.current) {
@@ -43,18 +38,18 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters }) => {
 
     if (leafletMap.current) {
       clusters.forEach((cluster) => {
-        const color = clusterColors[cluster.clusterId] || '#D3D3D3'; // Default pastel gray
+        const color = clusterColorsMapping[cluster.clusterId] || '#D3D3D3';
 
         L.circleMarker([cluster.latitude, cluster.longitude], {
-          color: '#555', // Border color
-          fillColor: color, // Fill color based on clusterId
-          fillOpacity: 0.7,
+          color: '#FFF',
+          fillColor: color,
+          fillOpacity: 1,
           radius: 8,
         })
           .addTo(leafletMap.current)
           .bindPopup(`
             <div>
-             <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
+              <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
               <p><strong>Case ID:</strong> ${cluster.caseId}</p>
               <p><strong>Crime Type:</strong> ${cluster.crimeType}</p>
               <p><strong>Severity:</strong> ${cluster.severity}</p>
@@ -63,7 +58,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters }) => {
           `);
       });
     }
-  }, [center, zoom, clusters]);
+  }, [center, zoom, clusters, clusterColorsMapping]);
 
   return <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} />;
 };
