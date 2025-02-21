@@ -28,6 +28,8 @@ const AnalysisPage = () => {
   const [clusters, setClusters] = useState<ClusterDto[]>([]);
   const [mapKey, setMapKey] = useState(0); // Add key to force re-render
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>(features);
+  const [selectedFeature, setSelectedFeature] = useState<string>(features[0]); // Default to first feature
+
   const [numberOfClusters, setNumberOfClusters] = useState(3);
   const [numberOfRuns, setNumberOfRuns] = useState(1); // New state for number of runs
 
@@ -38,11 +40,7 @@ const AnalysisPage = () => {
   }, [status, router]);
 
   const handleFeatureChange = (feature: string) => {
-    setSelectedFeatures(prevFeatures =>
-      prevFeatures.includes(feature)
-        ? prevFeatures.filter(f => f !== feature)
-        : [...prevFeatures, feature]
-    );
+    setSelectedFeature(feature);
   };
 
   const handleSelectAll = () => {
@@ -104,6 +102,7 @@ const AnalysisPage = () => {
     <div className="container mx-auto p-6">
       <ToastContainer />
       <h1 className="text-2xl font-semibold mb-4">Crime Analysis</h1>
+
 
       <div className="mb-4 flex flex-col items-end space-y-2">
         <div className="flex space-x-4 items-end">
@@ -172,9 +171,11 @@ const AnalysisPage = () => {
           {features.map(feature => (
             <div key={feature} className="flex items-center">
               <input
-                type="checkbox"
+                type="radio"
                 id={feature}
-                checked={selectedFeatures.includes(feature)}
+                name="selectedFeature"
+                value={feature}
+                checked={selectedFeature === feature}
                 onChange={() => handleFeatureChange(feature)}
                 className="mr-2"
               />
@@ -221,10 +222,10 @@ const AnalysisPage = () => {
           <TabPanel><Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} clusterColorsMapping={clusterColorsMapping} /></TabPanel>
           <TabPanel>
             <ScatterPlot data={clusters.map(d => ({
-            x: d.latitude,
-            y: d.longitude,
-            clusterId: d.clusterId
-          }))} clusterColorsMapping={clusterColorsMapping} /></TabPanel>
+              x: d.longitude,
+              y: d.latitude,
+              clusterId: d.clusterId
+            }))} clusterColorsMapping={clusterColorsMapping} /></TabPanel>
         </TabPanels>
       </TabGroup>
     </div>
