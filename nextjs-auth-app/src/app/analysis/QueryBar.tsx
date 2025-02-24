@@ -1,9 +1,6 @@
-import { useState } from 'react';
-import { toast } from 'react-toastify';
+import FeatureSelect from "./FeatureSelect";
 
-const features = ["CrimeType", "Severity", "PoliceDistrict", "Weather", "CrimeMotive"];
-
-interface QueryBarProps {
+export interface QueryBarProps {
   dateFrom: string;
   setDateFrom: (date: string) => void;
   dateTo: string;
@@ -26,80 +23,66 @@ const QueryBar = ({
   selectedFeature, setSelectedFeature,
   loading, handleFilter
 }: QueryBarProps) => {
-
   return (
-    <div className="mb-4 flex flex-col items-end space-y-2">
-      <div className="flex space-x-4 items-end">
-        <div>
-          <label htmlFor="dateFrom" className="block mb-2">Start Date:</label>
+    <div className="bg-white shadow-lg rounded-lg p-6 w-full">
+      <h2 className="text-sm font-semibold text-gray-800 mb-4">Query Parameters</h2>
+      <div className="grid grid-cols-6 gap-4 items-end">
+        {/* Feature Select */}
+        <div className="col-span-1">
+          <FeatureSelect selectedFeature={selectedFeature} setSelectedFeature={setSelectedFeature} />
+        </div>
+        {/* Date Pickers */}
+        <div className="col-span-1">
+          <label htmlFor="dateFrom" className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
           <input
             type="date"
             id="dateFrom"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="border border-gray-300 p-2 rounded-md"
+            className="border border-gray-300 p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
-
-        <div>
-          <label htmlFor="dateTo" className="block mb-2">End Date:</label>
+        <div className="col-span-1">
+          <label htmlFor="dateTo" className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
           <input
             type="date"
             id="dateTo"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="border border-gray-300 p-2 rounded-md"
+            className="border border-gray-300 p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
-
-        <div>
-          <label htmlFor="numberOfClusters" className="block mb-2">Number of Clusters:</label>
+        {/* Clusters & Runs */}
+        <div className="col-span-1">
+          <label htmlFor="numberOfClusters" className="block text-xs font-medium text-gray-600 mb-1">Clusters</label>
           <input
             type="number"
             id="numberOfClusters"
             value={numberOfClusters}
             onChange={(e) => setNumberOfClusters(Math.min(10, Math.max(3, Number(e.target.value))))}
-            className="border border-gray-300 p-2 rounded-md"
+            className="border border-gray-300 p-2 rounded-md w-full text-center focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
-
-        <div>
-          <label htmlFor="numberOfRuns" className="block mb-2">Number of Runs:</label>
+        <div className="col-span-1">
+          <label htmlFor="numberOfRuns" className="block text-xs font-medium text-gray-600 mb-1">Runs</label>
           <input
             type="number"
             id="numberOfRuns"
             value={numberOfRuns}
             onChange={(e) => setNumberOfRuns(Math.min(10, Math.max(1, Number(e.target.value))))}
-            className="border border-gray-300 p-2 rounded-md"
+            className="border border-gray-300 p-2 rounded-md w-full text-center focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
-
-        <button
-          onClick={handleFilter}
-          className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition h-10"
-          disabled={loading}
-        >
-          {loading ? "Processing..." : "Process"}
-        </button>
-      </div>
-
-      {/* Radio Button Selection */}
-      <div className="flex space-x-4 items-center">
-        <span>Select Feature:</span>
-        {features.map(feature => (
-          <div key={feature} className="flex items-center">
-            <input
-              type="radio"
-              id={feature}
-              name="selectedFeature"
-              value={feature}
-              checked={selectedFeature === feature}
-              onChange={() => setSelectedFeature(feature)}
-              className="mr-2"
-            />
-            <label htmlFor={feature}>{feature}</label>
-          </div>
-        ))}
+        {/* Process Button */}
+        <div className="col-span-1">
+          <button
+            onClick={handleFilter}
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
+            disabled={loading}
+          >
+            {loading ? "Processing..." : "Process"}
+          </button>
+        </div>
       </div>
     </div>
   );
