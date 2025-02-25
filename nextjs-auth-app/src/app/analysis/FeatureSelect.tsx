@@ -1,6 +1,11 @@
 import Select from "react-select";
 
-const FeatureSelect = ({ selectedFeature, setSelectedFeature }) => {
+interface FeatureSelectProps {
+  selectedFeatures: string[];
+  setSelectedFeatures: (features: string[]) => void;
+}
+
+const FeatureSelect = ({ selectedFeatures, setSelectedFeatures }: FeatureSelectProps) => {
   const features = [
     { value: "CrimeType", label: "Crime Type" },
     { value: "Severity", label: "Severity" },
@@ -10,15 +15,19 @@ const FeatureSelect = ({ selectedFeature, setSelectedFeature }) => {
   ];
 
   return (
-    <div>
-      <label className="block text-xs font-medium text-gray-600 mb-1">Feature</label>
+    <div className="mb-4">
+      <label className="block text-sm font-medium text-gray-600 mb-1">Select Features</label>
       <Select
+        isMulti
         options={features}
-        value={features.find((f) => f.value === selectedFeature)}
-        onChange={(selectedOption) => setSelectedFeature(selectedOption?.value)}
+        value={features.filter((f) => selectedFeatures.includes(f.value))}
+        onChange={(selectedOptions) =>
+          setSelectedFeatures(selectedOptions ? selectedOptions.map((option) => option.value) : [])
+        }
         isSearchable
         className="w-full"
         classNamePrefix="select"
+        placeholder="Select features..."
       />
     </div>
   );

@@ -9,8 +9,8 @@ export interface QueryBarProps {
   setNumberOfClusters: (num: number) => void;
   numberOfRuns: number;
   setNumberOfRuns: (num: number) => void;
-  selectedFeature: string;
-  setSelectedFeature: (feature: string) => void;
+  selectedFeatures: string[];
+  setSelectedFeatures: (feature: string[]) => void;
   loading: boolean;
   handleFilter: () => void;
 }
@@ -20,19 +20,20 @@ const QueryBar = ({
   dateTo, setDateTo,
   numberOfClusters, setNumberOfClusters,
   numberOfRuns, setNumberOfRuns,
-  selectedFeature, setSelectedFeature,
+  selectedFeatures, setSelectedFeatures,
   loading, handleFilter
 }: QueryBarProps) => {
   return (
     <div className="bg-white shadow-lg rounded-lg p-6 w-full">
       <h2 className="text-sm font-semibold text-gray-800 mb-4">Query Parameters</h2>
-      <div className="grid grid-cols-6 gap-4 items-end">
-        {/* Feature Select */}
-        <div className="col-span-1">
-          <FeatureSelect selectedFeature={selectedFeature} setSelectedFeature={setSelectedFeature} />
+  {/* Feature Select */}
+  <div className="col-span-2">
+          <FeatureSelect selectedFeatures={selectedFeatures} setSelectedFeatures={setSelectedFeatures} />
         </div>
+      <div className="grid grid-cols-8 gap-2 items-end">
+
         {/* Date Pickers */}
-        <div className="col-span-1">
+        <div className="col-span-2">
           <label htmlFor="dateFrom" className="block text-xs font-medium text-gray-600 mb-1">Start Date</label>
           <input
             type="date"
@@ -42,7 +43,7 @@ const QueryBar = ({
             className="border border-gray-300 p-2 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
         </div>
-        <div className="col-span-1">
+        <div className="col-span-2">
           <label htmlFor="dateTo" className="block text-xs font-medium text-gray-600 mb-1">End Date</label>
           <input
             type="date"
@@ -74,7 +75,7 @@ const QueryBar = ({
           />
         </div>
         {/* Process Button */}
-        <div className="col-span-1">
+        <div className="col-span-2">
           <button
             onClick={handleFilter}
             className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
@@ -83,7 +84,10 @@ const QueryBar = ({
             {loading ? "Processing..." : "Process"}
           </button>
         </div>
+
+
       </div>
+
     </div>
   );
 };

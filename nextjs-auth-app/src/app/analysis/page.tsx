@@ -29,7 +29,7 @@ const AnalysisPage = () => {
   const [loading, setLoading] = useState(false);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [mapKey, setMapKey] = useState(0); // Add key to force re-render
-  const [selectedFeature, setSelectedFeature] = useState<string>(''); // Default to first feature
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]); // Default to first feature
 
   const [numberOfClusters, setNumberOfClusters] = useState(3);
   const [numberOfRuns, setNumberOfRuns] = useState(1); // New state for number of runs
@@ -50,14 +50,14 @@ const AnalysisPage = () => {
 
   const handleFilter = async () => {
 
-    console.log("Selected features:", selectedFeature);
+    console.log("Selected features:", selectedFeatures);
 
     if (!dateFrom || !dateTo) {
       toast.error("Please select both start and end dates.");
       return;
     }
 
-    if (selectedFeature === '') {
+    if (selectedFeatures === null || selectedFeatures.length === 0) {
       toast.error("Please select a feature.");
       return;
     }
@@ -80,7 +80,7 @@ const AnalysisPage = () => {
       const payload =  {
         dateFrom,
         dateTo,
-        features: [selectedFeature, "Latitude", "Longitude"],
+        features: [...selectedFeatures, "Latitude", "Longitude"],
         numberOfClusters,
         numberOfRuns,
         filters:{
@@ -124,7 +124,7 @@ const AnalysisPage = () => {
         dateTo={dateTo} setDateTo={setDateTo}
         numberOfClusters={numberOfClusters} setNumberOfClusters={setNumberOfClusters}
         numberOfRuns={numberOfRuns} setNumberOfRuns={setNumberOfRuns}
-        selectedFeature={selectedFeature} setSelectedFeature={setSelectedFeature}
+        selectedFeatures={selectedFeatures} setSelectedFeatures={setSelectedFeatures}
         loading={loading}
         handleFilter={handleFilter}
       />
@@ -177,8 +177,8 @@ const AnalysisPage = () => {
             <ScatterPlot
               data={clusters.flatMap(cluster =>
               cluster.clusterItems.map(item => ({
-                x: item.longitude,
-                y: item.latitude,
+                x: Number(item.longitude.toFixed(6)),
+                y: Number(item.latitude.toFixed(6)),
                 clusterId: cluster.clusterId
               }))
               )}
