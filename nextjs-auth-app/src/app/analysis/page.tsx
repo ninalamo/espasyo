@@ -80,7 +80,7 @@ const AnalysisPage = () => {
       const payload =  {
         dateFrom,
         dateTo,
-        features: [...selectedFeatures, "Latitude", "Longitude"],
+        features: selectedFeatures,
         numberOfClusters,
         numberOfRuns,
         filters:{
