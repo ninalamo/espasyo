@@ -9,14 +9,12 @@ import { apiService } from '../api/utils/apiService';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { format, subMonths, subDays } from 'date-fns';
-import { ClusterGroupResponse, Cluster , ClusterItem } from '../../types/analysis/ClusterDto';
+import { ClusterGroupResponse, Cluster } from '../../types/analysis/ClusterDto';
 import { ErrorDto } from '../../types/ErrorDto';
 import ScatterPlot from '../../components/ScatterPlot'; // Import the ScatterPlot component
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import QueryBar from './QueryBar';
-import FeatureSelect from './FeatureSelect';
-import MultiSelectDropdown from '../../components/MultiSelectDropdown';
 import FilterSection from './FilterSection';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
