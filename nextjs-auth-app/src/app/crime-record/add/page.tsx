@@ -1,12 +1,13 @@
 'use client';
 
-import { useEffect, useState } from "react"; // Import React hooks for side effects and local state
-import { useRouter } from "next/navigation"; // Import Next.js router for navigation
-import { useForm } from "react-hook-form"; // Import useForm hook from react-hook-form for form management
-import { AddIncidentDto } from "./AddIncidentDto"; // Import the form data type/interface
+import { useEffect, useState } from "react"; // React hooks for side effects and local state
+import { useRouter } from "next/navigation"; // Next.js router for navigation
+import { useForm } from "react-hook-form"; // useForm hook from react-hook-form for form management
+import { AddIncidentDto } from "./AddIncidentDto"; // Import form data type/interface
 import withAuth from "../../hoc/withAuth"; // Higher-order component for authentication
-import { apiService } from "../../api/utils/apiService"; // API service for making HTTP requests
+import { apiService } from "../../api/utils/apiService"; // API service for HTTP requests
 import { validateIncident } from "../../api/utils/validators/createIncidentValidator"; // Custom validation function
+import { fetchCachedData } from "../../api/utils/fetchCachedData";
 
 // Define an interface for Street objects
 interface Street {
@@ -20,6 +21,7 @@ type FormData = AddIncidentDto & {
   street: string;   // Selected street name
 };
 
+
 const AddCrimePage = () => {
   // Initialize Next.js router for navigation after form submission
   const router = useRouter();
@@ -27,10 +29,10 @@ const AddCrimePage = () => {
   // Initialize react-hook-form with default values for all fields.
   // This hook manages our form state, validations, and submission.
   const {
-    register,         // Method to register an input field into RHF
-    handleSubmit,     // Function to wrap our onSubmit handler
-    watch,            // Function to watch for changes in form values
-    setValue,         // Function to programmatically set form field values
+    register,         // Registers an input field with RHF
+    handleSubmit,     // Wraps our onSubmit handler
+    watch,            // Watches form values for real-time updates
+    setValue,         // Programmatically sets a form field value
     formState: { errors, isSubmitting } // Destructure errors and submission state
   } = useForm<FormData>({
     defaultValues: {
@@ -48,14 +50,14 @@ const AddCrimePage = () => {
     }
   });
 
-  // Local state to store dropdown options fetched from the API
+  // Local state to store dropdown options fetched from the API or localStorage
   const [crimeTypes, setCrimeTypes] = useState<string[]>([]);
   const [severities, setSeverities] = useState<string[]>([]);
   const [weathers, setWeathers] = useState<string[]>([]);
   const [precincts, setPrecincts] = useState<string[]>([]);
   const [motives, setMotives] = useState<string[]>([]);
 
-  // State for storing the list of streets from the API
+  // State for storing the list of streets from the API or localStorage
   const [streets, setStreets] = useState<Street[]>([]);
 
   // State to hold any error message from API calls or custom validation
@@ -64,74 +66,110 @@ const AddCrimePage = () => {
   // Loading state to indicate if the dropdown data is still being fetched
   const [isLoading, setIsLoading] = useState(true);
 
-  // useEffect to fetch all dropdown data and streets data when the component mounts
+  // useEffect to fetch all dropdown data and streets data on component mount.
+  // Data is first checked in localStorage; if not present, it is fetched from the API.
   useEffect(() => {
     const fetchDropdownData = async () => {
       try {
-        // Fetch various enum values for the dropdowns from API endpoints
-        setCrimeTypes(Object.values(await apiService.get("/Incident/enums?name=type")));
-        setWeathers(Object.values(await apiService.get("/Incident/enums?name=weather")));
-        setPrecincts(Object.values(await apiService.get("/Incident/enums?name=precinct")));
-        setMotives(Object.values(await apiService.get("/Incident/enums?name=motive")));
-        setSeverities(Object.values(await apiService.get("/Incident/enums?name=severity")));
+        // --- Crime Types ---
+        const fetchedCrimeTypes = await fetchCachedData<string[]>(
+          "crimeTypes",
+          "/Incident/enums?name=type",
+          (data) => Object.values(data)
+        );
+        setCrimeTypes(fetchedCrimeTypes);
 
-        // Fetch the streets data from the API endpoint
-        const streetResponse: { streets: Street[] } = await apiService.get("/street");
-        if (streetResponse && streetResponse.streets) {
-          setStreets(streetResponse.streets);
-        }
+        // --- Weathers ---
+        const fetchedWeathers = await fetchCachedData<string[]>(
+          "weathers",
+          "/Incident/enums?name=weather",
+          (data) => Object.values(data)
+        );
+        setWeathers(fetchedWeathers);
+
+        // --- Precincts ---
+        const fetchedPrecincts = await fetchCachedData<string[]>(
+          "precincts",
+          "/Incident/enums?name=precinct",
+          (data) => Object.values(data)
+        );
+        setPrecincts(fetchedPrecincts);
+
+        // --- Motives ---
+        const fetchedMotives = await fetchCachedData<string[]>(
+          "motives",
+          "/Incident/enums?name=motive",
+          (data) => Object.values(data)
+        );
+        setMotives(fetchedMotives);
+
+        // --- Severities ---
+        const fetchedSeverities = await fetchCachedData<string[]>(
+          "severities",
+          "/Incident/enums?name=severity",
+          (data) => Object.values(data)
+        );
+        setSeverities(fetchedSeverities);
+
+        // --- Streets ---
+        const fetchedStreets = await fetchCachedData<Street[]>(
+          "streets",
+          "/street",
+          (data) => data.streets
+        );
+        setStreets(fetchedStreets);
       } catch (err) {
-        // Set an error message if fetching data fails
+        // If any error occurs, set a general error message
         setError("Failed to load dropdown data");
       } finally {
-        // Whether successful or not, stop the loading state
+        // End loading state regardless of success or error
         setIsLoading(false);
       }
     };
+
     fetchDropdownData();
-  }, []); // Empty dependency array means this effect runs once on mount
+  }, []); // Runs only once on mount
 
   // Use RHF's watch function to monitor specific form fields in real time.
-  // These values will be used to dynamically generate the full address.
+  // These values are used to dynamically generate the full address.
   const watchLocation = watch("location");
   const watchPrecinct = watch("precinct");
   const watchStreet = watch("street");
 
-  // useEffect to update the 'address' field whenever location, precinct, or street changes
+  // useEffect to update the 'address' field whenever location, precinct, or street changes.
   useEffect(() => {
     // Determine the precinct name from the precincts array using the selected index.
     const precinctName =
       watchPrecinct !== -1 && precincts[Number(watchPrecinct)]
         ? precincts[Number(watchPrecinct)]
         : "";
-    // If a street is selected, add it with a trailing comma
+    // If a street is selected, add it with a trailing comma.
     const streetPart = watchStreet ? watchStreet + ", " : "";
-    // Construct the full formatted address string
+    // Construct the full formatted address string.
     const formattedAddress = `${watchLocation}, ${streetPart}${precinctName} Muntinlupa City, NCR, Philippines`;
-    // Update the 'address' field in our form using setValue (this field is hidden from the user)
+    // Update the 'address' field in our form using setValue (this field is hidden from the user).
     setValue("address", formattedAddress.replace("_", " "));
   }, [watchLocation, watchPrecinct, watchStreet, precincts, setValue]);
 
-  // onSubmit handler, executed when the form is submitted and validations pass
+  // onSubmit handler, executed when the form is submitted and validations pass.
   const onSubmit = async (data: FormData) => {
-    // Run custom validation on the form data (in addition to RHF validations)
+    // Run custom validation on the form data (in addition to RHF validations).
     const validationErrors = validateIncident(data, data.location);
     if (Object.keys(validationErrors).length > 0) {
-      // If there are custom validation errors, iterate over them
-      // Here you might integrate them with RHF's setError to show field errors,
-      // but for simplicity, we concatenate and set a general error message.
+      // If there are custom validation errors, iterate over them.
+      // For simplicity, we set a general error message; you could also integrate these with RHF's setError.
       Object.entries(validationErrors).forEach(([field, message]) => {
         setError(`${field}: ${message}`);
       });
-      return; // Stop submission if errors are present
+      return; // Stop submission if errors are present.
     }
     try {
-      // Post the valid form data to the API
+      // Post the valid form data to the API.
       await apiService.post("/incident", data);
-      // On success, navigate to the crime-record page
+      // On success, navigate to the crime-record page.
       router.push("/crime-record");
     } catch (err) {
-      // If API call fails, set an error message
+      // If API call fails, set an error message.
       setError("Failed to save crime record");
     }
   };
