@@ -5,6 +5,7 @@ export interface ClusterGroupResponse {
 
 export interface Cluster {
   clusterId: number;
+  centroids: number[];
   clusterItems: ClusterItem[];
   clusterCount: number;
 }

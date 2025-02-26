@@ -16,7 +16,6 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
   useEffect(() => {
-    // Initialize map if not already initialized
     if (mapRef.current && !leafletMap.current) {
       leafletMap.current = L.map(mapRef.current).setView(center, zoom);
 
@@ -24,24 +23,20 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         attribution: '&copy; OpenStreetMap contributors',
       }).addTo(leafletMap.current);
 
-      // Create a layer group for markers and add it to the map
       markersLayerRef.current = L.layerGroup().addTo(leafletMap.current);
     }
 
-    // Clear existing markers
     if (markersLayerRef.current) {
       markersLayerRef.current.clearLayers();
     }
 
-    // Add markers for each cluster
     if (leafletMap.current && markersLayerRef.current) {
       clusters.forEach((cluster) => {
         const color = clusterColorsMapping[cluster.clusterId] || '#D3D3D3';
-        console.log("Cluster ID: ", cluster.clusterId);
-        console.log("Color: ", color);
 
-        cluster.clusterItems.forEach((clusterItem) => {
-          L.circleMarker([clusterItem.latitude, clusterItem.longitude], {
+        // Render cluster item markers
+        cluster.clusterItems.forEach((item) => {
+          L.circleMarker([item.latitude, item.longitude], {
             color: '#FFF',
             fillColor: color,
             fillOpacity: 1,
@@ -51,10 +46,29 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             .bindPopup(`
               <div>
                 <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
-                <p><strong>Case ID:</strong> ${clusterItem.caseId}</p>
+                <p><strong>Case ID:</strong> ${item.caseId}</p>
               </div>
             `);
         });
+        console.log(cluster.centroids);
+        // Render centroid marker if available (using a distinct icon or style)
+        if (cluster.centroids && cluster.centroids.length === 2) {
+          L.marker([cluster.centroids[0], cluster.centroids[1]], {
+            icon: L.icon({
+            iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png', // Change to your custom centroid icon if desired
+            iconSize: [30, 41],
+            iconAnchor: [15, 41],
+            popupAnchor: [0, -41]
+          })
+        })
+        .addTo(markersLayerRef.current!)
+        .bindPopup(`
+          <div>
+            <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
+            <p><strong>Centroid</strong></p>
+          </div>
+        `);
+        }
       });
     }
   }, [center, zoom, clusters, clusterColorsMapping]);
