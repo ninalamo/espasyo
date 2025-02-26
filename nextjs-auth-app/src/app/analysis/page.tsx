@@ -75,13 +75,13 @@ const AnalysisPage = () => {
     setMapKey((prevKey) => prevKey + 1); // Force re-render of the Map
 
     try {
-      const payload =  {
+      const payload = {
         dateFrom,
         dateTo,
         features: selectedFeatures,
         numberOfClusters,
         numberOfRuns,
-        filters:{
+        filters: {
           crimeTypes: selectedCrimeTypes,
           motives: selectedMotives,
           severities: selectedSeverities,
@@ -128,13 +128,13 @@ const AnalysisPage = () => {
       />
 
 
-       {/* Filters */}
-       <FilterSection
+      {/* Filters */}
+      <FilterSection
         selectedCrimeTypes={selectedCrimeTypes} setSelectedCrimeTypes={setSelectedCrimeTypes}
         selectedPrecinct={selectedPrecincts} setSelectedPrecinct={setSelectedPrecincts}
         selectedSeverity={selectedSeverities} setSelectedSeverity={setSelectedSeverities}
         selectedWeather={selectedWeathers} setSelectedWeather={setSelectedWeathers}
-        selectedMotive={selectedMotives} setSelectedMotive={setSelectedMotives}/>
+        selectedMotive={selectedMotives} setSelectedMotive={setSelectedMotives} />
 
       {/* Cluster Id Legend */}
       {clusters.length > 0 && (
@@ -171,17 +171,17 @@ const AnalysisPage = () => {
               clusters={clusters}
               clusterColorsMapping={clusterColorsMapping} />
           </TabPanel>
-            <TabPanel>
+          <TabPanel>
             <ScatterPlot
               data={clusters.flatMap(cluster =>
-              cluster.clusterItems.map(item => ({
-                x: Number(item.longitude.toFixed(6)),
-                y: Number(item.latitude.toFixed(6)),
-                clusterId: cluster.clusterId
-              }))
+                cluster.clusterItems.map(item => ({
+                  x: Number(item.longitude.toFixed(6)),
+                  y: Number(item.latitude.toFixed(6)),
+                  clusterId: cluster.clusterId
+                }))
               )}
               clusterColorsMapping={clusterColorsMapping} />
-            </TabPanel>
+          </TabPanel>
         </TabPanels>
       </TabGroup>
     </div>

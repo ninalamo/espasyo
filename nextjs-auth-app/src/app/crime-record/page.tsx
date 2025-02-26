@@ -7,7 +7,7 @@ import Link from 'next/link';
 import withAuth from '../hoc/withAuth';
 import { apiService } from '../api/utils/apiService'; // API service to handle HTTP requests
 import CrimeTable from './CrimeTable'; // Component that displays the crime records in a table
-import { IncidentDto } from './IncidentDto';
+import { IncidentDto } from '../../types/crime-record/IncidentDto'; // Type definition for crime records
 import debounce from 'lodash.debounce'; // Import debounce to limit rapid function calls
 
 const CrimeList = () => {
@@ -114,31 +114,48 @@ const CrimeList = () => {
     <div className="container mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Crime Records</h1>
 
-      {/* Search Input */}
-      <div className="mb-4">
-        <input
-          type="text"
-          value={searchInput}
-          onChange={handleSearchChange}
-          placeholder="Search crime records..."
-          className="w-full border p-2 rounded-md"
-        />
+      {/* Container for navigation buttons and search input */}
+      <div className="mb-4 flex items-center justify-between">
+        {/* Navigation Buttons */}
+        <div className="flex space-x-4">
+          <Link href="/crime-record/add">
+            <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
+              Add Record
+            </button>
+          </Link>
+          <Link href="/crime-record/bulk-upload">
+            <button className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition" disabled title="Disabled">
+              Bulk Upload
+            </button>
+          </Link>
+        </div>
+
+        {/* Search Input with Search Icon */}
+        <div className="flex items-center">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={handleSearchChange}
+            placeholder="Search crime records..."
+            className="border p-2 rounded-md"
+          />
+          <button className="ml-2 p-2 bg-gray-200 rounded-md hover:bg-gray-300 transition">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-5 w-5 text-gray-500"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M9 3a6 6 0 100 12A6 6 0 009 3zM2 9a7 7 0 1112.452 4.391l3.328 3.329a1 1 0 01-1.414 1.414l-3.329-3.328A7 7 0 012 9z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
-      {/* Navigation Buttons for adding a new record or bulk upload */}
-      <div className="mb-4 flex space-x-4">
-        <Link href="/crime-record/add">
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
-            Add New Entry
-          </button>
-        </Link>
-
-        <Link href="/crime-record/bulk-upload">
-          <button className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 transition">
-            Bulk Upload
-          </button>
-        </Link>
-      </div>
 
       {/* Pass down data and handlers to the CrimeTable component */}
       <CrimeTable

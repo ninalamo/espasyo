@@ -1,8 +1,6 @@
-'use client';
-
 import { format } from 'date-fns';
 import Link from "next/link";
-import { IncidentDto } from "./IncidentDto";
+import { IncidentDto } from "../../types/crime-record/IncidentDto";
 
 interface CrimeTableProps {
   crimeRecords: IncidentDto[];
@@ -79,12 +77,19 @@ const CrimeTable: React.FC<CrimeTableProps> = ({
         </table>
       </div>
 
-      {/* Pagination Controls */}
-      <div className="flex justify-between items-center mt-4">
+      {/* Pagination Controls with First and Last Buttons */}
+      <div className="flex justify-center items-center mt-4 space-x-2">
+        <button
+          onClick={() => onPageChange(1)}
+          disabled={currentPage === 1}
+          className="bg-gray-400 text-white px-3 py-1 rounded-md hover:bg-gray-500 transition disabled:opacity-50"
+        >
+          First
+        </button>
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage <= 1}
-          className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 transition disabled:opacity-50"
+          className="bg-gray-400 text-white px-3 py-1 rounded-md hover:bg-gray-500 transition disabled:opacity-50"
         >
           Previous
         </button>
@@ -94,9 +99,16 @@ const CrimeTable: React.FC<CrimeTableProps> = ({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          className="bg-gray-400 text-white px-4 py-2 rounded-md hover:bg-gray-500 transition disabled:opacity-50"
+          className="bg-gray-400 text-white px-3 py-1 rounded-md hover:bg-gray-500 transition disabled:opacity-50"
         >
           Next
+        </button>
+        <button
+          onClick={() => onPageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className="bg-gray-400 text-white px-3 py-1 rounded-md hover:bg-gray-500 transition disabled:opacity-50"
+        >
+          Last
         </button>
       </div>
     </div>

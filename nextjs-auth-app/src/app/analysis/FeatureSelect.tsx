@@ -29,7 +29,7 @@ const FeatureSelect = ({ selectedFeatures, setSelectedFeatures }: FeatureSelectP
   useEffect(() => {
     if (includeLatLong) {
       // Add "Latitude" and "Longitude" if not already present.
-      var temp = [...selectedFeatures,"Latitude","Longitude"];
+      var temp = [...selectedFeatures, "Latitude", "Longitude"];
       setSelectedFeatures(temp);
     } else {
       // Remove "Latitude" and "Longitude" if checkbox is unchecked.

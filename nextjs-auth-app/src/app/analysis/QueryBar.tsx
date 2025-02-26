@@ -26,10 +26,10 @@ const QueryBar = ({
   return (
     <div className="bg-white shadow-lg rounded-lg p-6 w-full">
       <h2 className="text-sm font-semibold text-gray-800 mb-4">Query Parameters</h2>
-  {/* Feature Select */}
-  <div className="col-span-2">
-          <FeatureSelect selectedFeatures={selectedFeatures} setSelectedFeatures={setSelectedFeatures} />
-        </div>
+      {/* Feature Select */}
+      <div className="col-span-2">
+        <FeatureSelect selectedFeatures={selectedFeatures} setSelectedFeatures={setSelectedFeatures} />
+      </div>
       <div className="grid grid-cols-8 gap-2 items-end">
 
         {/* Date Pickers */}

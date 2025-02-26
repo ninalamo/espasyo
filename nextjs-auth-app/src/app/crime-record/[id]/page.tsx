@@ -3,7 +3,7 @@
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { CrimeDetailDto } from './CrimeDetailDto';
+import { CrimeDetailDto } from '../../../types/crime-record/CrimeDetailDto';
 import {apiService} from '../../api/utils/apiService';
 import withAuth from '../../hoc/withAuth';
 

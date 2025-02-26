@@ -38,9 +38,8 @@ const FilterSection = ({
         </div>
       </div>
       <div
-        className={`overflow-hidden transition-all duration-300 ${
-          isExpanded ? "max-h-96 opacity-100 py-2" : "max-h-0 opacity-0 py-0"
-        }`}
+        className={`overflow-hidden transition-all duration-300 ${isExpanded ? "max-h-96 opacity-100 py-2" : "max-h-0 opacity-0 py-0"
+          }`}
       >
         <MultiSelectDropdown
           key={`type-${refreshKey}`}
