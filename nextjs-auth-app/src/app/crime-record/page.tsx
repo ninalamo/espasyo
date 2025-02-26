@@ -22,6 +22,12 @@ const CrimeList = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Local state for search input and debounced search query.
+  // searchInput stores the immediate value from the input,
+  // while searchQuery is updated after a debounce delay.
+  const [searchInput, setSearchInput] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+
   // Redirect to login if the user is not authenticated
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -43,12 +49,31 @@ const CrimeList = () => {
     return null;
   }
 
-  // Fetch crime records from the API when the component mounts or currentPage changes.
-  // Pagination is applied via the query parameters pageNumber and pageSize.
+  // Debounced function to update the search query and reset the page to 1.
+  const debouncedSetSearchQuery = useCallback(
+    debounce((value: string) => {
+      setSearchQuery(value);
+      setCurrentPage(1);
+    }, 300),
+    []
+  );
+
+  // Handler for search input changes. It updates the local searchInput state
+  // immediately and uses the debounced function to update the searchQuery.
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    debouncedSetSearchQuery(value);
+  };
+
+  // Fetch crime records from the API when the component mounts,
+  // or when currentPage or searchQuery changes.
+  // Pagination is applied via the query parameters pageNumber, pageSize, and search.
   useEffect(() => {
+    setIsLoading(true);
     apiService
       .get<{ items: IncidentDto[]; totalPages: number }>(
-        '/incident?pageNumber=' + currentPage + '&pageSize=10'
+        `/incident?search=${encodeURIComponent(searchQuery)}&pageNumber=${currentPage}&pageSize=10`
       )
       .then((response) => {
         if (response && response.items) {
@@ -60,7 +85,7 @@ const CrimeList = () => {
       })
       .catch(() => setError('Failed to load crime records'))
       .finally(() => setIsLoading(false));
-  }, [currentPage]); // Re-fetch data whenever the currentPage state changes
+  }, [currentPage, searchQuery]);
 
   // Regular page change handler that updates the current page if within bounds.
   const handlePageChange = (page: number) => {
@@ -75,7 +100,7 @@ const CrimeList = () => {
     debounce((page: number) => {
       handlePageChange(page);
     }, 300), // Adjust the delay as needed (300ms in this example)
-    [totalPages] // Dependency array: re-create the debounced function if totalPages changes
+    [totalPages]
   );
 
   // Clean up the debounced function when the component unmounts to avoid memory leaks.
@@ -88,6 +113,17 @@ const CrimeList = () => {
   return (
     <div className="container mx-auto p-6">
       <h1 className="text-2xl font-semibold mb-4">Crime Records</h1>
+
+      {/* Search Input */}
+      <div className="mb-4">
+        <input
+          type="text"
+          value={searchInput}
+          onChange={handleSearchChange}
+          placeholder="Search crime records..."
+          className="w-full border p-2 rounded-md"
+        />
+      </div>
 
       {/* Navigation Buttons for adding a new record or bulk upload */}
       <div className="mb-4 flex space-x-4">
