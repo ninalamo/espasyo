@@ -1,7 +1,9 @@
-import React, { useEffect, useRef } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
-import { Cluster } from '../types/analysis/ClusterDto';
+import React, { useEffect, useRef, useState } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+import "leaflet.heat"; // Heatmap plugin
+import * as turf from "@turf/turf";
+import { Cluster } from "../types/analysis/ClusterDto";
 
 interface MapProps {
   center: [number, number];
@@ -14,33 +16,89 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const heatLayersRef = useRef<L.LayerGroup | null>(null);
+  const envelopeLayersRef = useRef<L.LayerGroup | null>(null);
+
+  // Toggle states for independent layer visibility
+  const [showPoints, setShowPoints] = useState(true);
+  const [showHeat, setShowHeat] = useState(true);
+  const [showEnvelope, setShowEnvelope] = useState(true);
 
   useEffect(() => {
     if (mapRef.current && !leafletMap.current) {
       leafletMap.current = L.map(mapRef.current).setView(center, zoom);
-
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors",
       }).addTo(leafletMap.current);
-
       markersLayerRef.current = L.layerGroup().addTo(leafletMap.current);
+      heatLayersRef.current = L.layerGroup().addTo(leafletMap.current);
+      envelopeLayersRef.current = L.layerGroup().addTo(leafletMap.current);
     }
 
-    if (markersLayerRef.current) {
-      markersLayerRef.current.clearLayers();
-    }
+    // Clear all layers before redrawing
+    markersLayerRef.current?.clearLayers();
+    heatLayersRef.current?.clearLayers();
+    envelopeLayersRef.current?.clearLayers();
 
-    if (leafletMap.current && markersLayerRef.current) {
-      clusters.forEach((cluster) => {
-        const color = clusterColorsMapping[cluster.clusterId] || '#D3D3D3';
+    // Process each cluster group independently
+    clusters.forEach((cluster) => {
+      const clusterColor = clusterColorsMapping[cluster.clusterId] || "#D3D3D3";
 
-        // Render cluster item markers
+      // 1. Envelope Layer (Convex Hull)
+      if (showEnvelope && cluster.clusterItems.length > 2) {
+        const points: [number, number][] = cluster.clusterItems.map(
+          (item) => [item.latitude, item.longitude]
+        );
+        const turfPoints = points.map((pt) => turf.point([pt[1], pt[0]]));
+        const fc = turf.featureCollection(turfPoints);
+        let hull = turf.convex(fc);
+        if (!hull) {
+          const bbox = turf.bbox(fc);
+          hull = turf.bboxPolygon(bbox);
+        }
+        const bufferedHull = turf.buffer(hull, 0.3, { units: "kilometers" });
+        if (bufferedHull && bufferedHull.geometry.type === "Polygon") {
+          const coordinates = bufferedHull.geometry.coordinates[0];
+          const latLngs = coordinates.map(
+            (coord) => [coord[1], coord[0]] as [number, number]
+          );
+          L.polygon(latLngs, {
+            stroke: false,
+            fillColor: clusterColor,
+            fillOpacity: 0.3,
+          }).addTo(envelopeLayersRef.current!);
+        }
+      }
+
+      // 2. Heatmap Layer (Green to Red gradient)
+      if (showHeat && cluster.clusterItems.length > 3) {
+        const heatData: [number, number, number][] = cluster.clusterItems.map(
+          (item) => [item.latitude, item.longitude, 1]
+        );
+        const heatLayer = (L as any).heatLayer(heatData, {
+          radius: 25,
+          blur: 20,
+          maxZoom: zoom,
+          gradient: {
+            0.2: "rgba(0,255,0,0.2)",
+            0.4: "rgba(173,255,47,0.5)",
+            0.6: "rgba(255,255,0,0.7)",
+            0.8: "rgba(255,165,0,0.85)",
+            1.0: "rgba(255,0,0,1.0)",
+          },
+        });
+        heatLayersRef.current!.addLayer(heatLayer);
+      }
+
+      // 3. Points Layer (Markers)
+      if (showPoints) {
         cluster.clusterItems.forEach((item) => {
           L.circleMarker([item.latitude, item.longitude], {
-            color: '#FFF',
-            fillColor: color,
-            fillOpacity: 1,
-            radius: 8,
+            color: "#AAA",
+            weight: 1, // Thinner border
+            fillColor: clusterColor,
+            fillOpacity: 0.8,
+            radius: 5,
           })
             .addTo(markersLayerRef.current!)
             .bindPopup(`
@@ -50,30 +108,61 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
               </div>
             `);
         });
-        console.log(cluster.centroids);
-        // Render centroid marker if available (using a distinct icon or style)
+
+        // 4. Centroid Marker
         if (cluster.centroids && cluster.centroids.length === 2) {
           L.marker([cluster.centroids[0], cluster.centroids[1]], {
             icon: L.icon({
-            iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png', // Change to your custom centroid icon if desired
-            iconSize: [30, 41],
-            iconAnchor: [15, 41],
-            popupAnchor: [0, -41]
+              iconUrl:
+                "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+              iconSize: [30, 41],
+              iconAnchor: [15, 41],
+              popupAnchor: [0, -41],
+            }),
           })
-        })
-        .addTo(markersLayerRef.current!)
-        .bindPopup(`
-          <div>
-            <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
-            <p><strong>Centroid</strong></p>
-          </div>
-        `);
+            .addTo(markersLayerRef.current!)
+            .bindPopup(`
+              <div>
+                <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
+                <p><strong>Centroid</strong></p>
+              </div>
+            `);
         }
-      });
-    }
-  }, [center, zoom, clusters, clusterColorsMapping]);
+      }
+    });
+  }, [center, zoom, clusters, clusterColorsMapping, showPoints, showHeat, showEnvelope]);
 
-  return <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} />;
+  return (
+    <div>
+      <div className="flex justify-end space-x-4 mb-2">
+        <label className="flex items-center space-x-1">
+          <input
+            type="checkbox"
+            checked={showPoints}
+            onChange={(e) => setShowPoints(e.target.checked)}
+          />
+          <span>Show Points</span>
+        </label>
+        <label className="flex items-center space-x-1">
+          <input
+            type="checkbox"
+            checked={showHeat}
+            onChange={(e) => setShowHeat(e.target.checked)}
+          />
+          <span>Show Heatmap</span>
+        </label>
+        <label className="flex items-center space-x-1">
+          <input
+            type="checkbox"
+            checked={showEnvelope}
+            onChange={(e) => setShowEnvelope(e.target.checked)}
+          />
+          <span>Show Envelope</span>
+        </label>
+      </div>
+      <div id="map" ref={mapRef} style={{ height: "500px", width: "100%" }} />
+    </div>
+  );
 };
 
 export default Map;

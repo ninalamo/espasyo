@@ -1,3 +1,5 @@
+
+
 import { useState, useEffect } from "react";
 import Select from "react-select";
 
@@ -23,7 +25,7 @@ const FeatureSelect = ({ selectedFeatures, setSelectedFeatures }: FeatureSelectP
   ];
 
   // Local state for checkbox.
-  const [includeLatLong, setIncludeLatLong] = useState(false);
+  const [includeLatLong, setIncludeLatLong] = useState(true);
 
   // Update selected features when the checkbox is toggled.
   useEffect(() => {
