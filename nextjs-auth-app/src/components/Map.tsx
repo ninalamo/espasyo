@@ -40,11 +40,16 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     heatLayersRef.current?.clearLayers();
     envelopeLayersRef.current?.clearLayers();
 
+    // **Modern Tesla Coil Icon (SVG)**
+    const teslaCoilSvg = `
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><title>circle</title><circle cx="512" cy="512" r="256" fill="#fafafa" fill-rule="evenodd"></circle></g></svg>
+    `;
+
     // Process each cluster group independently
     clusters.forEach((cluster) => {
       const clusterColor = clusterColorsMapping[cluster.clusterId] || "#D3D3D3";
 
-      // 1. Envelope Layer (Convex Hull)
+      // **Envelope Layer (Convex Hull)**
       if (showEnvelope && cluster.clusterItems.length > 2) {
         const points: [number, number][] = cluster.clusterItems.map(
           (item) => [item.latitude, item.longitude]
@@ -70,7 +75,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         }
       }
 
-      // 2. Heatmap Layer (Green to Red gradient)
+      // **Heatmap Layer**
       if (showHeat && cluster.clusterItems.length > 3) {
         const heatData: [number, number, number][] = cluster.clusterItems.map(
           (item) => [item.latitude, item.longitude, 1]
@@ -90,12 +95,12 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         heatLayersRef.current!.addLayer(heatLayer);
       }
 
-      // 3. Points Layer (Markers)
+      // **Points Layer**
       if (showPoints) {
         cluster.clusterItems.forEach((item) => {
           L.circleMarker([item.latitude, item.longitude], {
             color: "#AAA",
-            weight: 1, // Thinner border
+            weight: 1,
             fillColor: clusterColor,
             fillOpacity: 0.8,
             radius: 5,
@@ -109,24 +114,24 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             `);
         });
 
-        // 4. Centroid Marker
+        // **Tesla Coil Marker for Centroids**
         if (cluster.centroids && cluster.centroids.length === 2) {
-          L.marker([cluster.centroids[0], cluster.centroids[1]], {
-            icon: L.icon({
-              iconUrl:
-                "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-              iconSize: [30, 41],
-              iconAnchor: [15, 41],
-              popupAnchor: [0, -41],
-            }),
-          })
-            .addTo(markersLayerRef.current!)
-            .bindPopup(`
-              <div>
-                <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
-                <p><strong>Centroid</strong></p>
-              </div>
-            `);
+          const teslaCoilIcon = L.divIcon({
+            className: "tesla-coil-icon",
+            html: teslaCoilSvg,
+            iconSize: [40, 60],
+            iconAnchor: [20, 60],
+            popupAnchor: [0, -50],
+          });
+
+          // L.marker([cluster.centroids[0], cluster.centroids[1]], { icon: teslaCoilIcon })
+          //   .addTo(markersLayerRef.current!)
+          //   .bindPopup(`
+          //     <div>
+          //       <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
+          //       <p><strong>Centroid</strong></p>
+          //     </div>
+          //   `);
         }
       }
     });
@@ -136,27 +141,15 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     <div>
       <div className="flex justify-end space-x-4 mb-2">
         <label className="flex items-center space-x-1">
-          <input
-            type="checkbox"
-            checked={showPoints}
-            onChange={(e) => setShowPoints(e.target.checked)}
-          />
+          <input type="checkbox" checked={showPoints} onChange={(e) => setShowPoints(e.target.checked)} />
           <span>Show Points</span>
         </label>
         <label className="flex items-center space-x-1">
-          <input
-            type="checkbox"
-            checked={showHeat}
-            onChange={(e) => setShowHeat(e.target.checked)}
-          />
+          <input type="checkbox" checked={showHeat} onChange={(e) => setShowHeat(e.target.checked)} />
           <span>Show Heatmap</span>
         </label>
         <label className="flex items-center space-x-1">
-          <input
-            type="checkbox"
-            checked={showEnvelope}
-            onChange={(e) => setShowEnvelope(e.target.checked)}
-          />
+          <input type="checkbox" checked={showEnvelope} onChange={(e) => setShowEnvelope(e.target.checked)} />
           <span>Show Envelope</span>
         </label>
       </div>
