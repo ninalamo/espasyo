@@ -15,29 +15,26 @@ import ScatterPlot from '../../components/ScatterPlot'; // Import the ScatterPlo
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import QueryBar from './QueryBar';
-import FilterSection from './FilterSection';
+import FilterSection, { FilterState, initialFilterState } from './FilterSection';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
 const AnalysisPage = () => {
   const { status } = useSession();
   const router = useRouter();
+
   const [dateTo, setDateTo] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [dateFrom, setDateFrom] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
   const [loading, setLoading] = useState(false);
-  // clusters is assumed to be an array of ClusterGroup objects.
   const [clusters, setClusters] = useState<Cluster[]>([]);
-  const [mapKey, setMapKey] = useState(0); // Force re-render of the Map
+  const [mapKey, setMapKey] = useState(0);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
 
   const [numberOfClusters, setNumberOfClusters] = useState(3);
   const [numberOfRuns, setNumberOfRuns] = useState(1);
 
-  const [selectedCrimeTypes, setSelectedCrimeTypes] = useState<string[]>([]);
-  const [selectedMotives, setSelectedMotives] = useState<string[]>([]);
-  const [selectedPrecincts, setSelectedPrecincts] = useState<string[]>([]);
-  const [selectedWeathers, setSelectedWeathers] = useState<string[]>([]);
-  const [selectedSeverities, setSelectedSeverities] = useState<string[]>([]);
+  // Lifted filter state from FilterSection
+  const [parentFilterState, setParentFilterState] = useState<FilterState>(initialFilterState);
 
   useEffect(() => {
     if (status === 'unauthenticated') {
@@ -46,30 +43,25 @@ const AnalysisPage = () => {
   }, [status, router]);
 
   const handleFilter = async () => {
-    console.log("Selected features:", selectedFeatures);
-
     if (!dateFrom || !dateTo) {
       toast.error("Please select both start and end dates.");
       return;
     }
-
     if (!selectedFeatures || selectedFeatures.length === 0) {
       toast.error("Please select a feature.");
       return;
     }
-
     if (numberOfClusters < 3 || numberOfClusters > 10) {
       toast.error("Number of clusters must be between 3 and 10.");
       return;
     }
-
     if (numberOfRuns < 1 || numberOfRuns > 10) {
       toast.error("Number of runs must be between 1 and 10.");
       return;
     }
 
     setLoading(true);
-    setClusters([]);  // Clear the clusters
+    setClusters([]); // Clear clusters
     setMapKey((prevKey) => prevKey + 1); // Force re-render of the Map
 
     try {
@@ -80,16 +72,15 @@ const AnalysisPage = () => {
         numberOfClusters,
         numberOfRuns,
         filters: {
-          crimeTypes: selectedCrimeTypes,
-          motives: selectedMotives,
-          severities: selectedSeverities,
-          weathers: selectedWeathers,
-          precincts: selectedPrecincts
-        }
+          crimeTypes: parentFilterState.selectedCrimeTypes,
+          motives: parentFilterState.selectedMotive,
+          severities: parentFilterState.selectedSeverity,
+          weathers: parentFilterState.selectedWeather,
+          precincts: parentFilterState.selectedPrecinct,
+        },
       };
 
       console.log("Payload:", payload);
-
       const response = await apiService.put<ClusterGroupResponse | ErrorDto>(
         "/incident/grouped-clusters", payload
       );
@@ -97,7 +88,6 @@ const AnalysisPage = () => {
       if ("message" in response) {
         toast.error(response.message);
       } else {
-        console.log("Cluster data:", response);
         setClusters(response.clusterGroups);
         toast.success("Clusters generated successfully!");
       }
@@ -108,12 +98,12 @@ const AnalysisPage = () => {
     }
   };
 
-  // Prepare data for the ScatterPlot (flatten cluster items).
+  // Prepare data for ScatterPlot.
   const scatterData = clusters.flatMap(cluster =>
     cluster.clusterItems.map(item => ({
       x: Number(item.longitude.toFixed(6)),
       y: Number(item.latitude.toFixed(6)),
-      clusterId: cluster.clusterId
+      clusterId: cluster.clusterId,
     }))
   );
 
@@ -122,17 +112,17 @@ const AnalysisPage = () => {
     .filter(cluster => cluster.centroids && cluster.centroids.length === 2)
     .map(cluster => ({
       clusterId: cluster.clusterId,
-      x: cluster.centroids[1], // assuming centroid is [lat, lon] => x = lon, y = lat
-      y: cluster.centroids[0]
+      x: cluster.centroids[1],
+      y: cluster.centroids[0],
     }));
 
-  // For the table, flatten all cluster items and include the cluster id.
+  // Prepare data for table display.
   const tableData = clusters.flatMap(cluster =>
     cluster.clusterItems.map(item => ({
       clusterId: cluster.clusterId,
       caseId: item.caseId,
       latitude: item.latitude,
-      longitude: item.longitude
+      longitude: item.longitude,
     }))
   );
 
@@ -156,64 +146,109 @@ const AnalysisPage = () => {
       <ToastContainer />
       <h1 className="text-2xl font-semibold mb-4">Crime Analysis</h1>
 
+      {/* Query Bar */}
       <QueryBar
         dateFrom={dateFrom} setDateFrom={setDateFrom}
         dateTo={dateTo} setDateTo={setDateTo}
         numberOfClusters={numberOfClusters} setNumberOfClusters={setNumberOfClusters}
         numberOfRuns={numberOfRuns} setNumberOfRuns={setNumberOfRuns}
         selectedFeatures={selectedFeatures} setSelectedFeatures={setSelectedFeatures}
-        loading={loading}
-        handleFilter={handleFilter}
       />
 
-      {/* Filters */}
+
+      {/* Filter Section */}
       <FilterSection
-        selectedCrimeTypes={selectedCrimeTypes} setSelectedCrimeTypes={setSelectedCrimeTypes}
-        selectedPrecinct={selectedPrecincts} setSelectedPrecinct={setSelectedPrecincts}
-        selectedSeverity={selectedSeverities} setSelectedSeverity={setSelectedSeverities}
-        selectedWeather={selectedWeathers} setSelectedWeather={setSelectedWeathers}
-        selectedMotive={selectedMotives} setSelectedMotive={setSelectedMotives} />
+        selectedFeatures={selectedFeatures}
+        onFilterChange={(filterState) => setParentFilterState(filterState)}
+      />
+
+
+      {/* Process Button (always visible) */}
+      <div className="flex justify-end my-4">
+        <button
+          onClick={handleFilter}
+          className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition disabled:opacity-50"
+          disabled={loading}
+        >
+          {loading ? "Processing..." : "Process"}
+        </button>
+      </div>
 
       {/* Cluster Legend */}
       {clusters.length > 0 && (
         <div className="mb-4">
           <h2 className="text-xl font-semibold mb-2">Cluster Legend</h2>
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
-            {clusters.map((c) => {
-              const clusterId = c.clusterId;
-              return (
-                <div key={c.clusterId} className="flex items-center">
-                  <span
-                    className="w-4 h-4 mr-2 inline-block"
-                    style={{ backgroundColor: clusterColorsMapping[c.clusterId] || '#D3D3D3' }}
-                  ></span>
-                  <span>Cluster {clusterId}: {c.clusterCount || 0}</span>
-                </div>
-              );
-            })}
+            {clusters.map(c => (
+              <div key={c.clusterId} className="flex items-center">
+                <span
+                  className="w-4 h-4 mr-2 inline-block"
+                  style={{ backgroundColor: clusterColorsMapping[c.clusterId] || '#D3D3D3' }}
+                ></span>
+                <span>Cluster {c.clusterId}: {c.clusterCount || 0}</span>
+              </div>
+            ))}
+            <div className="col-span-full flex justify-end">
+              <span
+                className="w-4 h-4 mr-2 inline-block"
+                style={{ backgroundColor: '#D3D3D3' }}
+              ></span>
+              <span>
+                Total: {clusters.reduce((total, c) => total + (c.clusterCount || 0), 0)}
+              </span>
+            </div>
           </div>
         </div>
       )}
 
+
+
+      {/* Tabs for Map, Graph, Table */}
       <TabGroup>
         <TabList className="flex p-1 space-x-1 bg-blue-900/20 rounded-xl">
-          <Tab className={({ selected }) => selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg' : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'}>Map</Tab>
-          <Tab className={({ selected }) => selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg' : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'}>Graph</Tab>
-          <Tab className={({ selected }) => selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg' : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'}>Table</Tab>
+          <Tab className={({ selected }) =>
+            selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
+              : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
+          }>
+            Map
+          </Tab>
+          <Tab className={({ selected }) =>
+            selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
+              : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
+          }>
+            Graph
+          </Tab>
+          <Tab className={({ selected }) =>
+            selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
+              : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
+          }>
+            Table
+          </Tab>
         </TabList>
         <TabPanels className="mt-2">
           <TabPanel>
             <Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} clusterColorsMapping={clusterColorsMapping} />
           </TabPanel>
           <TabPanel>
-            <ScatterPlot
-              data={scatterData}
-              clusterColorsMapping={clusterColorsMapping}
-            />
+            <ScatterPlot data={scatterData} clusterColorsMapping={clusterColorsMapping} />
           </TabPanel>
           <TabPanel>
             <div className="flex justify-end mb-2">
-              <button onClick={downloadCSV} className="bg-green-600 text-white px-4 py-2 rounded-md">Download CSV</button>
+              <button onClick={() => {
+                const headers = ["Cluster ID", "Case ID", "Latitude", "Longitude"];
+                const rows = tableData.map(item => `${item.clusterId},${item.caseId},${item.latitude},${item.longitude}`);
+                const csvContent = [headers.join(","), ...rows].join("\n");
+                const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.setAttribute("download", "cluster_data.csv");
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }} className="bg-green-600 text-white px-4 py-2 rounded-md">
+                Download CSV
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="min-w-full table-auto border-collapse border border-gray-300">

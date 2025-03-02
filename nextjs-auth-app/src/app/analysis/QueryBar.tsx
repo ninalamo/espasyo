@@ -12,8 +12,6 @@ export interface QueryBarProps {
   setNumberOfRuns: (num: number) => void;
   selectedFeatures: string[];
   setSelectedFeatures: (feature: string[]) => void;
-  loading: boolean;
-  handleFilter: () => void;
 }
 
 const QueryBar = ({
@@ -21,8 +19,7 @@ const QueryBar = ({
   dateTo, setDateTo,
   numberOfClusters, setNumberOfClusters,
   numberOfRuns, setNumberOfRuns,
-  selectedFeatures, setSelectedFeatures,
-  loading, handleFilter
+  selectedFeatures, setSelectedFeatures
 }: QueryBarProps) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -47,7 +44,7 @@ const QueryBar = ({
     <div className="bg-white shadow-lg rounded-lg p-6 w-full">
       {/* Heading and toggle button */}
       <div className="flex items-center justify-between mb-2">
-        <h2 className="text-sm font-semibold text-gray-800">Query Parameters</h2>
+        <h2 className="text-sm font-semibold text-gray-800">Cluster Features & Settings</h2>
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
@@ -57,15 +54,23 @@ const QueryBar = ({
         </button>
       </div>
 
-      {/* Always visible summary of selected query parameters */}
-      <div className="mb-2 text-xs text-gray-700">
-        <p>
-          Selected Features: <span className="font-semibold">{displaySelected(selectedFeatures)}</span> |
-          Date Range: <span className="font-semibold">{dateFrom} - {dateTo}</span> |
-          Clusters: <span className="font-semibold">{numberOfClusters}</span> |
-          Runs: <span className="font-semibold">{numberOfRuns}</span>
-        </p>
-      </div>
+{/* Always visible summary of selected query parameters */}
+<div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md shadow-sm">
+  <h3 className="text-sm font-semibold text-gray-800 mb-2">Query Summary</h3>
+  <div className="flex flex-wrap gap-2 text-xs text-gray-700">
+    <div className="px-2 py-1 bg-white rounded border border-gray-300">
+      <span className="font-semibold">Included Features:</span> {displaySelected(selectedFeatures)}
+    </div>
+    <div className="px-2 py-1 bg-white rounded border border-gray-300">
+      <span className="font-semibold">Date Range:</span> {dateFrom} - {dateTo}
+    </div>
+    <div className="px-2 py-1 bg-white rounded border border-gray-300">
+      <span className="font-semibold">Clusters:</span> {numberOfClusters} <span className="mx-1">|</span> <span className="font-semibold">Runs:</span> {numberOfRuns}
+    </div>
+  </div>
+</div>
+
+
 
       {/* Collapsible Query Parameters */}
       <div
@@ -138,17 +143,6 @@ const QueryBar = ({
               }
               className="border border-gray-300 p-2 rounded-md w-full text-center focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
-          </div>
-
-          {/* Process Button */}
-          <div className="col-span-2">
-            <button
-              onClick={handleFilter}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition w-full focus:outline-none focus:ring-2 focus:ring-blue-400"
-              disabled={loading}
-            >
-              {loading ? "Processing..." : "Process"}
-            </button>
           </div>
         </div>
       </div>

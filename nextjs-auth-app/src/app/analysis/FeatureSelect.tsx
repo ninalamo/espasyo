@@ -15,7 +15,7 @@ const FeatureSelect = ({ selectedFeatures, setSelectedFeatures }: FeatureSelectP
     { value: "Severity", label: "Severity" },
     { value: "PoliceDistrict", label: "Police District" },
     { value: "Weather", label: "Weather" },
-    { value: "CrimeMotive", label: "Crime Motive" }
+    { value: "Motive", label: "Crime Motive" }
   ];
 
   // Fixed options for latitude and longitude.
@@ -72,6 +72,10 @@ const FeatureSelect = ({ selectedFeatures, setSelectedFeatures }: FeatureSelectP
         className="w-full"
         classNamePrefix="select"
         placeholder="Select features..."
+        menuPortalTarget={document.body}
+        styles={{
+          menuPortal: (base) => ({ ...base, zIndex: 9999 }),
+        }}
       />
       <div className="mt-2 flex items-center">
         <input
