@@ -126,7 +126,7 @@ const AnalysisPage = () => {
     }))
   );
 
-  // Function to convert tableData to CSV and trigger download.
+  {/* // Function to convert tableData to CSV and trigger download. */ }
   const downloadCSV = () => {
     const headers = ["Cluster ID", "Case ID", "Latitude", "Longitude"];
     const rows = tableData.map(item => `${item.clusterId},${item.caseId},${item.latitude},${item.longitude}`);
@@ -173,6 +173,9 @@ const AnalysisPage = () => {
           {loading ? "Processing..." : "Process"}
         </button>
       </div>
+
+
+
 
       {/* Cluster Legend */}
       {clusters.length > 0 && (
