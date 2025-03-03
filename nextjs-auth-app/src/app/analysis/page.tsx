@@ -126,21 +126,6 @@ const AnalysisPage = () => {
     }))
   );
 
-  {/* // Function to convert tableData to CSV and trigger download. */ }
-  const downloadCSV = () => {
-    const headers = ["Cluster ID", "Case ID", "Latitude", "Longitude"];
-    const rows = tableData.map(item => `${item.clusterId},${item.caseId},${item.latitude},${item.longitude}`);
-    const csvContent = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", "cluster_data.csv");
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   return (
     <div className="container mx-auto p-6">
       <ToastContainer />
