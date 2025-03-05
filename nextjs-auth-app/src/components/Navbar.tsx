@@ -51,7 +51,7 @@ export default function Navbar() {
                                 className="flex items-center gap-2 cursor-pointer"
                                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                             >
-                                <span>{session.user?.name || session.user?.email}</span>
+                                <span>{session.user?.name.toLowerCase() || session.user?.email}</span>
                                 <User className="w-5 h-5" />
                                 <ChevronDown className="w-4 h-4" /> {/* Caret Icon */}
                             </div>

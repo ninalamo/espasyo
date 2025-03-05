@@ -27,7 +27,9 @@
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "next-auth.d.ts",        // If the file is at the project root
+    "types/next-auth.d.ts"
   ],
   "exclude": [
     "node_modules"
