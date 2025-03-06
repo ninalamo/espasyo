@@ -155,7 +155,7 @@ const AnalysisPage = () => {
           className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition disabled:opacity-50"
           disabled={loading}
         >
-          {loading ? "Processing..." : "Process"}
+          {loading ? "Processing..." : "Run Analysis"}
         </button>
       </div>
 
