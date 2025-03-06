@@ -12,7 +12,7 @@ export default function AuthListener() {
     if (session?.user?.name) {
       // Store username when session exists
       localStorage.setItem("username", session.user.name);
-       localStorage.setItem("token", session.user?.token);
+       localStorage.setItem("token", session.user.token);
     } else {
       // Remove token and username when session is cleared
       localStorage.removeItem("token");
