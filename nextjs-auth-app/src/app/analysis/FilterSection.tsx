@@ -141,7 +141,7 @@ const FilterSection = ({ selectedFeatures, onFilterChange }: FilterSectionProps)
         <span className="font-semibold">Severity:</span> {displaySelected(filterState.selectedSeverity)}
       </div>
     )}
-    {isFeatureSelected(["precinct", "police precincts"]) && (
+    {isFeatureSelected(["precinct", "police precincts","policedistrict","police district"]) && (
       <div className="px-2 py-1 bg-white rounded border border-gray-300">
         <span className="font-semibold">Police Precincts:</span> {displaySelected(filterState.selectedPrecinct)}
       </div>
