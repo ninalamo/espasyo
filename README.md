@@ -1,7 +1,7 @@
 # espasyo
 
 ### RUN JSON SERVER
-
+No need when running the .net core web api project
 json-server -p 3001 db.json
 
 
