@@ -1,7 +1,6 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import withAuth from '../hoc/withAuth';
@@ -13,7 +12,6 @@ import debounce from 'lodash.debounce'; // Import debounce to limit rapid functi
 const CrimeList = () => {
   // Get session data and authentication status using NextAuth's useSession hook
   const { data: session, status } = useSession();
-  const router = useRouter();
 
   // Local state for managing crime records, loading status, errors, and pagination
   const [crimeRecords, setCrimeRecords] = useState<IncidentDto[]>([]);
@@ -27,13 +25,6 @@ const CrimeList = () => {
   // while searchQuery is updated after a debounce delay.
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-
-  // Redirect to login if the user is not authenticated
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    }
-  }, [status, router]);
 
   // While the authentication status is loading, show a loading indicator
   if (status === 'loading') {
