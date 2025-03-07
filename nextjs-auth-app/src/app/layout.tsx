@@ -5,7 +5,6 @@ import '../app/globals.css';
 import Navbar from '../components/Navbar';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
-import AuthListener from '../components/AuthListener';
 
 interface RootLayoutProps {
   children: ReactNode;
