@@ -1,8 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useRouter } from 'next/navigation';
-import { useState, useEffect } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import withAuth from '../hoc/withAuth';
 import dynamic from 'next/dynamic';
 import { apiService } from '../api/utils/apiService';
@@ -20,8 +19,7 @@ import FilterSection, { FilterState, initialFilterState } from './FilterSection'
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
 const AnalysisPage = () => {
-  const { status } = useSession();
-  const router = useRouter();
+  useSession();
 
   const [dateTo, setDateTo] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [dateFrom, setDateFrom] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));
@@ -36,13 +34,7 @@ const AnalysisPage = () => {
   // Lifted filter state from FilterSection
   const [parentFilterState, setParentFilterState] = useState<FilterState>(initialFilterState);
 
-  useEffect(() => {
-    if (status === 'unauthenticated') {
-      router.push('/login');
-    }
-  }, [status, router]);
-
-  const handleFilter = async () => {
+  const handleFilter = useCallback(async () => {
     if (!dateFrom || !dateTo) {
       toast.error("Please select both start and end dates.");
       return;
@@ -96,35 +88,30 @@ const AnalysisPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns, parentFilterState]);
 
   // Prepare data for ScatterPlot.
-  const scatterData = clusters.flatMap(cluster =>
-    cluster.clusterItems.map(item => ({
-      x: Number(item.longitude.toFixed(6)),
-      y: Number(item.latitude.toFixed(6)),
-      clusterId: cluster.clusterId,
-    }))
-  );
-
-  // Prepare centroid data for ScatterPlot.
-  const centroidData = clusters
-    .filter(cluster => cluster.centroids && cluster.centroids.length === 2)
-    .map(cluster => ({
-      clusterId: cluster.clusterId,
-      x: cluster.centroids[1],
-      y: cluster.centroids[0],
-    }));
+  const scatterData = useMemo(() => {
+    return clusters.flatMap(cluster =>
+      cluster.clusterItems.map(item => ({
+        x: Number(item.longitude.toFixed(6)),
+        y: Number(item.latitude.toFixed(6)),
+        clusterId: cluster.clusterId,
+      }))
+    );
+  }, [clusters]);
 
   // Prepare data for table display.
-  const tableData = clusters.flatMap(cluster =>
-    cluster.clusterItems.map(item => ({
-      clusterId: cluster.clusterId,
-      caseId: item.caseId,
-      latitude: item.latitude,
-      longitude: item.longitude,
-    }))
-  );
+  const tableData = useMemo(() => {
+    return clusters.flatMap(cluster =>
+      cluster.clusterItems.map(item => ({
+        clusterId: cluster.clusterId,
+        caseId: item.caseId,
+        latitude: item.latitude,
+        longitude: item.longitude,
+      }))
+    );
+  }, [clusters]);
 
   return (
     <div className="container mx-auto p-6">
