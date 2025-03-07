@@ -1,6 +1,5 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
 import { useCallback, useMemo, useState } from 'react';
 import withAuth from '../hoc/withAuth';
 import dynamic from 'next/dynamic';
@@ -19,7 +18,6 @@ import FilterSection, { FilterState, initialFilterState } from './FilterSection'
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
 const AnalysisPage = () => {
-  useSession();
 
   const [dateTo, setDateTo] = useState(format(subDays(new Date(), 1), 'yyyy-MM-dd'));
   const [dateFrom, setDateFrom] = useState(format(subMonths(new Date(), 12), 'yyyy-MM-dd'));

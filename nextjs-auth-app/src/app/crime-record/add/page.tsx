@@ -198,7 +198,11 @@ const AddCrimePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 {/* Register the input for caseId with a required validation */}
+                <label htmlFor="caseId" className="block text-xs font-medium mb-1">
+                  Case Id
+                </label>
                 <input
+                  id="caseId"
                   type="text"
                   {...register("caseId", { required: "Case ID is required" })}
                   className="border p-2 rounded w-full"
@@ -210,7 +214,11 @@ const AddCrimePage = () => {
               </div>
               <div>
                 {/* Register the input for timeStamp with a required validation */}
+                <label htmlFor="timeStamp" className="block text-xs font-medium mb-1">
+                  Date Of Crime
+                </label>
                 <input
+                  id="timeStamp"
                   type="datetime-local"
                   {...register("timeStamp", { required: "Timestamp is required" })}
                   className="border p-2 rounded w-full"
@@ -233,6 +241,7 @@ const AddCrimePage = () => {
                   {...register("location", { required: "Location is required" })}
                   className="border p-2 rounded w-full"
                   placeholder="Street Address"
+                  id="location"
                 />
                 {errors.location && (
                   <p className="text-red-500 text-sm">{errors.location.message}</p>
@@ -243,7 +252,7 @@ const AddCrimePage = () => {
                 <label htmlFor="street" className="block text-xs font-medium mb-1">
                   Street
                 </label>
-                <select {...register("street")} className="border p-2 rounded w-full">
+                <select id="street" {...register("street")} className="border p-2 rounded w-full">
                   <option value="">Select Street</option>
                   {filteredStreets.map((s, index) => (
                     <option key={index} value={s.street}>
@@ -258,6 +267,7 @@ const AddCrimePage = () => {
                   Precinct
                 </label>
                 <select
+                  id="precinct"
                   {...register("precinct", {
                     valueAsNumber: true,
                     required: "Precinct is required"
@@ -284,8 +294,12 @@ const AddCrimePage = () => {
             {/* Crime Type & Severity Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <label htmlFor="crimeType" className="block text-xs font-medium mb-1">
+                  Crime Type
+                </label>
                 {/* Dropdown for crime type */}
                 <select
+                  id="crimeType"
                   {...register("crimeType", {
                     valueAsNumber: true,
                     required: "Crime Type is required"
@@ -305,7 +319,11 @@ const AddCrimePage = () => {
               </div>
               <div>
                 {/* Dropdown for severity */}
+                <label htmlFor="severity" className="block text-xs font-medium mb-1">
+                  Severity
+                </label>
                 <select
+                  id="severity"
                   {...register("severity", {
                     valueAsNumber: true,
                     required: "Severity is required"
@@ -329,7 +347,11 @@ const AddCrimePage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 {/* Dropdown for motive */}
+                <label htmlFor="motive" className="block text-xs font-medium mb-1">
+                  Motive
+                </label>
                 <select
+                  id="motive"
                   {...register("motive", {
                     valueAsNumber: true,
                     required: "Motive is required"
@@ -349,7 +371,11 @@ const AddCrimePage = () => {
               </div>
               <div>
                 {/* Dropdown for weather */}
+                <label htmlFor="weather" className="block text-xs font-medium mb-1">
+                  Weather
+                </label>
                 <select
+                  id="weather"
                   {...register("weather", {
                     valueAsNumber: true,
                     required: "Weather is required"
@@ -371,7 +397,11 @@ const AddCrimePage = () => {
 
             {/* Additional Information Section */}
             <div>
+              <label htmlFor="additionalInfo" className="block text-xs font-medium mb-1">
+                Additional Info
+              </label>
               <textarea
+                id="additionalInfo"
                 {...register("additionalInfo")}
                 className="border p-2 rounded w-full h-24"
                 placeholder="Additional Information (optional)"
@@ -391,9 +421,8 @@ const AddCrimePage = () => {
               {/* Submit button, disabled while form is submitting */}
               <button
                 type="submit"
-                className={`bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 ${
-                  isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className={`bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 ${isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? "Saving..." : "Save"}
