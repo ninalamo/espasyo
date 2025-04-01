@@ -5,10 +5,9 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CrimeDetailDto } from '../../../types/crime-record/CrimeDetailDto';
 import {apiService} from '../../api/utils/apiService';
-import withAuth from '../../hoc/withAuth';
+import withAuth from '../../../components/hoc/withAuth';
 
 const CrimeDetailsPage = () => {
-  const router = useRouter();
   const { id } = useParams(); // Get crime ID from the URL
   const [crimeRecord, setCrimeRecord] = useState<CrimeDetailDto | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
