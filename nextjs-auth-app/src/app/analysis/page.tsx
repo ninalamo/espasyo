@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import withAuth from '../../components/hoc/withAuth';
+import withAuth from '../hoc/withAuth';
 import dynamic from 'next/dynamic';
 import { apiService } from '../api/utils/apiService';
 import { toast, ToastContainer } from 'react-toastify';

@@ -3,7 +3,7 @@
 import { useSession } from 'next-auth/react';
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import withAuth from '../../components/hoc/withAuth';
+import withAuth from '../hoc/withAuth';
 import { apiService } from '../api/utils/apiService'; // API service to handle HTTP requests
 import CrimeTable from './CrimeTable'; // Component that displays the crime records in a table
 import { IncidentDto } from '../../types/crime-record/IncidentDto'; // Type definition for crime records

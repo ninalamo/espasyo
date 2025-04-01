@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"; // React hooks for side effects and
 import { useRouter } from "next/navigation"; // Next.js router for navigation
 import { useForm } from "react-hook-form"; // useForm hook from react-hook-form for form management
 import { AddIncidentDto } from "../../../types/crime-record/AddIncidentDto"; // Import form data type/interface
-import withAuth from "../../../components/hoc/withAuth"; // Higher-order component for authentication
+import withAuth from "../../hoc/withAuth"; // Higher-order component for authentication
 import { apiService } from "../../api/utils/apiService"; // API service for HTTP requests
 import { validateIncident } from "../../api/utils/validators/createIncidentValidator"; // Custom validation function
 import { fetchCachedData } from "../../api/utils/fetchCachedData";

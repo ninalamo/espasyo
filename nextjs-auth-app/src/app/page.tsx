@@ -1,7 +1,7 @@
 'use client';
 
 import { signOut, useSession } from 'next-auth/react';
-import withAuth from '../components/hoc/withAuth';
+import withAuth from './hoc/withAuth';
 
 const Home = () => {
   const { data: session } = useSession();
