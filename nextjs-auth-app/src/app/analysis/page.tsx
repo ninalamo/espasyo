@@ -78,6 +78,7 @@ const AnalysisPage = () => {
       if ("message" in response) {
         toast.error(response.message);
       } else {
+        console.log("response",response);
         setClusters(response.clusterGroups);
         toast.success("Clusters generated successfully!");
       }
@@ -89,15 +90,20 @@ const AnalysisPage = () => {
   }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns, parentFilterState]);
 
   // Prepare data for ScatterPlot.
-  const scatterData = useMemo(() => {
-    return clusters.flatMap(cluster =>
-      cluster.clusterItems.map(item => ({
-        x: Number(item.longitude.toFixed(6)),
-        y: Number(item.latitude.toFixed(6)),
+const scatterData = useMemo(() => {
+  return clusters.flatMap(cluster =>
+    cluster.clusterItems.map(item => {
+      const incidentDate = new Date(item.year, item.month - 1, 1); // JS months are 0-based
+      return {
         clusterId: cluster.clusterId,
-      }))
-    );
-  }, [clusters]);
+        x: Math.floor(incidentDate.getTime() / 1000), // convert to UNIX timestamp (seconds)
+        caseId: item.caseId,
+        timeOfDay: item.timeOfDay,
+      };
+    })
+  );
+}, [clusters]);
+
 
   // Prepare data for table display.
   const tableData = useMemo(() => {
@@ -107,6 +113,9 @@ const AnalysisPage = () => {
         caseId: item.caseId,
         latitude: item.latitude,
         longitude: item.longitude,
+        month: item.month,
+        year: item.year,
+        timeOfDay: item.timeOfDay
       }))
     );
   }, [clusters]);
@@ -231,6 +240,9 @@ const AnalysisPage = () => {
                     <th className="px-4 py-2 border border-gray-300">Case ID</th>
                     <th className="px-4 py-2 border border-gray-300">Latitude</th>
                     <th className="px-4 py-2 border border-gray-300">Longitude</th>
+                    <th className="px-4 py-2 border border-gray-300">Year</th>
+                      <th className="px-4 py-2 border border-gray-300">Month</th>
+                        <th className="px-4 py-2 border border-gray-300">Time Of Day</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -240,6 +252,9 @@ const AnalysisPage = () => {
                       <td className="px-4 py-2 border border-gray-300">{item.caseId}</td>
                       <td className="px-4 py-2 border border-gray-300">{item.latitude}</td>
                       <td className="px-4 py-2 border border-gray-300">{item.longitude}</td>
+                        <td className="px-4 py-2 border border-gray-300">{item.month}</td>
+                          <td className="px-4 py-2 border border-gray-300">{item.year}</td>
+                            <td className="px-4 py-2 border border-gray-300">{item.timeOfDay}</td>
                     </tr>
                   ))}
                 </tbody>

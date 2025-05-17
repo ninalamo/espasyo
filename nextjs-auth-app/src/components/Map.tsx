@@ -97,22 +97,48 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
       // **Points Layer**
       if (showPoints) {
-        cluster.clusterItems.forEach((item) => {
-          L.circleMarker([item.latitude, item.longitude], {
-            color: "#AAA",
-            weight: 1,
-            fillColor: clusterColor,
-            fillOpacity: 0.8,
-            radius: 5,
-          })
-            .addTo(markersLayerRef.current!)
-            .bindPopup(`
-              <div>
-                <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
-                <p><strong>Case ID:</strong> ${item.caseId}</p>
-              </div>
-            `);
+  // Object to store markers keyed by a string representing their coordinates.
+  // Using toFixed for a consistent key; adjust precision as needed.
+  const markerMap = {};
+
+  cluster.clusterItems.forEach((item) => {
+    // Generate a key for the coordinates. Adjust the precision if necessary.
+    const coordKey = `${item.latitude.toFixed(6)}_${item.longitude.toFixed(6)}`;
+
+    if (markerMap[coordKey]) {
+            // A marker at this coordinate already exists - append the case ID to its popup.
+            const existingMarker = markerMap[coordKey];
+            const popup = existingMarker.getPopup();
+            // Retrieve existing content and add the new case info.
+            const additionalContent = `<p><strong>Case ID:</strong> ${item.caseId}</p>`;
+            if (popup) {
+              const updatedContent = popup.getContent() + additionalContent;
+              existingMarker.setPopupContent(updatedContent);
+            } else {
+              // In the unlikely event there's no popup, bind one.
+              existingMarker.bindPopup(additionalContent);
+            }
+          } else {
+            // No marker exists for this coordinate, so create a new marker.
+            const marker = L.circleMarker([item.latitude, item.longitude], {
+              color: "#AAA",
+              weight: 1,
+              fillColor: clusterColor,
+              fillOpacity: 0.8,
+              radius: 5,
+            })
+              .addTo(markersLayerRef.current)
+              .bindPopup(`
+                <div>
+                  <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
+                  <p><strong>Case ID:</strong> ${item.caseId}</p>
+                </div>
+              `);
+            // Save the marker against the coordinate key.
+            markerMap[coordKey] = marker;
+          }
         });
+
 
         // **Tesla Coil Marker for Centroids**
         if (cluster.centroids && cluster.centroids.length === 2) {

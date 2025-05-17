@@ -14,4 +14,7 @@ export interface ClusterItem {
   caseId: string;
   latitude: number;
   longitude: number;
+  month: number;
+  year: number;
+  timeOfDay: string;
 }

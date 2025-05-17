@@ -39,10 +39,11 @@ export const apiService = {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (token) headers["Authorization"] = `Bearer ${token}`;
     
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(body),
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, 
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
     });
     return handleResponse(response, "POST", endpoint);
   },
