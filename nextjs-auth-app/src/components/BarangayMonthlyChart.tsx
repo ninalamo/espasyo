@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { ChartOptions, ChartData } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
 import 'chart.js/auto';
 import { format } from 'date-fns';
-import { BarangayDataItem } from '../types/analysis/ClusterDto';
+import { BarangayDataItem, Cluster } from '../types/analysis/ClusterDto';
 import { GetPrecinctsDictionary } from '../constants/consts';
 
 const precinctNames: Record<number, string> = GetPrecinctsDictionary;
@@ -14,11 +14,24 @@ const timeSlots = ['Morning', 'Afternoon', 'Evening'] as const;
 type TimeSlot = typeof timeSlots[number];
 
 interface Props {
-  data: BarangayDataItem[];
+  clusters: Cluster[];
   timeOfDayColors: Record<TimeSlot, string>;
 }
 
-export const BarangayMonthlyChart: React.FC<Props> = ({ data, timeOfDayColors }) => {
+export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColors }) => {
+
+  // Prepare data for BarangayMonthlyChart
+  const data = useMemo<BarangayDataItem[]>(() => {
+    return clusters.flatMap(cluster =>
+      cluster.clusterItems.map(item => ({
+        precinct: item.precinct,            // numeric 0–8
+        month: item.month,               // 1–12
+        year: item.year,                // e.g. 2024
+        timeOfDay: item.timeOfDay,           // 'Morning'|'Afternoon'|'Evening'
+      }))
+    );
+  }, [clusters]);
+  
   const [selected, setSelected] = useState<number | null>(null);
 
   const precincts = Array.from(new Set(data.map(d => d.precinct))).sort((a, b) => a - b);

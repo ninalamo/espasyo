@@ -9,12 +9,10 @@ import 'react-toastify/dist/ReactToastify.css';
 import { format, subMonths, subDays } from 'date-fns';
 import { ClusterGroupResponse, Cluster, BarangayDataItem, ClustedDataTableRow } from '../../types/analysis/ClusterDto';
 import { ErrorDto } from '../../types/ErrorDto';
-import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import QueryBar from './QueryBar';
 import FilterSection, { FilterState, initialFilterState } from './FilterSection';
-import { BarangayMonthlyChart } from '../../components/BarangayMonthlyChart';
-import ClusterDataTable from '../../components/ClusterDataTable';
+import AnalysisTabs from './AnalysisTabs';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
@@ -79,7 +77,7 @@ const AnalysisPage = () => {
       if ("message" in response) {
         toast.error(response.message);
       } else {
-        console.log("response",response);
+        console.log("response", response);
         setClusters(response.clusterGroups);
         toast.success("Clusters generated successfully!");
       }
@@ -90,52 +88,6 @@ const AnalysisPage = () => {
     }
   }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns, parentFilterState]);
 
-  // Prepare data for ScatterPlot.
-// const scatterData = useMemo(() => {
-//   return clusters.flatMap(cluster =>
-//     cluster.clusterItems.map(item => {
-//       const incidentDate = new Date(item.year, item.month - 1, 1); // JS months are 0-based
-//       return {
-//         clusterId: cluster.clusterId,
-//         x: Math.floor(incidentDate.getTime() / 1000), // convert to UNIX timestamp (seconds)
-//         caseId: item.caseId,
-//         timeOfDay: item.timeOfDay,
-//       };
-//     })
-//   );
-// }, [clusters]);
-
-// Prepare data for BarangayMonthlyChart
-// Prepare data for BarangayMonthlyChart
-const brgyChartData = useMemo<BarangayDataItem[]>(() => {
-  return clusters.flatMap(cluster =>
-    cluster.clusterItems.map(item => ({
-      precinct:   item.precinct,            // numeric 0–8
-      month:      item.month,               // 1–12
-      year:       item.year,                // e.g. 2024
-      timeOfDay:  item.timeOfDay,           // 'Morning'|'Afternoon'|'Evening'
-    }))
-  );
-}, [clusters]);
-
-
-
-// Prepare data for table display.
-const tableData = useMemo<ClustedDataTableRow[]>(() => {
-  return clusters.flatMap(cluster =>
-    cluster.clusterItems.map<ClustedDataTableRow>(item => ({
-      precinct:  item.precinct,                                   // number
-      clusterId: cluster.clusterId,
-      caseId:    item.caseId,
-      latitude:  item.latitude,
-      longitude: item.longitude,
-      month:     item.month,
-      year:      item.year,
-      // cast to the exact union type
-      timeOfDay: item.timeOfDay as ClustedDataTableRow['timeOfDay'],
-    }))
-  );
-}, [clusters]);
 
   return (
     <div className="container mx-auto p-6">
@@ -170,9 +122,6 @@ const tableData = useMemo<ClustedDataTableRow[]>(() => {
         </button>
       </div>
 
-
-
-
       {/* Cluster Legend */}
       {clusters.length > 0 && (
         <div className="mb-4">
@@ -187,15 +136,6 @@ const tableData = useMemo<ClustedDataTableRow[]>(() => {
                 <span>Cluster {c.clusterId}: {c.clusterCount || 0}</span>
               </div>
             ))}
-            <div className="col-span-full flex justify-end">
-              <span
-                className="w-4 h-4 mr-2 inline-block"
-                style={{ backgroundColor: '#D3D3D3' }}
-              ></span>
-              <span>
-                Total: {clusters.reduce((total, c) => total + (c.clusterCount || 0), 0)}
-              </span>
-            </div>
           </div>
         </div>
       )}
@@ -203,55 +143,11 @@ const tableData = useMemo<ClustedDataTableRow[]>(() => {
 
 
       {/* Tabs for Map, Graph, Table */}
-      <TabGroup>
-        <TabList className="flex p-1 space-x-1 bg-blue-900/20 rounded-xl">
-          <Tab className={({ selected }) =>
-            selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
-              : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
-          }>
-            Map
-          </Tab>
-          {/* <Tab className={({ selected }) =>
-            selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
-              : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
-          }>
-            Graph
-          </Tab> */}
-           <Tab className={({ selected }) =>
-            selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
-              : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
-          }>
-            Brgy Monthly Chart
-          </Tab>
-          <Tab className={({ selected }) =>
-            selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
-              : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
-          }>
-            Table
-          </Tab>
-        </TabList>
-        <TabPanels className="mt-2">
-          <TabPanel>
-            <Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} clusterColorsMapping={clusterColorsMapping} />
-          </TabPanel>
-          {/* <TabPanel>
-            <ScatterPlot data={scatterData} clusterColorsMapping={clusterColorsMapping} />
-          </TabPanel> */}
-          <TabPanel>
-            <BarangayMonthlyChart
-                data={brgyChartData}
-                timeOfDayColors={{
-                  Morning:   '#FFCE56',
-                  Afternoon: '#36A2EB',
-                  Evening:   '#FF6384',
-                }}
-              />
-          </TabPanel>
-          <TabPanel>
-            <ClusterDataTable data={tableData} />
-          </TabPanel>
-        </TabPanels>
-      </TabGroup>
+      <AnalysisTabs
+        clusters={clusters}
+        mapKey={mapKey}
+      />
+
     </div>
   );
 };

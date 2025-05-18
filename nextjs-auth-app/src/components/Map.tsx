@@ -8,8 +8,6 @@ import * as turf from '@turf/turf';
 import { Cluster } from '../types/analysis/ClusterDto';
 import { CrimeTypesDictionary } from '../constants/consts';
 
-
-
 interface MapProps {
   center: [number, number];
   zoom: number;
@@ -23,6 +21,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const heatLayersRef = useRef<L.LayerGroup | null>(null);
   const envelopeLayersRef = useRef<L.LayerGroup | null>(null);
+
   const crimeTypeEnum = CrimeTypesDictionary;
 
   const [showPoints, setShowPoints] = useState(true);
@@ -37,11 +36,13 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const uniqueSteps = Array.from(new Set(
-    clusters.flatMap(c =>
-      c.clusterItems.map(i => `${i.year}-${i.month.toString().padStart(2, '0')}`)
+  const uniqueSteps = Array.from(
+    new Set(
+      clusters.flatMap(c =>
+        c.clusterItems.map(i => `${i.year}-${i.month.toString().padStart(2, '0')}`)
+      )
     )
-  )).sort();
+  ).sort();
 
   const uniqueYears = Array.from(
     new Set(clusters.flatMap(c => c.clusterItems.map(i => i.year)))
@@ -87,6 +88,8 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   }, [play, stepwise]);
 
   useEffect(() => {
+     if (!mapRef.current) return;
+     
     if (!mapRef.current || !leafletMap.current) {
       leafletMap.current = L.map(mapRef.current).setView(center, zoom);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -120,8 +123,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
           radius: 25, blur: 20, maxZoom: zoom,
           gradient: {
             0.2: "rgba(0,255,0,0.2)", 0.4: "rgba(173,255,47,0.5)",
-            0.6: "rgba(255,255,0,0.7)", 0.8: "rgba(255,165,0,0.85)",
-            1.0: "rgba(255,0,0,1.0)"
+            0.6: "rgba(255,255,0,0.7)", 0.8: "rgba(255,165,0,0.85)", 1.0: "rgba(255,0,0,1.0)"
           }
         });
         heatLayersRef.current!.addLayer(heatLayer);
@@ -155,120 +157,169 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-4">
-        {[
-          { label: "Show Points", state: showPoints, setState: setShowPoints },
-          { label: "Show Heatmap", state: showHeat, setState: setShowHeat },
-          { label: "Show Envelope", state: showEnvelope, setState: setShowEnvelope },
-          {
-            label: "Step-wise",
-            state: stepwise,
-            setState: (v: boolean) => {
-              setStepwise(v);
-              setPlay(false);
-            }
-          }
-        ].map(({ label, state, setState }) => (
-          <label key={label} className="flex items-center gap-1">
-            <input type="checkbox" checked={state} onChange={e => setState(e.target.checked)} />
-            <span>{label}</span>
-          </label>
-        ))}
-      </div>
+      {clusters && clusters.length > 0 ? (
+        <>
+          {/* Layer Controls Row */}
+          <div className="flex flex-wrap items-center gap-4 border border-gray-200 p-3 rounded bg-white shadow-sm">
+            {[
+              { label: "Show Points", state: showPoints, setState: setShowPoints },
+              { label: "Show Heatmap", state: showHeat, setState: setShowHeat },
+              { label: "Show Envelope", state: showEnvelope, setState: setShowEnvelope }
+            ].map(({ label, state, setState }) => (
+              <label key={label} className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={state} onChange={e => setState(e.target.checked)} className="accent-blue-600" />
+                {label}
+              </label>
+            ))}
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={stepwise}
+                onChange={e => {
+                  setStepwise(e.target.checked);
+                  setPlay(false);
+                }}
+                className="accent-blue-600"
+              />
+              Enable Step-wise Mode
+            </label>
+          </div>
 
-      {stepwise && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <button onClick={() => setPlay(!play)} className="px-3 py-1 bg-blue-600 text-white rounded shadow">{play ? "Pause" : "Play"}</button>
-          <button onClick={() => setCurrentStep(p => Math.max(p - 1, 0))} className="px-3 py-1 bg-gray-200 rounded">Previous</button>
-          <button onClick={() => setCurrentStep(p => Math.min(p + 1, uniqueSteps.length - 1))} className="px-3 py-1 bg-gray-200 rounded">Next</button>
-          <span className="text-sm text-gray-700">Step: {uniqueSteps[currentStep]}</span>
+          {/* Step-wise Controls */}
+          {stepwise && (
+            <fieldset className="border p-3 rounded shadow-sm bg-white space-y-2">
+              <legend className="text-sm font-semibold mb-2">Step-wise Playback</legend>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setPlay(!play)}
+                    className="px-3 py-1 bg-blue-600 text-white rounded shadow"
+                  >
+                    {play ? 'Pause' : 'Play'}
+                  </button>
+                  <button
+                    onClick={() => setCurrentStep(p => Math.max(p - 1, 0))}
+                    className="px-3 py-1 bg-gray-200 rounded"
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => setCurrentStep(p => Math.min(p + 1, uniqueSteps.length - 1))}
+                    className="px-3 py-1 bg-gray-200 rounded"
+                  >
+                    Next
+                  </button>
+                </div>
+                <span className="ml-auto text-sm text-gray-700 font-medium">
+                  Current Step: <span className="text-blue-700">{uniqueSteps[currentStep]}</span>
+                </span>
+              </div>
+            </fieldset>
+          )}
+
+          {/* Month and Year Filters */}
+          {!stepwise && (
+            <fieldset className="border px-3 pt-0 pb-3 rounded shadow-sm bg-white space-y-4">
+              <legend className="text-sm font-semibold mb-1">Filter by Month and Year</legend>
+              <p className="text-xs text-gray-500 italic">
+                Tip: Leave all unchecked to show <strong>all months</strong> and <strong>all years</strong>.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <span className="font-medium text-sm">Month:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {[...Array(12)].map((_, i) => {
+                      const m = i + 1;
+                      return (
+                        <button
+                          key={m}
+                          onClick={() =>
+                            setSelectedMonths(prev =>
+                              prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
+                            )
+                          }
+                          className={`px-2 py-1 border rounded text-sm ${selectedMonths.includes(m) ? 'bg-blue-600 text-white' : ''
+                            }`}
+                        >
+                          {m}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <span className="font-medium text-sm">Year:</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {uniqueYears.map(y => (
+                      <button
+                        key={y}
+                        onClick={() =>
+                          setSelectedYears(prev =>
+                            prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]
+                          )
+                        }
+                        className={`px-2 py-1 border rounded text-sm ${selectedYears.includes(y) ? 'bg-blue-600 text-white' : ''}`}
+                      >
+                        {y}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+          )}
+
+          {/* Crime Type Filter */}
+          <fieldset className="border p-3 rounded shadow-sm bg-white">
+            <legend className="text-sm font-semibold mb-2">Filter by Crime Type</legend>
+            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">
+              {Object.entries(crimeTypeEnum).map(([id, label]) => {
+                const crimeId = parseInt(id);
+                return (
+                  <button
+                    key={id}
+                    onClick={() =>
+                      setSelectedCrimeTypes(prev =>
+                        prev.includes(crimeId)
+                          ? prev.filter(x => x !== crimeId)
+                          : [...prev, crimeId]
+                      )
+                    }
+                    className={`px-2 py-1 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(crimeId) ? 'bg-blue-600 text-white' : ''}`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {/* Reset Button */}
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                setSelectedMonths([]);
+                setSelectedYears([]);
+                setSelectedCrimeTypes([]);
+              }}
+              title="Reset filters to show all results without filtering"
+              className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-sm rounded shadow"
+            >
+              🔄 Reset
+            </button>
+          </div>
+
+          {/* Map */}
+          <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} />
+        </>
+      ) : (
+        <div className="text-center text-gray-500 italic py-12">
+          No clusters to display. Please run analysis or adjust filters.
         </div>
       )}
-
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <span className="font-medium text-sm">Filter by Month:</span>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {[...Array(12)].map((_, i) => {
-              const m = i + 1;
-              return (
-                <button
-                  key={m}
-                  onClick={() =>
-                    setSelectedMonths(prev =>
-                      prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
-                    )
-                  }
-                  className={`px-2 py-1 border rounded text-sm ${selectedMonths.includes(m) ? 'bg-blue-600 text-white' : ''}`}
-                >
-                  {m}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="flex-1">
-          <span className="font-medium text-sm">Filter by Year:</span>
-          <div className="flex flex-wrap gap-1 mt-1">
-            {uniqueYears.map(y => (
-              <button
-                key={y}
-                onClick={() =>
-                  setSelectedYears(prev =>
-                    prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]
-                  )
-                }
-                className={`px-2 py-1 border rounded text-sm ${selectedYears.includes(y) ? 'bg-blue-600 text-white' : ''}`}
-              >
-                {y}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      <div>
-        <span className="font-medium text-sm">Filter by Crime Type:</span>
-        <div className="flex flex-wrap gap-1 mt-1">
-          {Object.entries(crimeTypeEnum).map(([id, label]) => {
-            const crimeId = parseInt(id);
-            return (
-              <button
-                key={id}
-                onClick={() =>
-                  setSelectedCrimeTypes(prev =>
-                    prev.includes(crimeId)
-                      ? prev.filter(x => x !== crimeId)
-                      : [...prev, crimeId]
-                  )
-                }
-                className={`px-2 py-1 border rounded text-xs ${selectedCrimeTypes.includes(crimeId) ? 'bg-blue-600 text-white' : ''}`}
-              >
-                {label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="flex justify-end">
-        <button
-          onClick={() => {
-            setSelectedMonths([]);
-            setSelectedYears([]);
-            setSelectedCrimeTypes([]);
-          }}
-          title="Reset filters to show all results without filtering"
-          className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-sm rounded shadow"
-        >
-          🔄 Reset
-        </button>
-      </div>
-
-      <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} />
     </div>
   );
+
 };
 
 export default Map;
