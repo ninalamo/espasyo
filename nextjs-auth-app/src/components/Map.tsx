@@ -185,28 +185,38 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
               { label: "Show Envelope", state: showEnvelope, setState: setShowEnvelope }
             ].map(({ label, state, setState }) => (
               <label key={label} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={state} onChange={e => setState(e.target.checked)} className="accent-blue-600" />
+                <input
+                  type="checkbox"
+                  checked={state}
+                  onChange={e => setState(e.target.checked)}
+                  className="accent-blue-600"
+                />
                 {label}
               </label>
             ))}
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={stepwise}
-                onChange={e => {
-                  setStepwise(e.target.checked);
-                  setPlay(false);
-                }}
-                className="accent-blue-600"
-              />
-              Enable Step-wise Mode
-            </label>
+
+            {/* Float to right */}
+            <div className="ml-auto">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={stepwise}
+                  onChange={e => {
+                    setStepwise(e.target.checked);
+                    setPlay(false);
+                  }}
+                  className="accent-blue-600"
+                />
+                Toggle Heat Map Trends
+              </label>
+            </div>
           </div>
+
 
           {/* Step-wise Controls */}
           {stepwise && (
             <fieldset className="border p-3 rounded shadow-sm bg-white space-y-2">
-              <legend className="text-sm font-semibold mb-2">Step-wise Playback</legend>
+              <legend className="text-sm font-semibold mb-2">Trends Playback</legend>
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                   <button
@@ -228,12 +238,25 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                     Next
                   </button>
                 </div>
-                <span className="ml-auto text-sm text-gray-700 font-medium">
-                  Current Step: <span className="text-blue-700">{uniqueSteps[currentStep]}</span>
-                </span>
+
+                {/* Format current step as "Month: MMM-yyyy" */}
+                <div className="ml-auto flex items-center gap-2">
+                  <span className="text-sm text-gray-600 font-medium">Month:</span>
+                  <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold shadow-sm">
+                    {(() => {
+                      const [year, month] = uniqueSteps[currentStep].split('-').map(Number);
+                      return new Intl.DateTimeFormat('en-US', {
+                        year: 'numeric',
+                        month: 'short',
+                      }).format(new Date(year, month - 1));
+                    })()}
+                  </span>
+                </div>
+
               </div>
             </fieldset>
           )}
+
 
           {/* Month and Year Filters */}
           {!stepwise && (
@@ -313,6 +336,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
           </fieldset>
 
           {/* Reset Button */}
+          { !stepwise && (
           <div className="flex justify-end">
             <button
               onClick={() => {
@@ -326,6 +350,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
               🔄 Reset
             </button>
           </div>
+          )}
 
           {/* Map */}
           <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} />
