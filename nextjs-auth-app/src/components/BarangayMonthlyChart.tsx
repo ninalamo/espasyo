@@ -6,11 +6,9 @@ import { Chart } from 'react-chartjs-2';
 import 'chart.js/auto';
 import { format } from 'date-fns';
 import { BarangayDataItem } from '../types/analysis/ClusterDto';
+import { GetPrecinctsDictionary } from '../constants/consts';
 
-const precinctNames: Record<number, string> = {
-  0: "Alabang", 1: "Bayanan", 2: "Buli", 3: "Cupang", 4: "Poblacion",
-  5: "Putatan", 6: "Tunasan", 7: "Ayala_Alabang", 8: "Sucat"
-};
+const precinctNames: Record<number, string> = GetPrecinctsDictionary;
 
 const timeSlots = ['Morning', 'Afternoon', 'Evening'] as const;
 type TimeSlot = typeof timeSlots[number];

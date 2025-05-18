@@ -18,6 +18,7 @@ export interface ClusterItem {
   year: number;
   timeOfDay: string;
   precinct: number;
+  crimeType: number;
 }
 
 export interface BarangayDataItem {

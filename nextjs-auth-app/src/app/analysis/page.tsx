@@ -9,7 +9,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import { format, subMonths, subDays } from 'date-fns';
 import { ClusterGroupResponse, Cluster, BarangayDataItem, ClustedDataTableRow } from '../../types/analysis/ClusterDto';
 import { ErrorDto } from '../../types/ErrorDto';
-import ScatterPlot from '../../components/ScatterPlot'; // Import the ScatterPlot component
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import QueryBar from './QueryBar';
@@ -92,19 +91,19 @@ const AnalysisPage = () => {
   }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns, parentFilterState]);
 
   // Prepare data for ScatterPlot.
-const scatterData = useMemo(() => {
-  return clusters.flatMap(cluster =>
-    cluster.clusterItems.map(item => {
-      const incidentDate = new Date(item.year, item.month - 1, 1); // JS months are 0-based
-      return {
-        clusterId: cluster.clusterId,
-        x: Math.floor(incidentDate.getTime() / 1000), // convert to UNIX timestamp (seconds)
-        caseId: item.caseId,
-        timeOfDay: item.timeOfDay,
-      };
-    })
-  );
-}, [clusters]);
+// const scatterData = useMemo(() => {
+//   return clusters.flatMap(cluster =>
+//     cluster.clusterItems.map(item => {
+//       const incidentDate = new Date(item.year, item.month - 1, 1); // JS months are 0-based
+//       return {
+//         clusterId: cluster.clusterId,
+//         x: Math.floor(incidentDate.getTime() / 1000), // convert to UNIX timestamp (seconds)
+//         caseId: item.caseId,
+//         timeOfDay: item.timeOfDay,
+//       };
+//     })
+//   );
+// }, [clusters]);
 
 // Prepare data for BarangayMonthlyChart
 // Prepare data for BarangayMonthlyChart
@@ -212,12 +211,12 @@ const tableData = useMemo<ClustedDataTableRow[]>(() => {
           }>
             Map
           </Tab>
-          <Tab className={({ selected }) =>
+          {/* <Tab className={({ selected }) =>
             selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
               : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
           }>
             Graph
-          </Tab>
+          </Tab> */}
            <Tab className={({ selected }) =>
             selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
               : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
@@ -235,9 +234,9 @@ const tableData = useMemo<ClustedDataTableRow[]>(() => {
           <TabPanel>
             <Map key={mapKey} center={[14.4081, 121.0415]} zoom={14} clusters={clusters} clusterColorsMapping={clusterColorsMapping} />
           </TabPanel>
-          <TabPanel>
+          {/* <TabPanel>
             <ScatterPlot data={scatterData} clusterColorsMapping={clusterColorsMapping} />
-          </TabPanel>
+          </TabPanel> */}
           <TabPanel>
             <BarangayMonthlyChart
                 data={brgyChartData}

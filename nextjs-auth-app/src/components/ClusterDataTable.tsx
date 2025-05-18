@@ -3,19 +3,10 @@
 
 import React, { useMemo, useState } from 'react';
 import { ClustedDataTableRow } from '../types/analysis/ClusterDto';
+import { GetPrecinctsDictionary } from '../constants/consts';
 
 // precinct → barangay name lookup
-const precinctNames: Record<number,string> = {
-  0: "Alabang",
-  1: "Bayanan",
-  2: "Buli",
-  3: "Cupang",
-  4: "Poblacion",
-  5: "Putatan",
-  6: "Tunasan",
-  7: "Ayala_Alabang",
-  8: "Sucat"
-};
+const precinctNames: Record<number,string> = GetPrecinctsDictionary;
 
 interface Props {
   data: ClustedDataTableRow[];
