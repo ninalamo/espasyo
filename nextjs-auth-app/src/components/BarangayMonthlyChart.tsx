@@ -6,17 +6,11 @@ import 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
 import { ChartOptions } from 'chart.js';
 import { format } from 'date-fns';
-
-interface Point {
-  precinct: number;
-  month: number;    // 1–12
-  year: number;     // e.g. 2024
-  timeOfDay: 'Morning' | 'Afternoon' | 'Evening';
-}
+import { BarangayDataItem } from '../types/analysis/ClusterDto';
 
 interface Props {
-  data: Point[];
-  barangayColors: Record<'Morning'|'Afternoon'|'Evening', string>;
+  data: BarangayDataItem[];
+  timeOfDayColors: Record<'Morning'|'Afternoon'|'Evening', string>;
 }
 
 // precinct→barangay name lookup
@@ -35,7 +29,7 @@ const precinctNames: Record<number,string> = {
 const timeSlots = ['Morning','Afternoon','Evening'] as const;
 type TimeSlot = typeof timeSlots[number];
 
-export const BarangayMonthlyChart: React.FC<Props> = ({ data, barangayColors }) => {
+export const BarangayMonthlyChart: React.FC<Props> = ({ data, timeOfDayColors }) => {
   // Which precinct is focused? null means “show all”
   const [selected, setSelected] = useState<number|null>(null);
 
@@ -74,7 +68,7 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ data, barangayColors }) 
     const datasets = timeSlots.map(slot => ({
       label: slot,
       data: months.map(m => counts[m.ms][slot]),
-      backgroundColor: barangayColors[slot],
+      backgroundColor: timeOfDayColors[slot],
       stack: 'stack',
     }));
 

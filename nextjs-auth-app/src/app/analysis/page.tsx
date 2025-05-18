@@ -7,7 +7,7 @@ import { apiService } from '../api/utils/apiService';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { format, subMonths, subDays } from 'date-fns';
-import { ClusterGroupResponse, Cluster } from '../../types/analysis/ClusterDto';
+import { ClusterGroupResponse, Cluster, BarangayDataItem, ClustedDataTableRow } from '../../types/analysis/ClusterDto';
 import { ErrorDto } from '../../types/ErrorDto';
 import ScatterPlot from '../../components/ScatterPlot'; // Import the ScatterPlot component
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
@@ -15,6 +15,7 @@ import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import QueryBar from './QueryBar';
 import FilterSection, { FilterState, initialFilterState } from './FilterSection';
 import { BarangayMonthlyChart } from '../../components/BarangayMonthlyChart';
+import ClusterDataTable from '../../components/ClusterDataTable';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
@@ -105,22 +106,37 @@ const scatterData = useMemo(() => {
   );
 }, [clusters]);
 
+// Prepare data for BarangayMonthlyChart
+// Prepare data for BarangayMonthlyChart
+const brgyChartData = useMemo<BarangayDataItem[]>(() => {
+  return clusters.flatMap(cluster =>
+    cluster.clusterItems.map(item => ({
+      precinct:   item.precinct,            // numeric 0–8
+      month:      item.month,               // 1–12
+      year:       item.year,                // e.g. 2024
+      timeOfDay:  item.timeOfDay,           // 'Morning'|'Afternoon'|'Evening'
+    }))
+  );
+}, [clusters]);
 
-  // Prepare data for table display.
-  const tableData = useMemo(() => {
-    return clusters.flatMap(cluster =>
-      cluster.clusterItems.map(item => ({
-        clusterId: cluster.clusterId,
-        caseId: item.caseId,
-        latitude: item.latitude,
-        longitude: item.longitude,
-        month: item.month,
-        year: item.year,
-        timeOfDay: item.timeOfDay,
-        precinct: item.precinct
-      }))
-    );
-  }, [clusters]);
+
+
+// Prepare data for table display.
+const tableData = useMemo<ClustedDataTableRow[]>(() => {
+  return clusters.flatMap(cluster =>
+    cluster.clusterItems.map<ClustedDataTableRow>(item => ({
+      precinct:  item.precinct,                                   // number
+      clusterId: cluster.clusterId,
+      caseId:    item.caseId,
+      latitude:  item.latitude,
+      longitude: item.longitude,
+      month:     item.month,
+      year:      item.year,
+      // cast to the exact union type
+      timeOfDay: item.timeOfDay as ClustedDataTableRow['timeOfDay'],
+    }))
+  );
+}, [clusters]);
 
   return (
     <div className="container mx-auto p-6">
@@ -224,8 +240,8 @@ const scatterData = useMemo(() => {
           </TabPanel>
           <TabPanel>
             <BarangayMonthlyChart
-                data={tableData}
-                barangayColors={{
+                data={brgyChartData}
+                timeOfDayColors={{
                   Morning:   '#FFCE56',
                   Afternoon: '#36A2EB',
                   Evening:   '#FF6384',
@@ -233,51 +249,7 @@ const scatterData = useMemo(() => {
               />
           </TabPanel>
           <TabPanel>
-            <div className="flex justify-end mb-2">
-              <button onClick={() => {
-                const headers = ["Cluster ID", "Case ID", "Latitude", "Longitude"];
-                const rows = tableData.map(item => `${item.clusterId},${item.caseId},${item.latitude},${item.longitude}`);
-                const csvContent = [headers.join(","), ...rows].join("\n");
-                const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.setAttribute("download", "cluster_data.csv");
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-              }} className="bg-green-600 text-white px-4 py-2 rounded-md">
-                Download CSV
-              </button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full table-auto border-collapse border border-gray-300">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-2 border border-gray-300">Cluster ID</th>
-                    <th className="px-4 py-2 border border-gray-300">Case ID</th>
-                    <th className="px-4 py-2 border border-gray-300">Latitude</th>
-                    <th className="px-4 py-2 border border-gray-300">Longitude</th>
-                    <th className="px-4 py-2 border border-gray-300">Year</th>
-                      <th className="px-4 py-2 border border-gray-300">Month</th>
-                        <th className="px-4 py-2 border border-gray-300">Time Of Day</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tableData.map(item => (
-                    <tr key={`${item.clusterId}_${item.caseId}`}>
-                      <td className="px-4 py-2 border border-gray-300">{item.clusterId}</td>
-                      <td className="px-4 py-2 border border-gray-300">{item.caseId}</td>
-                      <td className="px-4 py-2 border border-gray-300">{item.latitude}</td>
-                      <td className="px-4 py-2 border border-gray-300">{item.longitude}</td>
-                        <td className="px-4 py-2 border border-gray-300">{item.month}</td>
-                          <td className="px-4 py-2 border border-gray-300">{item.year}</td>
-                            <td className="px-4 py-2 border border-gray-300">{item.timeOfDay}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ClusterDataTable data={tableData} />
           </TabPanel>
         </TabPanels>
       </TabGroup>
