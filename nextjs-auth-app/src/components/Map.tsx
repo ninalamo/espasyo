@@ -7,6 +7,7 @@ import 'leaflet.heat';
 import * as turf from '@turf/turf';
 import { Cluster } from '../types/analysis/ClusterDto';
 import { CrimeTypesDictionary } from '../constants/consts';
+import MapModal from './MapModal';
 
 interface MapProps {
   center: [number, number];
@@ -33,6 +34,12 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const [selectedMonths, setSelectedMonths] = useState<number[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [selectedCrimeTypes, setSelectedCrimeTypes] = useState<number[]>([]);
+  const [modalCases, setModalCases] = useState<{
+    lat: number;
+    lng: number;
+    clusterId: number;
+    items: Cluster['clusterItems'];
+  } | null>(null);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -88,8 +95,8 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   }, [play, stepwise]);
 
   useEffect(() => {
-     if (!mapRef.current) return;
-     
+    if (!mapRef.current) return;
+
     if (!mapRef.current || !leafletMap.current) {
       leafletMap.current = L.map(mapRef.current).setView(center, zoom);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -135,21 +142,32 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
           const key = `${item.latitude.toFixed(6)}_${item.longitude.toFixed(6)}`;
           if (!markerMap[key]) {
             const marker = L.circleMarker([item.latitude, item.longitude], {
-              color: "#AAA", weight: 1, fillColor: clusterColor, fillOpacity: 0.8, radius: 5
-            })
-              .addTo(markersLayerRef.current!)
-              .bindPopup(`
-                <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
-                <p><strong>Case ID:</strong> ${item.caseId}</p>
-              `);
+              color: "#AAA",
+              weight: 1,
+              fillColor: clusterColor,
+              fillOpacity: 0.8,
+              radius: 5
+            }).addTo(markersLayerRef.current!);
+
+            // Attach click handler to open modal with all items at that point
+            marker.on('click', () => {
+              const allItems = cluster.clusterItems.filter(
+                i =>
+                  i.latitude.toFixed(6) === item.latitude.toFixed(6) &&
+                  i.longitude.toFixed(6) === item.longitude.toFixed(6)
+              );
+              setModalCases({
+                lat: item.latitude,
+                lng: item.longitude,
+                clusterId: cluster.clusterId,
+                items: allItems,
+              });
+            });
+
             markerMap[key] = marker;
-          } else {
-            const popup = markerMap[key].getPopup();
-            const content = `<p><strong>Case ID:</strong> ${item.caseId}</p>`;
-            if (popup) {
-              markerMap[key].setPopupContent(popup.getContent() + content);
-            }
           }
+
+
         });
       }
     });
@@ -311,6 +329,57 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
           {/* Map */}
           <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} />
+          {modalCases && (
+            <MapModal
+              onClose={() => setModalCases(null)}
+              clusterId={modalCases.clusterId}
+              items={modalCases.items}
+              lat={modalCases.lat}
+              lng={modalCases.lng}
+            >
+              <h2 className="text-lg font-semibold mb-3">Cluster at [{modalCases.lat}, {modalCases.lng}]</h2>
+              <p className="text-sm mb-2"><strong>Cluster ID:</strong> {modalCases.clusterId}</p>
+
+              {modalCases.items.length === 1 ? (
+                <ul className="space-y-1 text-sm">
+                  <li><strong>Case ID:</strong> {modalCases.items[0].caseId}</li>
+                  <li><strong>Crime Type:</strong> {crimeTypeEnum[modalCases.items[0].crimeType]}</li>
+                  <li><strong>Month:</strong> {modalCases.items[0].month}</li>
+                  <li><strong>Year:</strong> {modalCases.items[0].year}</li>
+                  <li><strong>Time of Day:</strong> {modalCases.items[0].timeOfDay}</li>
+                  <li><strong>Precinct:</strong> {modalCases.items[0].precinct}</li>
+                </ul>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full table-auto text-sm border border-gray-300 mt-2">
+                    <thead className="bg-gray-100">
+                      <tr>
+                        <th className="border px-2 py-1">Case ID</th>
+                        <th className="border px-2 py-1">Crime Type</th>
+                        <th className="border px-2 py-1">Month</th>
+                        <th className="border px-2 py-1">Year</th>
+                        <th className="border px-2 py-1">Time of Day</th>
+                        <th className="border px-2 py-1">Precinct</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {modalCases.items.map((i) => (
+                        <tr key={i.caseId}>
+                          <td className="border px-2 py-1">{i.caseId}</td>
+                          <td className="border px-2 py-1">{crimeTypeEnum[i.crimeType]}</td>
+                          <td className="border px-2 py-1">{i.month}</td>
+                          <td className="border px-2 py-1">{i.year}</td>
+                          <td className="border px-2 py-1">{i.timeOfDay}</td>
+                          <td className="border px-2 py-1">{i.precinct}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </MapModal>
+          )}
+
         </>
       ) : (
         <div className="text-center text-gray-500 italic py-12">
