@@ -54,29 +54,28 @@ const QueryBar = ({
         </button>
       </div>
 
-{/* Always visible summary of selected query parameters */}
-<div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md shadow-sm">
-  <h3 className="text-sm font-semibold text-gray-800 mb-2">Query Summary</h3>
-  <div className="flex flex-wrap gap-2 text-xs text-gray-700">
-    <div className="px-2 py-1 bg-white rounded border border-gray-300">
-      <span className="font-semibold">Included Features:</span> {displaySelected(selectedFeatures)}
-    </div>
-    <div className="px-2 py-1 bg-white rounded border border-gray-300">
-      <span className="font-semibold">Date Range:</span> {dateFrom} - {dateTo}
-    </div>
-    <div className="px-2 py-1 bg-white rounded border border-gray-300">
-      <span className="font-semibold">Clusters:</span> {numberOfClusters} <span className="mx-1">|</span> <span className="font-semibold">Runs:</span> {numberOfRuns}
-    </div>
-  </div>
-</div>
+      {/* Always visible summary of selected query parameters */}
+      <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-800 mb-2">Query Summary</h3>
+        <div className="flex flex-wrap gap-2 text-xs text-gray-700">
+          <div className="px-2 py-1 bg-white rounded border border-gray-300">
+            <span className="font-semibold">Included Features:</span> {displaySelected(selectedFeatures)}
+          </div>
+          <div className="px-2 py-1 bg-white rounded border border-gray-300">
+            <span className="font-semibold">Date Range:</span> {dateFrom} - {dateTo}
+          </div>
+          <div className="px-2 py-1 bg-white rounded border border-gray-300">
+            <span className="font-semibold">Clusters:</span> {numberOfClusters} <span className="mx-1">|</span> <span className="font-semibold">Runs:</span> {numberOfRuns}
+          </div>
+        </div>
+      </div>
 
 
 
       {/* Collapsible Query Parameters */}
       <div
-        className={`overflow-hidden transition-all duration-300 ${
-          isExpanded ? "max-h-96 opacity-100 py-2" : "max-h-0 opacity-0 py-0"
-        }`}
+        className={`overflow-hidden transition-all duration-300 ${isExpanded ? "max-h-96 opacity-100 py-2" : "max-h-0 opacity-0 py-0"
+          }`}
       >
         {/* Feature Select */}
         <div className="col-span-2 mb-4">

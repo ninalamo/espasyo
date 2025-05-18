@@ -122,44 +122,43 @@ const FilterSection = ({ selectedFeatures, onFilterChange }: FilterSectionProps)
         </div>
       </div>
 
-    {/* Always visible selected filters summary */}
-<div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md shadow-sm">
-  <h3 className="text-sm font-semibold text-gray-800 mb-2">Selected Filter Values</h3>
-  <div className="flex flex-wrap gap-2 text-xs text-gray-700">
-    {isFeatureSelected(["crimeTypes", "crime type"]) && (
-      <div className="px-2 py-1 bg-white rounded border border-gray-300">
-        <span className="font-semibold">Crime Types:</span> {displaySelected(filterState.selectedCrimeTypes)}
+      {/* Always visible selected filters summary */}
+      <div className="mb-4 p-4 bg-gray-50 border border-gray-200 rounded-md shadow-sm">
+        <h3 className="text-sm font-semibold text-gray-800 mb-2">Selected Filter Values</h3>
+        <div className="flex flex-wrap gap-2 text-xs text-gray-700">
+          {isFeatureSelected(["crimeTypes", "crime type"]) && (
+            <div className="px-2 py-1 bg-white rounded border border-gray-300">
+              <span className="font-semibold">Crime Types:</span> {displaySelected(filterState.selectedCrimeTypes)}
+            </div>
+          )}
+          {isFeatureSelected(["motive", "motives"]) && (
+            <div className="px-2 py-1 bg-white rounded border border-gray-300">
+              <span className="font-semibold">Motives:</span> {displaySelected(filterState.selectedMotive)}
+            </div>
+          )}
+          {isFeatureSelected(["severity"]) && (
+            <div className="px-2 py-1 bg-white rounded border border-gray-300">
+              <span className="font-semibold">Severity:</span> {displaySelected(filterState.selectedSeverity)}
+            </div>
+          )}
+          {isFeatureSelected(["precinct", "police precincts", "policedistrict", "police district"]) && (
+            <div className="px-2 py-1 bg-white rounded border border-gray-300">
+              <span className="font-semibold">Police Precincts:</span> {displaySelected(filterState.selectedPrecinct)}
+            </div>
+          )}
+          {isFeatureSelected(["weather"]) && (
+            <div className="px-2 py-1 bg-white rounded border border-gray-300">
+              <span className="font-semibold">Weather:</span> {displaySelected(filterState.selectedWeather)}
+            </div>
+          )}
+        </div>
       </div>
-    )}
-    {isFeatureSelected(["motive", "motives"]) && (
-      <div className="px-2 py-1 bg-white rounded border border-gray-300">
-        <span className="font-semibold">Motives:</span> {displaySelected(filterState.selectedMotive)}
-      </div>
-    )}
-    {isFeatureSelected(["severity"]) && (
-      <div className="px-2 py-1 bg-white rounded border border-gray-300">
-        <span className="font-semibold">Severity:</span> {displaySelected(filterState.selectedSeverity)}
-      </div>
-    )}
-    {isFeatureSelected(["precinct", "police precincts","policedistrict","police district"]) && (
-      <div className="px-2 py-1 bg-white rounded border border-gray-300">
-        <span className="font-semibold">Police Precincts:</span> {displaySelected(filterState.selectedPrecinct)}
-      </div>
-    )}
-    {isFeatureSelected(["weather"]) && (
-      <div className="px-2 py-1 bg-white rounded border border-gray-300">
-        <span className="font-semibold">Weather:</span> {displaySelected(filterState.selectedWeather)}
-      </div>
-    )}
-  </div>
-</div>
 
 
       {/* Collapsible filters panel */}
       <div
-        className={`overflow-hidden transition-all duration-300 ${
-          isExpanded ? "max-h-96 opacity-100 py-2" : "max-h-0 opacity-0 py-0"
-        }`}
+        className={`overflow-hidden transition-all duration-300 ${isExpanded ? "max-h-96 opacity-100 py-2" : "max-h-0 opacity-0 py-0"
+          }`}
       >
         {isFeatureSelected(["crimeTypes", "crime type"]) && (
           <MultiSelectDropdown
