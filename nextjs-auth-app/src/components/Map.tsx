@@ -6,13 +6,9 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import * as turf from '@turf/turf';
 import { Cluster } from '../types/analysis/ClusterDto';
+import { CrimeTypesDictionary } from '../constants/consts';
 
-const crimeTypeEnum: Record<number, string> = {
-  0: "Arson", 1: "Assault", 2: "Burglary", 3: "Corruption", 4: "Counterfeiting",
-  5: "CyberCrime", 6: "DomesticViolence", 7: "DrugTrafficking", 8: "Embezzlement", 9: "Extortion",
-  10: "Fraud", 11: "HumanTrafficking", 12: "Homicide", 13: "IllegalPossessionOfFirearms",
-  14: "Kidnapping", 15: "Murder", 16: "Rape", 17: "Robbery", 18: "Theft", 19: "Vandalism"
-};
+
 
 interface MapProps {
   center: [number, number];
@@ -27,6 +23,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const heatLayersRef = useRef<L.LayerGroup | null>(null);
   const envelopeLayersRef = useRef<L.LayerGroup | null>(null);
+  const crimeTypeEnum = CrimeTypesDictionary;
 
   const [showPoints, setShowPoints] = useState(true);
   const [showHeat, setShowHeat] = useState(true);
