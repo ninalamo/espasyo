@@ -1,6 +1,6 @@
 // ScatterPlot.tsx
 import React from 'react';
-import { Scatter } from 'react-chartjs-2';
+import { Bubble } from 'react-chartjs-2';
 import 'chart.js/auto'; // Auto-registers Chart.js components
 import 'chartjs-adapter-date-fns'; // Adapter for date handling using date-fns
 import { ChartOptions } from 'chart.js';
@@ -11,12 +11,12 @@ interface ScatterPlotProps {
   // - x: a Unix timestamp in seconds
   // - clusterId: for grouping into datasets
   // - caseId: (optional) extra details for tooltips
-  data: { 
-    clusterId: number; 
-    x: number; 
+  data: {
+    clusterId: number;
+    x: number;
     y?: number; // Not used from input; we calculate y below.
-    caseId?: string; 
-    [key: string]: any; 
+    caseId?: string;
+    [key: string]: any;
   }[];
   // Maps each clusterId to a color for that group.
   clusterColorsMapping: { [key: number]: string };
@@ -30,7 +30,7 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
     return hour < 18 ? 'Afternoon' : 'Evening';
   };
 
-  // Define the fixed order for the y-axis categories.
+  // Use fixed order for the y-axis categories.
   const timeCategories = ['Morning', 'Afternoon', 'Evening'];
   const timeCategoryMapping: { [key: string]: number } = {
     'Morning': 0,
@@ -38,58 +38,93 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
     'Evening': 2,
   };
 
-  // Transform the input data:
+  // Transform input data:
   // • Convert x (Unix timestamp in seconds) to a Date.
-  // • Truncate it to the first day of its month.
-  // • Format the month-year for display (e.g., "Jan 2024").
-  // • Assign a numeric y value based on the time-of-day (Morning, etc).
+  // • Truncate to the first day of its month.
+  // • Format the month-year (e.g., "Jan 2024") for display.
+  // • Determine the time-of-day category and assign a numeric y value.
   const transformedData = data.map(point => {
-    // Convert Unix timestamp (seconds) into a Date.
-    // (Ensure that you really are sending seconds; if timestamps are in milliseconds, remove *1000.)
     const incidentDate = new Date(point.x * 1000);
-    // Truncate to the beginning of the month.
     const monthStart = new Date(incidentDate.getFullYear(), incidentDate.getMonth(), 1);
-    // Format the month-year label.
     const formattedDate = format(monthStart, 'MMM yyyy');
-    // Determine the time-of-day category.
     const timeCategory = getTimeCategory(incidentDate);
     const yValue = timeCategoryMapping[timeCategory];
-    
+
     return {
       ...point,
-      x: monthStart.getTime(), // Use a millisecond timestamp for the x-axis.
-      y: yValue,               // Map the time category to its numeric index.
-      formattedDate,           // For displaying in tooltips.
-      timeCategory,            // For displaying in tooltips.
+      x: monthStart.getTime(), // Millisecond timestamp for x-axis
+      y: yValue,               // Numeric value for y-axis (0 = Morning, etc.)
+      formattedDate,           // For tooltip display
+      timeCategory,            // For tooltip display
     };
   });
 
-  // Log transformed data for debugging.
   console.log("Transformed Data:", transformedData);
 
-  // Compute dynamic range for the x-axis based on the transformed data.
-  const allXValues = transformedData.map(pt => pt.x);
+  // Aggregate overlapping data points (group by same cluster, same x and same y).
+  const aggregatedMap: {
+    [key: string]: {
+      clusterId: number;
+      x: number;
+      y: number;
+      count: number;
+      formattedDate: string;
+      timeCategory: string;
+    }
+  } = {};
+
+  transformedData.forEach(pt => {
+    const key = `${pt.clusterId}_${pt.x}_${pt.y}`;
+    if (aggregatedMap[key]) {
+      aggregatedMap[key].count += 1;
+    } else {
+      aggregatedMap[key] = {
+        clusterId: pt.clusterId,
+        x: pt.x,
+        y: pt.y as number,
+        count: 1,
+        formattedDate: pt.formattedDate,
+        timeCategory: pt.timeCategory,
+      };
+    }
+  });
+
+  // Convert the aggregated object into an array.
+  const aggregatedData = Object.values(aggregatedMap);
+  console.log("Aggregated Data:", aggregatedData);
+
+  // Group aggregated data by cluster.
+  const distinctClusters = Array.from(new Set(aggregatedData.map(pt => pt.clusterId))).sort((a, b) => a - b);
+  const datasets = distinctClusters.map(clusterId => {
+    const clusterPoints = aggregatedData.filter(pt => pt.clusterId === clusterId);
+    // Map each aggregated point to bubble chart data.
+    const dataPoints = clusterPoints.map(pt => ({
+      x: pt.x,
+      y: pt.y,
+      // Set bubble radius proportional to the square root of the count.
+      r: Math.sqrt(pt.count) * 5,
+      count: pt.count, // optional - can be used in tooltips
+      clusterId: pt.clusterId,
+      formattedDate: pt.formattedDate,
+      timeCategory: pt.timeCategory,
+    }));
+    return {
+      label: `Cluster ${clusterId}`,
+      data: dataPoints,
+      backgroundColor: clusterColorsMapping[clusterId] || '#D3D3D3',
+    };
+  });
+
+  // Compute dynamic x-axis range based on aggregated data.
+  const allXValues = aggregatedData.map(pt => pt.x);
   const dynamicXMin = allXValues.length ? Math.min(...allXValues) : new Date().getTime();
   const dynamicXMax = allXValues.length ? Math.max(...allXValues) : new Date().getTime();
 
-  // Create datasets grouped by clusterId.
-  const distinctClusters = Array.from(new Set(transformedData.map(pt => pt.clusterId))).sort((a, b) => a - b);
-  const datasets = distinctClusters.map(clusterId => ({
-    label: `Cluster ${clusterId}`,
-    data: transformedData.filter(pt => pt.clusterId === clusterId),
-    backgroundColor: clusterColorsMapping[clusterId] || '#D3D3D3',
-    pointRadius: 5, // Ensure markers are visible.
-  }));
-
-  // Log the chartData for debugging.
-  const chartData = { datasets };
-  console.log("Chart Data:", chartData);
-
-  // Define Chart.js options with dynamic x-axis.
-  const options: ChartOptions<'scatter'> = {
+  // Configure Chart.js options with enhanced x-axis ticks.
+  const options: ChartOptions<'bubble'> = {
     scales: {
       x: {
-        type: 'time', // Time scale for month-year values.
+        type: 'time',
         time: {
           unit: 'month' as const,
           tooltipFormat: 'MMM yyyy',
@@ -101,12 +136,22 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
           display: true,
           text: 'Month-Year',
         },
-        min: dynamicXMin,  // Dynamic minimum based on your data.
-        max: dynamicXMax,  // Dynamic maximum based on your data.
+        // Dynamic range from your data.
+        min: dynamicXMin,
+        max: dynamicXMax,
+        ticks: {
+          // Let Chart.js auto-skip labels to avoid clutter.
+          autoSkip: true,
+          maxTicksLimit: 10,
+          // Optionally, use a callback to ensure proper formatting.
+          callback: function (value) {
+            return format(new Date(value as number), 'MMM yyyy');
+          }
+        },
       },
       y: {
         type: 'category',
-        labels: timeCategories, // The fixed order: Morning, Afternoon, Evening.
+        labels: timeCategories,
         title: {
           display: true,
           text: 'Time of Day',
@@ -117,12 +162,9 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
       tooltip: {
         callbacks: {
           label: (context: any) => {
-            // Customize the tooltip content.
             const point = context.raw;
-            let label = `Cluster ${point.clusterId}: (${point.formattedDate}, ${point.timeCategory})`;
-            if (point.caseId) {
-              label += ` - Case ID: ${point.caseId}`;
-            }
+            let label = `Cluster ${point.clusterId}: (${format(new Date(point.x), 'MMM yyyy')}, ${timeCategories[point.y]})`;
+            label += ` - Count: ${point.count}`;
             return label;
           },
         },
@@ -130,7 +172,10 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
     },
   };
 
-  return <Scatter data={chartData} options={options} />;
+  const chartData = { datasets };
+  console.log("Chart Data:", chartData);
+
+  return <Bubble data={chartData} options={options} />;
 };
 
 export default ScatterPlot;

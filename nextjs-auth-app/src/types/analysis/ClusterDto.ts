@@ -17,4 +17,5 @@ export interface ClusterItem {
   month: number;
   year: number;
   timeOfDay: string;
+  precinct: number;
 }

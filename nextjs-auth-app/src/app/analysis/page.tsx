@@ -14,6 +14,7 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import QueryBar from './QueryBar';
 import FilterSection, { FilterState, initialFilterState } from './FilterSection';
+import { BarangayMonthlyChart } from '../../components/BarangayMonthlyChart';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
 
@@ -115,7 +116,8 @@ const scatterData = useMemo(() => {
         longitude: item.longitude,
         month: item.month,
         year: item.year,
-        timeOfDay: item.timeOfDay
+        timeOfDay: item.timeOfDay,
+        precinct: item.precinct
       }))
     );
   }, [clusters]);
@@ -200,6 +202,12 @@ const scatterData = useMemo(() => {
           }>
             Graph
           </Tab>
+           <Tab className={({ selected }) =>
+            selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
+              : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
+          }>
+            Brgy Monthly Chart
+          </Tab>
           <Tab className={({ selected }) =>
             selected ? 'w-full py-2.5 text-sm font-medium text-blue-700 bg-white rounded-lg'
               : 'w-full py-2.5 text-sm font-medium text-blue-100 hover:bg-white/[0.12] hover:text-white'
@@ -213,6 +221,16 @@ const scatterData = useMemo(() => {
           </TabPanel>
           <TabPanel>
             <ScatterPlot data={scatterData} clusterColorsMapping={clusterColorsMapping} />
+          </TabPanel>
+          <TabPanel>
+            <BarangayMonthlyChart
+                data={tableData}
+                barangayColors={{
+                  Morning:   '#FFCE56',
+                  Afternoon: '#36A2EB',
+                  Evening:   '#FF6384',
+                }}
+              />
           </TabPanel>
           <TabPanel>
             <div className="flex justify-end mb-2">
