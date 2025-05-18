@@ -1,7 +1,9 @@
+'use client';
+
 import React, { useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import "leaflet.heat"; // Heatmap plugin
+import "leaflet.heat";
 import * as turf from "@turf/turf";
 import { Cluster } from "../types/analysis/ClusterDto";
 
@@ -19,165 +21,187 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const heatLayersRef = useRef<L.LayerGroup | null>(null);
   const envelopeLayersRef = useRef<L.LayerGroup | null>(null);
 
-  // Toggle states for independent layer visibility
   const [showPoints, setShowPoints] = useState(true);
   const [showHeat, setShowHeat] = useState(true);
   const [showEnvelope, setShowEnvelope] = useState(true);
 
+  const [stepwise, setStepwise] = useState(false);
+  const [play, setPlay] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [selectedMonths, setSelectedMonths] = useState<number[]>([]);
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
+
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  const uniqueSteps = Array.from(
+    new Set(
+      clusters.flatMap(c =>
+        c.clusterItems.map(i => `${i.year}-${i.month.toString().padStart(2, '0')}`)
+      )
+    )
+  ).sort();
+
+  const [filteredClusters, setFilteredClusters] = useState<Cluster[]>([]);
+
   useEffect(() => {
-    if (mapRef.current && !leafletMap.current) {
+    const updateFilteredClusters = () => {
+      let activeClusters = clusters;
+
+      if (stepwise && uniqueSteps.length > 0) {
+        const [y, m] = uniqueSteps[currentStep].split('-').map(Number);
+        activeClusters = clusters.map(c => ({
+          ...c,
+          clusterItems: c.clusterItems.filter(i => i.year === y && i.month === m)
+        })).filter(c => c.clusterItems.length > 0);
+      } else if (selectedMonths.length || selectedYears.length) {
+        activeClusters = clusters.map(c => ({
+          ...c,
+          clusterItems: c.clusterItems.filter(i =>
+            (selectedMonths.length === 0 || selectedMonths.includes(i.month)) &&
+            (selectedYears.length === 0 || selectedYears.includes(i.year))
+          )
+        })).filter(c => c.clusterItems.length > 0);
+      }
+
+      setFilteredClusters(activeClusters);
+    };
+
+    updateFilteredClusters();
+  }, [clusters, stepwise, currentStep, selectedMonths, selectedYears]);
+
+  useEffect(() => {
+    if (play && stepwise && uniqueSteps.length > 0) {
+      intervalRef.current = setInterval(() => {
+        setCurrentStep(prev => (prev + 1) % uniqueSteps.length);
+      }, 2000);
+    } else if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [play, stepwise]);
+
+  useEffect(() => {
+    if (!mapRef.current || !leafletMap.current) {
       leafletMap.current = L.map(mapRef.current).setView(center, zoom);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        attribution: "&copy; OpenStreetMap contributors",
+        attribution: "&copy; OpenStreetMap contributors"
       }).addTo(leafletMap.current);
       markersLayerRef.current = L.layerGroup().addTo(leafletMap.current);
       heatLayersRef.current = L.layerGroup().addTo(leafletMap.current);
       envelopeLayersRef.current = L.layerGroup().addTo(leafletMap.current);
     }
 
-    // Clear all layers before redrawing
     markersLayerRef.current?.clearLayers();
     heatLayersRef.current?.clearLayers();
     envelopeLayersRef.current?.clearLayers();
 
-    // **Modern Tesla Coil Icon (SVG)**
-    const teslaCoilSvg = `
-<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#000000"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><title>circle</title><circle cx="512" cy="512" r="256" fill="#fafafa" fill-rule="evenodd"></circle></g></svg>
-    `;
 
-    // Process each cluster group independently
-    clusters.forEach((cluster) => {
+    filteredClusters.forEach(cluster => {
       const clusterColor = clusterColorsMapping[cluster.clusterId] || "#D3D3D3";
 
-      // **Envelope Layer (Convex Hull)**
       if (showEnvelope && cluster.clusterItems.length > 2) {
-        const points: [number, number][] = cluster.clusterItems.map(
-          (item) => [item.latitude, item.longitude]
-        );
-        const turfPoints = points.map((pt) => turf.point([pt[1], pt[0]]));
-        const fc = turf.featureCollection(turfPoints);
-        let hull = turf.convex(fc);
-        if (!hull) {
-          const bbox = turf.bbox(fc);
-          hull = turf.bboxPolygon(bbox);
-        }
-        const bufferedHull = turf.buffer(hull, 0.3, { units: "kilometers" });
-        if (bufferedHull && bufferedHull.geometry.type === "Polygon") {
-          const coordinates = bufferedHull.geometry.coordinates[0];
-          const latLngs = coordinates.map(
-            (coord) => [coord[1], coord[0]] as [number, number]
-          );
-          L.polygon(latLngs, {
-            stroke: false,
-            fillColor: clusterColor,
-            fillOpacity: 0.3,
-          }).addTo(envelopeLayersRef.current!);
+        const points = cluster.clusterItems.map(i => [i.latitude, i.longitude] as [number, number]);
+        const fc = turf.featureCollection(points.map(pt => turf.point([pt[1], pt[0]])));
+        const hull = turf.convex(fc) || turf.bboxPolygon(turf.bbox(fc));
+        const buffered = turf.buffer(hull, 0.3, { units: 'kilometers' });
+        if (buffered.geometry.type === "Polygon") {
+          const coords = buffered.geometry.coordinates[0];
+          const latLngs = coords.map(c => [c[1], c[0]] as [number, number]);
+          L.polygon(latLngs, { stroke: false, fillColor: clusterColor, fillOpacity: 0.3 }).addTo(envelopeLayersRef.current!);
         }
       }
 
-      // **Heatmap Layer**
       if (showHeat && cluster.clusterItems.length > 3) {
-        const heatData: [number, number, number][] = cluster.clusterItems.map(
-          (item) => [item.latitude, item.longitude, 1]
-        );
+        const heatData = cluster.clusterItems.map(i => [i.latitude, i.longitude, 1]);
         const heatLayer = (L as any).heatLayer(heatData, {
-          radius: 25,
-          blur: 20,
-          maxZoom: zoom,
+          radius: 25, blur: 20, maxZoom: zoom,
           gradient: {
-            0.2: "rgba(0,255,0,0.2)",
-            0.4: "rgba(173,255,47,0.5)",
-            0.6: "rgba(255,255,0,0.7)",
-            0.8: "rgba(255,165,0,0.85)",
+            0.2: "rgba(0,255,0,0.2)", 0.4: "rgba(173,255,47,0.5)",
+            0.6: "rgba(255,255,0,0.7)", 0.8: "rgba(255,165,0,0.85)",
             1.0: "rgba(255,0,0,1.0)",
-          },
+          }
         });
         heatLayersRef.current!.addLayer(heatLayer);
       }
 
-      // **Points Layer**
       if (showPoints) {
-  // Object to store markers keyed by a string representing their coordinates.
-  // Using toFixed for a consistent key; adjust precision as needed.
-  const markerMap = {};
-
-  cluster.clusterItems.forEach((item) => {
-    // Generate a key for the coordinates. Adjust the precision if necessary.
-    const coordKey = `${item.latitude.toFixed(6)}_${item.longitude.toFixed(6)}`;
-
-    if (markerMap[coordKey]) {
-            // A marker at this coordinate already exists - append the case ID to its popup.
-            const existingMarker = markerMap[coordKey];
-            const popup = existingMarker.getPopup();
-            // Retrieve existing content and add the new case info.
-            const additionalContent = `<p><strong>Case ID:</strong> ${item.caseId}</p>`;
+        const markerMap: Record<string, L.CircleMarker> = {};
+        cluster.clusterItems.forEach(item => {
+          const key = `${item.latitude.toFixed(6)}_${item.longitude.toFixed(6)}`;
+          if (markerMap[key]) {
+            const existing = markerMap[key];
+            const popup = existing.getPopup();
+            const content = `<p><strong>Case ID:</strong> ${item.caseId}</p>`;
             if (popup) {
-              const updatedContent = popup.getContent() + additionalContent;
-              existingMarker.setPopupContent(updatedContent);
+              existing.setPopupContent(popup.getContent() + content);
             } else {
-              // In the unlikely event there's no popup, bind one.
-              existingMarker.bindPopup(additionalContent);
+              existing.bindPopup(content);
             }
           } else {
-            // No marker exists for this coordinate, so create a new marker.
             const marker = L.circleMarker([item.latitude, item.longitude], {
-              color: "#AAA",
-              weight: 1,
-              fillColor: clusterColor,
-              fillOpacity: 0.8,
-              radius: 5,
+              color: "#AAA", weight: 1, fillColor: clusterColor, fillOpacity: 0.8, radius: 5,
             })
-              .addTo(markersLayerRef.current)
+              .addTo(markersLayerRef.current!)
               .bindPopup(`
-                <div>
-                  <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
-                  <p><strong>Case ID:</strong> ${item.caseId}</p>
-                </div>
+                <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
+                <p><strong>Case ID:</strong> ${item.caseId}</p>
               `);
-            // Save the marker against the coordinate key.
-            markerMap[coordKey] = marker;
+            markerMap[key] = marker;
           }
         });
-
-
-        // **Tesla Coil Marker for Centroids**
-        if (cluster.centroids && cluster.centroids.length === 2) {
-          const teslaCoilIcon = L.divIcon({
-            className: "tesla-coil-icon",
-            html: teslaCoilSvg,
-            iconSize: [40, 60],
-            iconAnchor: [20, 60],
-            popupAnchor: [0, -50],
-          });
-
-          // L.marker([cluster.centroids[0], cluster.centroids[1]], { icon: teslaCoilIcon })
-          //   .addTo(markersLayerRef.current!)
-          //   .bindPopup(`
-          //     <div>
-          //       <p><strong>Cluster ID:</strong> ${cluster.clusterId}</p>
-          //       <p><strong>Centroid</strong></p>
-          //     </div>
-          //   `);
-        }
       }
     });
-  }, [center, zoom, clusters, clusterColorsMapping, showPoints, showHeat, showEnvelope]);
+  }, [filteredClusters, center, zoom, showPoints, showHeat, showEnvelope]);
 
   return (
     <div>
-      <div className="flex justify-end space-x-4 mb-2">
-        <label className="flex items-center space-x-1">
-          <input type="checkbox" checked={showPoints} onChange={(e) => setShowPoints(e.target.checked)} />
-          <span>Show Points</span>
-        </label>
-        <label className="flex items-center space-x-1">
-          <input type="checkbox" checked={showHeat} onChange={(e) => setShowHeat(e.target.checked)} />
-          <span>Show Heatmap</span>
-        </label>
-        <label className="flex items-center space-x-1">
-          <input type="checkbox" checked={showEnvelope} onChange={(e) => setShowEnvelope(e.target.checked)} />
-          <span>Show Envelope</span>
-        </label>
+      <div className="flex flex-wrap items-center gap-4 mb-2">
+        <label><input type="checkbox" checked={showPoints} onChange={e => setShowPoints(e.target.checked)} /> Show Points</label>
+        <label><input type="checkbox" checked={showHeat} onChange={e => setShowHeat(e.target.checked)} /> Show Heatmap</label>
+        <label><input type="checkbox" checked={showEnvelope} onChange={e => setShowEnvelope(e.target.checked)} /> Show Envelope</label>
+        <label><input type="checkbox" checked={stepwise} onChange={e => {
+          setStepwise(e.target.checked);
+          setPlay(false);
+        }} /> Step-wise</label>
+        {stepwise ? (
+          <>
+            <button onClick={() => setPlay(!play)} className="px-2 py-1 bg-blue-600 text-white rounded">{play ? "Pause" : "Play"}</button>
+            <button onClick={() => setCurrentStep(p => Math.max(p - 1, 0))} className="px-2 py-1 bg-gray-200 rounded">Previous</button>
+            <button onClick={() => setCurrentStep(p => Math.min(p + 1, uniqueSteps.length - 1))} className="px-2 py-1 bg-gray-200 rounded">Next</button>
+            <span>Step: {uniqueSteps[currentStep]}</span>
+          </>
+        ) : (
+          <>
+            <hr/>
+            <div className="flex gap-2">
+              <label>Filter Month:</label>
+              {[...Array(12)].map((_, i) => {
+                const m = i + 1;
+                return (
+                  <button
+                    key={m}
+                    onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                    className={`px-2 py-1 border rounded ${selectedMonths.includes(m) ? 'bg-blue-600 text-white' : ''}`}
+                  >{m}</button>
+                );
+              })}
+            </div>
+            <div className="flex gap-2">
+              <label>Filter Year:</label>
+              {Array.from(new Set(clusters.flatMap(c => c.clusterItems.map(i => i.year)))).sort().map(y => (
+                <button
+                  key={y}
+                  onClick={() => setSelectedYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
+                  className={`px-2 py-1 border rounded ${selectedYears.includes(y) ? 'bg-blue-600 text-white' : ''}`}
+                >{y}</button>
+              ))}
+            </div>
+            <button onClick={() => { setSelectedMonths([]); setSelectedYears([]); }} className="px-2 py-1 bg-gray-300 rounded">Show All</button>
+          </>
+        )}
       </div>
       <div id="map" ref={mapRef} style={{ height: "500px", width: "100%" }} />
     </div>
