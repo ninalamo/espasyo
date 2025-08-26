@@ -43,6 +43,9 @@ export default function Navbar() {
                     <Link href="/analysis" className="hover:underline">
                         Analysis
                     </Link>
+                    <Link href="/forecast" className="hover:underline">
+                        Forecast
+                    </Link>
 
                     {session && (
                         <div className="relative" ref={dropdownRef}>
