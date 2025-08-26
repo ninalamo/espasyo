@@ -8,11 +8,9 @@ interface CustomUser extends User {
 }
 
 // Determine the API URL based on environment variables:
-// Use NEXT_PUBLIC_API_URL (with "/user" appended) if available,
-// Otherwise, fallback to NEXTAUTH_URL.
-const API_URL = process.env.NEXT_PUBLIC_API_URL
-  ? `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")}/user`
-  : process.env.NEXTAUTH_URL;
+// Always use NEXT_PUBLIC_API_URL if provided; otherwise fallback to local API.
+// Remove fallback to NEXTAUTH_URL to avoid misrouting to the frontend.
+const API_URL = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5041/api").replace(/\/$/, "")}/user`;
 
 
 
@@ -26,16 +24,25 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
-          const isJsonServer = API_URL.endsWith("users");
-          const method = isJsonServer ? "GET" : "POST";
-          const res = await fetch(API_URL, {
-            method: method,
+          console.log("NextAuth authorize -> API_URL:", API_URL);
+          
+          // Configure fetch to ignore self-signed certificates in development
+          const fetchOptions: RequestInit = {
+            method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email: credentials?.email,
               password: credentials?.password,
             }),
-          });
+          };
+          
+          // In development, ignore certificate errors
+          if (process.env.NODE_ENV === 'development') {
+            // @ts-ignore
+            process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+          }
+          
+          const res = await fetch(API_URL, fetchOptions);
 
           console.log("Response status:", res.status);
 
@@ -46,13 +53,15 @@ export const authOptions: NextAuthOptions = {
           }
 
           const user = await res.json();
+          console.log("API response:", user);
 
-          if (user) {
+          if (user && user.token) {
             return {
-              id: user.id,
-              name: user.username,
-              email: user.email,
-              token: user.token, // Store token if available
+              id: credentials?.email || "user", // Use email as ID since API doesn't return one
+              name: user.username || credentials?.email,
+              email: credentials?.email,
+              username: user.username || credentials?.email || "",
+              token: user.token,
             } as CustomUser;
           }
 
@@ -75,9 +84,9 @@ export const authOptions: NextAuthOptions = {
       const customUser = user as CustomUser;
       if (customUser) {
         token.id = customUser.id;
-        token.name = customUser.username;
-        token.email = customUser.email;
-        token.token = customUser.token;
+        token.name = (customUser as any).name ?? customUser.username;
+        token.email = (customUser as any).email ?? customUser.email;
+        token.token = (customUser as any).token ?? customUser.token;
       }
       return token;
     },
@@ -97,3 +106,4 @@ export const authOptions: NextAuthOptions = {
 // Export NextAuth handler for both GET and POST requests
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
+

@@ -12,16 +12,25 @@ export default function LoginPage() {
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
+        console.log('Login attempt with:', email);
+        
         const result = await signIn('credentials', {
             redirect: false,
             email,
             password,
         });
+        
+        console.log('SignIn result:', result);
 
         if (result?.error) {
+            console.log('Login error:', result.error);
             setError('Invalid username or password');
+        } else if (result?.ok) {
+            console.log('Login successful, redirecting to /crime-record');
+            router.push('/crime-record'); // Redirect to crime records after login
         } else {
-            router.push('/'); // Redirect after login
+            console.log('Unexpected result:', result);
+            setError('Login failed');
         }
     };
 
