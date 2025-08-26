@@ -82,6 +82,12 @@ const AnalysisPage = () => {
         console.log("response", response);
         setClusters(response.clusterGroups);
         setLastAnalysisParams(payload);
+        
+        // Save analysis data to localStorage for forecasting
+        localStorage.setItem('lastAnalysisClusters', JSON.stringify(response.clusterGroups));
+        localStorage.setItem('lastAnalysisParams', JSON.stringify(payload));
+        localStorage.setItem('lastAnalysisTimestamp', new Date().toISOString());
+        
         toast.success(`Analysis complete! Generated ${response.clusterGroups.length} clusters with ${response.clusterGroups.reduce((sum, c) => sum + (c.clusterCount || 0), 0)} data points.`);
       }
     } catch (err: any) {
