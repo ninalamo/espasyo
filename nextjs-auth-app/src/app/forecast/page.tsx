@@ -67,14 +67,36 @@ const ForecastPage = () => {
   useEffect(() => {
     const savedClusters = localStorage.getItem('lastAnalysisClusters');
     const savedParams = localStorage.getItem('lastAnalysisParams');
+    const savedTimestamp = localStorage.getItem('lastAnalysisTimestamp');
     
     if (savedClusters && savedParams) {
       try {
         const clustersData = JSON.parse(savedClusters);
         const paramsData = JSON.parse(savedParams);
+        const timestamp = savedTimestamp ? new Date(savedTimestamp).toLocaleString() : 'Unknown';
+        
         setClusters(clustersData);
         setAnalysisLoaded(true);
-        toast.success(`Loaded analysis data: ${clustersData.length} clusters found`);
+        
+        // Calculate total data points and time range for debugging
+        const totalItems = clustersData.reduce((sum: number, cluster: any) => sum + cluster.clusterItems.length, 0);
+        const allItems = clustersData.flatMap((cluster: any) => cluster.clusterItems);
+        const years = new Set(allItems.map((item: any) => item.year));
+        const months = new Set(allItems.map((item: any) => `${item.year}-${item.month.toString().padStart(2, '0')}`));
+        const precincts = new Set(allItems.map((item: any) => item.precinct));
+        const crimeTypes = new Set(allItems.map((item: any) => item.crimeType));
+        
+        console.log('📊 Analysis Data Summary:', {
+          clusters: clustersData.length,
+          totalDataPoints: totalItems,
+          timeSpan: `${years.size} years, ${months.size} months`,
+          precincts: Array.from(precincts),
+          crimeTypes: Array.from(crimeTypes),
+          analysisTime: timestamp
+        });
+        
+        toast.success(`Analysis data loaded: ${clustersData.length} clusters, ${totalItems} data points (${timestamp})`)
+        
       } catch (error) {
         console.error('Error loading saved analysis:', error);
         toast.error('Failed to load previous analysis data');
@@ -82,7 +104,7 @@ const ForecastPage = () => {
     }
   }, []);
 
-  // Generate forecast using clustering analysis results
+  // Generate forecast using statistical APIs and clustering analysis
   const generateForecast = useCallback(async () => {
     if (!analysisLoaded || clusters.length === 0) {
       toast.error('Please run clustering analysis first to generate forecasts.');
@@ -102,11 +124,11 @@ const ForecastPage = () => {
       const processedData = processClusterData(clusters);
       setHistoricalData(processedData);
 
-      // Generate predictions based on cluster patterns
-      const predictions = generatePredictions(processedData, forecastParams);
+      // Call statistical forecasting API
+      const predictions = await callStatisticalForecastingAPI(processedData, forecastParams);
       setForecastData(predictions);
 
-      toast.success(`Forecast generated from ${clusters.length} clusters! Predicted ${predictions.length} data points for the next ${forecastParams.forecastPeriod} months.`);
+      toast.success(`Statistical forecast generated from ${clusters.length} clusters! Predicted ${predictions.length} data points for the next ${forecastParams.forecastPeriod} months.`);
 
     } catch (err: any) {
       console.error('Forecast generation error:', err);
@@ -116,6 +138,111 @@ const ForecastPage = () => {
     }
   }, [forecastParams, clusters, analysisLoaded]);
 
+  // Call statistical forecasting API service
+  const callStatisticalForecastingAPI = async (historicalData: HistoricalData[], params: ForecastParams): Promise<ForecastData[]> => {
+    try {
+      // Convert cluster data for the API
+      const clusterGroups = convertHistoricalDataToClusters(clusters, historicalData);
+      
+      // Prepare request for .NET API
+      const requestData = {
+        clusterData: clusterGroups,
+        horizon: params.forecastPeriod,
+        confidenceLevel: params.confidence,
+        modelType: params.model.toUpperCase() === 'ARIMA' ? 'SSA' : 'SSA', // Use SSA as default
+        includeSeasonality: params.includeSeasonality,
+        weightRecentData: params.weightRecentData
+      };
+      
+      // Call the .NET statistical forecasting endpoint
+      const response = await apiService.post('/incident/forecast/statistical', requestData);
+      
+      if (response && response.series) {
+        toast.success('Generated reliable statistical forecasts using ML.NET');
+        return processMLNetForecastResponse(response, params);
+      } else {
+        throw new Error('Invalid response from forecasting service');
+      }
+      
+    } catch (error) {
+      console.warn('ML.NET forecasting failed, using fallback:', error);
+      toast.warning('Using local forecasting methods as fallback');
+      return generatePredictions(historicalData, params);
+    }
+  };
+  
+  // Prepare time series data for external APIs
+  const prepareTimeSeriesData = (historicalData: HistoricalData[]) => {
+    return historicalData.map(data => ({
+      timestamp: new Date(data.year, data.month - 1).toISOString(),
+      value: data.count,
+      metadata: {
+        precinct: data.precinct,
+        crimeType: data.crimeType,
+        timeOfDay: data.timeOfDay,
+        clusterId: data.clusterId
+      }
+    }));
+  };
+  
+  // Process API forecast response
+  const processForecastResponse = (response: any, historicalData: HistoricalData[], params: ForecastParams): ForecastData[] => {
+    const predictions: ForecastData[] = [];
+    const baseDate = new Date();
+    
+    // Extract forecast data from API response
+    const forecasts = response.forecasts || [];
+    
+    forecasts.forEach((forecast: any, index: number) => {
+      const forecastDate = addMonths(baseDate, index + 1);
+      const year = forecastDate.getFullYear();
+      const month = forecastDate.getMonth() + 1;
+      
+      // Get unique precinct/crime type combinations from historical data
+      const groups = new Set(historicalData.map(d => `${d.precinct}-${d.crimeType}`));
+      
+      groups.forEach(group => {
+        const [precinct, crimeType] = group.split('-').map(Number);
+        const groupData = historicalData.filter(d => d.precinct === precinct && d.crimeType === crimeType);
+        
+        // Calculate distribution based on historical proportions
+        const totalHistorical = historicalData.reduce((sum, d) => sum + d.count, 0);
+        const groupHistorical = groupData.reduce((sum, d) => sum + d.count, 0);
+        const groupProportion = groupHistorical / totalHistorical;
+        
+        const predictedCount = Math.round((forecast.forecast || 0) * groupProportion);
+        const confidence = forecast.confidence || params.confidence;
+        const lowerBound = forecast.lower_bound || predictedCount * 0.8;
+        const upperBound = forecast.upper_bound || predictedCount * 1.2;
+        
+        // Determine trend
+        const recentAvg = groupData.slice(-6).reduce((sum, d) => sum + d.count, 0) / 6;
+        const trend: 'increasing' | 'decreasing' | 'stable' = 
+          predictedCount > recentAvg * 1.1 ? 'increasing' :
+          predictedCount < recentAvg * 0.9 ? 'decreasing' : 'stable';
+        
+        // Determine risk level
+        const riskLevel: 'low' | 'medium' | 'high' | 'critical' =
+          predictedCount > recentAvg * 1.5 ? 'critical' :
+          predictedCount > recentAvg * 1.2 ? 'high' :
+          predictedCount > recentAvg * 0.8 ? 'medium' : 'low';
+        
+        predictions.push({
+          year,
+          month,
+          precinct,
+          crimeType,
+          predictedCount: Math.max(0, predictedCount),
+          confidence,
+          trend,
+          riskLevel
+        });
+      });
+    });
+    
+    return predictions;
+  };
+  
   // Process cluster data into historical patterns
   const processClusterData = (clustersData: Cluster[]): HistoricalData[] => {
     const aggregated = new Map<string, HistoricalData>();
@@ -313,6 +440,70 @@ const ForecastPage = () => {
     return Math.max(0, baseValue + randomComponent);
   };
 
+  // Convert historical data back to cluster format for API
+  const convertHistoricalDataToClusters = (clusters: Cluster[], historicalData: HistoricalData[]) => {
+    return clusters.map(cluster => ({
+      clusterId: cluster.clusterId,
+      clusterItems: cluster.clusterItems.map(item => ({
+        caseId: item.caseId,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        month: item.month,
+        year: item.year,
+        timeOfDay: item.timeOfDay,
+        precinct: item.precinct,
+        crimeType: item.crimeType
+      })),
+      clusterCount: cluster.clusterItems.length
+    }));
+  };
+
+  // Process ML.NET forecast response
+  const processMLNetForecastResponse = (response: any, params: ForecastParams): ForecastData[] => {
+    const predictions: ForecastData[] = [];
+    
+    if (!response.series || !Array.isArray(response.series)) {
+      throw new Error('Invalid forecast response format');
+    }
+    
+    response.series.forEach((series: any) => {
+      const { precinct, crimeType, forecasts } = series;
+      
+      forecasts.forEach((forecast: any) => {
+        const forecastDate = new Date(forecast.timestamp);
+        
+        predictions.push({
+          year: forecastDate.getFullYear(),
+          month: forecastDate.getMonth() + 1,
+          precinct: precinct,
+          crimeType: crimeType,
+          predictedCount: Math.max(0, Math.round(forecast.forecast)),
+          confidence: forecast.confidence,
+          trend: forecast.trend as 'increasing' | 'decreasing' | 'stable',
+          riskLevel: forecast.riskLevel as 'low' | 'medium' | 'high' | 'critical'
+        });
+      });
+    });
+    
+    return predictions.sort((a, b) => 
+      new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime()
+    );
+  };
+
+  // Clear analysis data from localStorage
+  const clearAnalysisData = useCallback(() => {
+    localStorage.removeItem('lastAnalysisClusters');
+    localStorage.removeItem('lastAnalysisParams');
+    localStorage.removeItem('lastAnalysisTimestamp');
+    
+    setClusters([]);
+    setHistoricalData([]);
+    setForecastData([]);
+    setAnalysisLoaded(false);
+    
+    toast.info('Analysis data cleared from storage');
+  }, []);
+
   // Download forecast report
   const downloadForecastReport = useCallback(() => {
     if (forecastData.length === 0) {
@@ -325,10 +516,12 @@ const ForecastPage = () => {
       `Generated on: ${new Date().toLocaleString()}`,
       '',
       '## Forecast Parameters',
-      `Historical Period: ${forecastParams.dateFrom} to ${forecastParams.dateTo}`,
+      `Analysis Clusters: ${clusters.length} clusters from previous analysis`,
       `Forecast Period: ${forecastParams.forecastPeriod} months ahead`,
       `Model Used: ${forecastParams.model.toUpperCase()}`,
       `Confidence Level: ${(forecastParams.confidence * 100).toFixed(1)}%`,
+      `Seasonality: ${forecastParams.includeSeasonality ? 'Included' : 'Excluded'}`,
+      `Recent Data Weighting: ${forecastParams.weightRecentData ? 'Enabled' : 'Disabled'}`,
       '',
       '## Forecast Summary',
       `Total Predictions: ${forecastData.length}`,
@@ -416,11 +609,23 @@ const ForecastPage = () => {
                 </svg>
                 Forecast Configuration
               </h2>
-              <div className="flex items-center text-sm text-green-600">
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Analysis Data Loaded ({clusters.length} clusters)
+              <div className="flex items-center space-x-3">
+                <div className="flex items-center text-sm text-green-600">
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Analysis Data Loaded ({clusters.length} clusters)
+                </div>
+                <button
+                  onClick={clearAnalysisData}
+                  className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded-md hover:bg-red-200 transition flex items-center"
+                  title="Clear stored analysis data"
+                >
+                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Clear Data
+                </button>
               </div>
             </div>
           </div>
