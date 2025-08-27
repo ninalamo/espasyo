@@ -28,6 +28,7 @@ import {
   filterReliableForecasts,
   calculateForecastQualityMetrics
 } from '../../utils/forecastEnhancements';
+import SimpleForecastMap from '../../components/SimpleForecastMap';
 
 // TypeScript interfaces
 interface HistoricalData {
