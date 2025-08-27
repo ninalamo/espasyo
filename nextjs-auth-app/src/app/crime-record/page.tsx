@@ -26,19 +26,12 @@ const CrimeList = () => {
   const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // While the authentication status is loading, show a loading indicator
-  if (status === 'loading') {
-    return (
-      <div className="flex items-center justify-center min-h-screen text-gray-700">
-        Loading...
-      </div>
-    );
-  }
-
-  // If there is no session (user not authenticated), return nothing
-  if (!session) {
-    return null;
-  }
+  // Regular page change handler that updates the current page if within bounds.
+  const handlePageChange = (page: number) => {
+    if (page > 0 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  };
 
   // Debounced function to update the search query and reset the page to 1.
   const debouncedSetSearchQuery = useCallback(
@@ -49,18 +42,23 @@ const CrimeList = () => {
     []
   );
 
-  // Handler for search input changes. It updates the local searchInput state
-  // immediately and uses the debounced function to update the searchQuery.
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setSearchInput(value);
-    debouncedSetSearchQuery(value);
-  };
+  // Create a debounced version of the page change handler to avoid rapid-fire API calls.
+  // debounce delays the execution until 300ms have passed without a new call.
+  const debouncedHandlePageChange = useCallback(
+    debounce((page: number) => {
+      handlePageChange(page);
+    }, 300), // Adjust the delay as needed (300ms in this example)
+    [totalPages]
+  );
 
   // Fetch crime records from the API when the component mounts,
   // or when currentPage or searchQuery changes.
   // Pagination is applied via the query parameters pageNumber, pageSize, and search.
   useEffect(() => {
+    if (!session || status === 'loading') {
+      return; // Don't fetch if not authenticated or still loading
+    }
+    
     setIsLoading(true);
     apiService
       .get<{ items: IncidentDto[]; totalPages: number }>(
@@ -76,23 +74,7 @@ const CrimeList = () => {
       })
       .catch(() => setError('Failed to load crime records'))
       .finally(() => setIsLoading(false));
-  }, [currentPage, searchQuery]);
-
-  // Regular page change handler that updates the current page if within bounds.
-  const handlePageChange = (page: number) => {
-    if (page > 0 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  };
-
-  // Create a debounced version of the page change handler to avoid rapid-fire API calls.
-  // debounce delays the execution until 300ms have passed without a new call.
-  const debouncedHandlePageChange = useCallback(
-    debounce((page: number) => {
-      handlePageChange(page);
-    }, 300), // Adjust the delay as needed (300ms in this example)
-    [totalPages]
-  );
+  }, [currentPage, searchQuery, session, status]);
 
   // Clean up the debounced function when the component unmounts to avoid memory leaks.
   useEffect(() => {
@@ -100,6 +82,28 @@ const CrimeList = () => {
       debouncedHandlePageChange.cancel();
     };
   }, [debouncedHandlePageChange]);
+
+  // Handler for search input changes. It updates the local searchInput state
+  // immediately and uses the debounced function to update the searchQuery.
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchInput(value);
+    debouncedSetSearchQuery(value);
+  };
+
+  // While the authentication status is loading, show a loading indicator
+  if (status === 'loading') {
+    return (
+      <div className="flex items-center justify-center min-h-screen text-gray-700">
+        Loading...
+      </div>
+    );
+  }
+
+  // If there is no session (user not authenticated), return nothing
+  if (!session) {
+    return null;
+  }
 
   return (
     <div className="container mx-auto p-6">

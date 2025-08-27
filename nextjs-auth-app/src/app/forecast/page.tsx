@@ -14,6 +14,20 @@ import TimeSeriesChart from './TimeSeriesChart';
 import TrendAnalysis from './TrendAnalysis';
 import RiskHeatmap from './RiskHeatmap';
 import ForecastSummary from './ForecastSummary';
+import ForecastMap from './ForecastMap';
+import { 
+  ExtendedForecastData,
+  ForecastMapPoint
+} from '../../types/forecast/ExtendedForecastTypes';
+import { 
+  calculateReliabilityMetrics,
+  analyzeTimeOfDayPatterns,
+  getGeographicCoordinates,
+  createForecastMapPoints,
+  enhanceForecastData,
+  filterReliableForecasts,
+  calculateForecastQualityMetrics
+} from '../../utils/forecastEnhancements';
 
 // TypeScript interfaces
 interface HistoricalData {
@@ -51,6 +65,8 @@ const ForecastPage = () => {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
+  const [extendedForecastData, setExtendedForecastData] = useState<ExtendedForecastData[]>([]);
+  const [forecastMapPoints, setForecastMapPoints] = useState<ForecastMapPoint[]>([]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [analysisLoaded, setAnalysisLoaded] = useState(false);
 
@@ -95,7 +111,7 @@ const ForecastPage = () => {
           analysisTime: timestamp
         });
         
-        toast.success(`Analysis data loaded: ${clustersData.length} clusters, ${totalItems} data points (${timestamp})`)
+        toast.success(`Analysis data loaded: ${clustersData.length} clusters, ${totalItems} data points (${timestamp})`);
         
       } catch (error) {
         console.error('Error loading saved analysis:', error);
@@ -128,7 +144,23 @@ const ForecastPage = () => {
       const predictions = await callStatisticalForecastingAPI(processedData, forecastParams);
       setForecastData(predictions);
 
-      toast.success(`Statistical forecast generated from ${clusters.length} clusters! Predicted ${predictions.length} data points for the next ${forecastParams.forecastPeriod} months.`);
+      // Enhance forecasts with reliability scoring, time-of-day analysis, and spatial mapping
+      console.log('🔬 Enhancing forecasts with reliability scoring and spatial mapping...');
+      const enhancedForecasts = predictions.map(forecast => 
+        enhanceForecastData(forecast, processedData, clusters)
+      );
+      setExtendedForecastData(enhancedForecasts);
+
+      // Filter reliable forecasts for map display
+      const reliableForecasts = filterReliableForecasts(enhancedForecasts, 0.3, 3, 1.5);
+      const mapPoints = createForecastMapPoints(reliableForecasts, 0.3);
+      setForecastMapPoints(mapPoints);
+
+      // Log quality metrics
+      const qualityMetrics = calculateForecastQualityMetrics(enhancedForecasts);
+      console.log('📊 Forecast Quality Metrics:', qualityMetrics);
+
+      toast.success(`Statistical forecast generated! ${predictions.length} predictions (${mapPoints.length} reliable for map display) from ${clusters.length} clusters.`);
 
     } catch (err: any) {
       console.error('Forecast generation error:', err);
@@ -170,79 +202,7 @@ const ForecastPage = () => {
       return generatePredictions(historicalData, params);
     }
   };
-  
-  // Prepare time series data for external APIs
-  const prepareTimeSeriesData = (historicalData: HistoricalData[]) => {
-    return historicalData.map(data => ({
-      timestamp: new Date(data.year, data.month - 1).toISOString(),
-      value: data.count,
-      metadata: {
-        precinct: data.precinct,
-        crimeType: data.crimeType,
-        timeOfDay: data.timeOfDay,
-        clusterId: data.clusterId
-      }
-    }));
-  };
-  
-  // Process API forecast response
-  const processForecastResponse = (response: any, historicalData: HistoricalData[], params: ForecastParams): ForecastData[] => {
-    const predictions: ForecastData[] = [];
-    const baseDate = new Date();
-    
-    // Extract forecast data from API response
-    const forecasts = response.forecasts || [];
-    
-    forecasts.forEach((forecast: any, index: number) => {
-      const forecastDate = addMonths(baseDate, index + 1);
-      const year = forecastDate.getFullYear();
-      const month = forecastDate.getMonth() + 1;
-      
-      // Get unique precinct/crime type combinations from historical data
-      const groups = new Set(historicalData.map(d => `${d.precinct}-${d.crimeType}`));
-      
-      groups.forEach(group => {
-        const [precinct, crimeType] = group.split('-').map(Number);
-        const groupData = historicalData.filter(d => d.precinct === precinct && d.crimeType === crimeType);
-        
-        // Calculate distribution based on historical proportions
-        const totalHistorical = historicalData.reduce((sum, d) => sum + d.count, 0);
-        const groupHistorical = groupData.reduce((sum, d) => sum + d.count, 0);
-        const groupProportion = groupHistorical / totalHistorical;
-        
-        const predictedCount = Math.round((forecast.forecast || 0) * groupProportion);
-        const confidence = forecast.confidence || params.confidence;
-        const lowerBound = forecast.lower_bound || predictedCount * 0.8;
-        const upperBound = forecast.upper_bound || predictedCount * 1.2;
-        
-        // Determine trend
-        const recentAvg = groupData.slice(-6).reduce((sum, d) => sum + d.count, 0) / 6;
-        const trend: 'increasing' | 'decreasing' | 'stable' = 
-          predictedCount > recentAvg * 1.1 ? 'increasing' :
-          predictedCount < recentAvg * 0.9 ? 'decreasing' : 'stable';
-        
-        // Determine risk level
-        const riskLevel: 'low' | 'medium' | 'high' | 'critical' =
-          predictedCount > recentAvg * 1.5 ? 'critical' :
-          predictedCount > recentAvg * 1.2 ? 'high' :
-          predictedCount > recentAvg * 0.8 ? 'medium' : 'low';
-        
-        predictions.push({
-          year,
-          month,
-          precinct,
-          crimeType,
-          predictedCount: Math.max(0, predictedCount),
-          confidence,
-          trend,
-          riskLevel
-        });
-      });
-    });
-    
-    return predictions;
-  };
-  
+
   // Process cluster data into historical patterns
   const processClusterData = (clustersData: Cluster[]): HistoricalData[] => {
     const aggregated = new Map<string, HistoricalData>();
@@ -499,6 +459,8 @@ const ForecastPage = () => {
     setClusters([]);
     setHistoricalData([]);
     setForecastData([]);
+    setExtendedForecastData([]);
+    setForecastMapPoints([]);
     setAnalysisLoaded(false);
     
     toast.info('Analysis data cleared from storage');
@@ -536,7 +498,7 @@ const ForecastPage = () => {
         const date = format(new Date(f.year, f.month - 1), 'yyyy-MM');
         return `${date},${precinct},${crimeType},${f.predictedCount},${(f.confidence * 100).toFixed(1)}%,${f.trend},${f.riskLevel}`;
       })
-    ].join('\n');
+    ].join('\\n');
 
     const blob = new Blob([reportLines], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -572,6 +534,56 @@ const ForecastPage = () => {
             Download Forecast
           </button>
         )}
+      </div>
+
+      {/* Data Requirements & Disclaimer */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <div className="flex items-start">
+          <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1">
+            <h3 className="font-semibold text-blue-800 mb-3">📊 Data Requirements & Forecast Reliability</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-blue-700">
+              {/* Minimum Requirements */}
+              <div>
+                <h4 className="font-medium mb-2">🎯 Minimum Data Requirements:</h4>
+                <ul className="space-y-1 text-xs">
+                  <li>• <strong>1,000+ incidents</strong> total</li>
+                  <li>• <strong>24+ months</strong> of historical data</li>
+                  <li>• <strong>5+ incidents</strong> per precinct/crime type</li>
+                  <li>• <strong>3+ precincts</strong> geographic coverage</li>
+                  <li>• <strong>2+ crime types</strong> for pattern analysis</li>
+                </ul>
+              </div>
+              
+              {/* Reliability Levels */}
+              <div>
+                <h4 className="font-medium mb-2">🔍 Reliability Scoring:</h4>
+                <ul className="space-y-1 text-xs">
+                  <li>• <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-1"></span><strong>80%+</strong> Excellent (50+ incidents/category, 3+ years)</li>
+                  <li>• <span className="inline-block w-2 h-2 bg-yellow-500 rounded-full mr-1"></span><strong>60-79%</strong> Good (25+ incidents/category, 2+ years)</li>
+                  <li>• <span className="inline-block w-2 h-2 bg-orange-500 rounded-full mr-1"></span><strong>40-59%</strong> Fair (10+ incidents/category, 1+ year)</li>
+                  <li>• <span className="inline-block w-2 h-2 bg-red-500 rounded-full mr-1"></span><strong>&lt;40%</strong> Poor (limited data, filtered from map)</li>
+                </ul>
+              </div>
+            </div>
+            
+            <div className="mt-4 p-3 bg-blue-100 rounded border-l-4 border-blue-400">
+              <p className="text-sm text-blue-800">
+                <strong>⚠️ Important:</strong> Forecast accuracy depends heavily on data quality and quantity. 
+                Predictions with reliability scores below 60% should be used with caution and supplemented with expert judgment. 
+                For critical operational decisions, ensure your dataset meets the recommended requirements above.
+              </p>
+            </div>
+            
+            <div className="mt-3 text-xs text-blue-600">
+              <strong>💡 Tip:</strong> The system automatically filters low-reliability forecasts from map display. 
+              Check the console for detailed quality metrics after generating forecasts.
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Analysis Status & Configuration */}
@@ -748,7 +760,8 @@ const ForecastPage = () => {
                 { key: 'summary', label: 'Summary', icon: '📋' },
                 { key: 'timeseries', label: 'Time Series', icon: '📈' },
                 { key: 'trends', label: 'Trend Analysis', icon: '📊' },
-                { key: 'heatmap', label: 'Risk Heatmap', icon: '🔥' }
+                { key: 'heatmap', label: 'Risk Heatmap', icon: '🔥' },
+                { key: 'map', label: 'Forecast Map', icon: '🗺️' }
               ].map((tab, index) => (
                 <Tab
                   key={tab.key}
@@ -795,6 +808,15 @@ const ForecastPage = () => {
                   forecastData={forecastData}
                 />
               </TabPanel>
+              
+              <TabPanel className="p-6">
+                <ForecastMap 
+                  center={[40.7589, -73.9851]} // NYC center
+                  zoom={11}
+                  forecastPoints={forecastMapPoints}
+                  loading={loading}
+                />
+              </TabPanel>
             </TabPanels>
           </TabGroup>
         </div>
@@ -808,7 +830,7 @@ const ForecastPage = () => {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Forecast Generated</h3>
-            <p className="text-gray-500 mb-4">Configure your forecast parameters above and click "Generate Forecast" to predict future crime patterns.</p>
+            <p className="text-gray-500 mb-4">Configure your forecast parameters above and click &quot;Generate Forecast&quot; to predict future crime patterns.</p>
             <div className="text-sm text-gray-400">
               <p>🔍 Select historical date range for training data</p>
               <p>📅 Choose forecast period (1-12 months ahead)</p>

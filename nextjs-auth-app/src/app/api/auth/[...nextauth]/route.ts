@@ -14,7 +14,7 @@ const API_URL = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5041/ap
 
 
 
-export const authOptions: NextAuthOptions = {
+const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
