@@ -220,27 +220,26 @@ export const getGeographicCoordinates = (
 };
 
 /**
- * Get approximate coordinates for precinct centers
+ * Get approximate coordinates for precinct centers in Muntinlupa
  * This is a simplified mapping - in a real system, you'd have a proper precinct boundary database
  */
 export const getPrecinctCoordinates = (precinct: number): { latitude: number; longitude: number } => {
-  // Basic precinct coordinate mapping for demonstration
-  // In production, this would come from a proper geographic database
+  // Muntinlupa precinct coordinate mapping based on barangay centers
+  // Coordinates are approximate centers of each barangay in Muntinlupa
   const precinctCoords: Record<number, { latitude: number; longitude: number }> = {
-    1: { latitude: 40.7831, longitude: -73.9712 }, // Upper West Side
-    2: { latitude: 40.7589, longitude: -73.9851 }, // Midtown West
-    3: { latitude: 40.7505, longitude: -73.9934 }, // Lower West Side
-    4: { latitude: 40.7505, longitude: -74.0134 }, // Greenwich Village
-    5: { latitude: 40.7282, longitude: -73.9942 }, // Chinatown
-    6: { latitude: 40.7505, longitude: -73.9742 }, // SoHo
-    7: { latitude: 40.7192, longitude: -74.0065 }, // Financial District
-    8: { latitude: 40.7831, longitude: -73.9512 }, // Upper East Side
-    9: { latitude: 40.7589, longitude: -73.9651 }, // Midtown East
-    10: { latitude: 40.7505, longitude: -73.9542 }, // Gramercy
+    0: { latitude: 14.4291, longitude: 121.0358 }, // Alabang
+    1: { latitude: 14.3856, longitude: 121.0189 }, // Bayanan
+    2: { latitude: 14.3734, longitude: 121.0456 }, // Buli
+    3: { latitude: 14.3589, longitude: 121.0234 }, // Cupang
+    4: { latitude: 14.4081, longitude: 121.0415 }, // Poblacion (city center)
+    5: { latitude: 14.3945, longitude: 121.0523 }, // Putatan
+    6: { latitude: 14.3712, longitude: 121.0589 }, // Tunasan
+    7: { latitude: 14.4456, longitude: 121.0234 }, // Ayala Alabang
+    8: { latitude: 14.4178, longitude: 121.0634 }, // Sucat
     // Add more precincts as needed
   };
 
-  return precinctCoords[precinct] || { latitude: 40.7589, longitude: -73.9851 }; // Default to Midtown
+  return precinctCoords[precinct] || { latitude: 14.4081, longitude: 121.0415 }; // Default to Poblacion (Muntinlupa center)
 };
 
 /**

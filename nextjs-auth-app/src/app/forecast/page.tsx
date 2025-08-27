@@ -811,8 +811,8 @@ const ForecastPage = () => {
               
               <TabPanel className="p-6">
                 <ForecastMap 
-                  center={[40.7589, -73.9851]} // NYC center
-                  zoom={11}
+                  center={[14.4081, 121.0415]} // Muntinlupa center
+                  zoom={13}
                   forecastPoints={forecastMapPoints}
                   loading={loading}
                 />
