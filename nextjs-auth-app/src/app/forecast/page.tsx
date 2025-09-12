@@ -74,7 +74,7 @@ const ForecastPage = () => {
   // Forecast parameters
   const [forecastParams, setForecastParams] = useState<ForecastParams>({
     forecastPeriod: 6, // 6 months ahead
-    model: 'linear',
+    model: 'polynomial', // Fixed polynomial model
     confidence: 0.95,
     includeSeasonality: true,
     weightRecentData: true
@@ -644,11 +644,11 @@ const ForecastPage = () => {
           </div>
           
           <div className="p-6 space-y-6">
-            {/* Forecast Parameters */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Forecast Parameters - Simplified */}
+            <div className="max-w-md">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Forecast Period (Months)
+                  📅 Forecast Period (Months)
                 </label>
                 <input
                   type="number"
@@ -657,62 +657,55 @@ const ForecastPage = () => {
                   value={forecastParams.forecastPeriod}
                   onChange={(e) => setForecastParams({...forecastParams, forecastPeriod: parseInt(e.target.value)})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  placeholder="How many months ahead to predict"
                 />
+                <p className="text-xs text-gray-500 mt-1">Recommended: 3-6 months for reliable predictions</p>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Prediction Model
-                </label>
-                <select
-                  value={forecastParams.model}
-                  onChange={(e) => setForecastParams({...forecastParams, model: e.target.value as any})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                >
-                  <option value="linear">Linear Trend</option>
-                  <option value="polynomial">Polynomial</option>
-                  <option value="seasonal">Seasonal</option>
-                  <option value="arima">ARIMA-like</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Confidence Level: {(forecastParams.confidence * 100).toFixed(0)}%
-                </label>
-                <input
-                  type="range"
-                  min="0.7"
-                  max="0.99"
-                  step="0.01"
-                  value={forecastParams.confidence}
-                  onChange={(e) => setForecastParams({...forecastParams, confidence: parseFloat(e.target.value)})}
-                  className="w-full"
-                />
+              
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-md">
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-sm font-medium text-blue-800">Using Polynomial Model</span>
+                </div>
+                <p className="text-xs text-blue-600 mt-1">Advanced quadratic trend analysis for accurate crime pattern forecasting</p>
               </div>
             </div>
 
-            {/* Options */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={forecastParams.includeSeasonality}
-                  onChange={(e) => setForecastParams({...forecastParams, includeSeasonality: e.target.checked})}
-                  className="mr-2"
-                />
-                <span className="text-sm font-medium text-gray-700">Include Seasonal Patterns</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={forecastParams.weightRecentData}
-                  onChange={(e) => setForecastParams({...forecastParams, weightRecentData: e.target.checked})}
-                  className="mr-2"
-                />
-                <span className="text-sm font-medium text-gray-700">Weight Recent Data More</span>
-              </label>
-            </div>
+            {/* Advanced Options - Collapsed by default */}
+            <details className="border border-gray-200 rounded-md">
+              <summary className="px-4 py-2 bg-gray-50 text-sm font-medium text-gray-700 cursor-pointer hover:bg-gray-100">
+                ⚙️ Advanced Options
+              </summary>
+              <div className="p-4 space-y-4 bg-white">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Confidence Level: {(forecastParams.confidence * 100).toFixed(0)}%
+                  </label>
+                  <input
+                    type="range"
+                    min="0.8"
+                    max="0.99"
+                    step="0.01"
+                    value={forecastParams.confidence}
+                    onChange={(e) => setForecastParams({...forecastParams, confidence: parseFloat(e.target.value)})}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Higher confidence = more conservative predictions</p>
+                </div>
+                <div className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={forecastParams.weightRecentData}
+                    onChange={(e) => setForecastParams({...forecastParams, weightRecentData: e.target.checked})}
+                    className="mr-2"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Prioritize Recent Trends</span>
+                  <span className="text-xs text-gray-500 ml-2">(gives more weight to latest 6 months)</span>
+                </div>
+              </div>
+            </details>
 
             {/* Generate Button */}
             <div className="flex justify-center pt-4 border-t border-gray-200">
