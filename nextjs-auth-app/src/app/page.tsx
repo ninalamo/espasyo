@@ -80,31 +80,7 @@ const Home = () => {
   } : null;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b border-gray-200">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Crime Analytics Dashboard</h1>
-              <p className="text-gray-600">Welcome back, {session?.user?.name || session?.user?.email}</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <div className="text-sm text-gray-500">
-                Last updated: {new Date().toLocaleString()}
-              </div>
-              <button
-                onClick={() => signOut()}
-                className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 transition text-sm"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="container mx-auto px-6 py-8 space-y-8">
+    <div className="h-full p-6 space-y-6 overflow-auto">
         
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -335,7 +311,6 @@ const Home = () => {
             </div>
           </div>
         </div>
-      </div>
     </div>
   );
 };

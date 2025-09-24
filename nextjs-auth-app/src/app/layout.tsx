@@ -2,7 +2,7 @@
 
 import { SessionProvider } from 'next-auth/react';
 import '../app/globals.css';
-import Navbar from '../components/Navbar';
+import DashboardLayout from '../components/DashboardLayout';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
 
@@ -12,16 +12,23 @@ interface RootLayoutProps {
 
 export default function RootLayout({ children }: RootLayoutProps) {
   const pathname = usePathname();
-  const showNavbar = pathname !== '/login';
+  const isLoginPage = pathname === '/login';
 
   return (
     <html lang="en">
       <body className="bg-gray-100 text-gray-900">
-        
         <SessionProvider>
-
-          {showNavbar && <Navbar />}
-          <main className="container mx-auto p-6">{children}</main>
+          {isLoginPage ? (
+            // Login page with simple layout
+            <main className="min-h-screen flex items-center justify-center">
+              {children}
+            </main>
+          ) : (
+            // All other pages with dashboard layout
+            <DashboardLayout>
+              {children}
+            </DashboardLayout>
+          )}
         </SessionProvider>
       </body>
     </html>

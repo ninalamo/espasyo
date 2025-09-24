@@ -274,7 +274,7 @@ const AnalysisPage = () => {
   }, [analysisSummary, lastAnalysisParams, clusters]);
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="h-full p-6 space-y-6 overflow-auto">
       <ToastContainer />
       
       {/* Header with title and analysis summary */}

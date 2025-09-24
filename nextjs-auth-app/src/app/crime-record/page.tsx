@@ -106,7 +106,7 @@ const CrimeList = () => {
   }
 
   return (
-    <div className="container mx-auto p-6">
+    <div className="h-full p-6 overflow-auto">
       <h1 className="text-2xl font-semibold mb-4">Crime Records</h1>
 
       {/* Container for navigation buttons and search input */}

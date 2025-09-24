@@ -182,7 +182,7 @@ const AddCrimePage = () => {
       : [];
 
   return (
-    <div className="container mx-auto p-6 max-w-4xl">
+    <div className="h-full p-6 overflow-auto">
       {/* Page title */}
       <h1 className="text-2xl font-semibold mb-4">Add New Crime Record</h1>
       {/* Display a loading message, error message, or the form based on state */}
