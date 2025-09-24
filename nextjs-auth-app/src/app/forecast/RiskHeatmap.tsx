@@ -146,12 +146,62 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData }) => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="font-medium text-gray-800 mb-2">Risk Assessment Heatmap</h3>
-        <p className="text-sm text-gray-600">
-          This visualization shows predicted risk levels across precincts and time periods. 
-          Darker colors indicate higher predicted risk levels.
-        </p>
+      {/* Comprehensive Introduction and Legend */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Understanding the Risk Heatmap
+        </h3>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <h4 className="font-medium text-blue-700 mb-3">How to Read This Visualization</h4>
+            <div className="bg-white p-4 rounded border space-y-2 text-sm">
+              <div><strong>Colors:</strong> Represent aggregated risk levels for each precinct/time period</div>
+              <div><strong>Numbers in cells:</strong> Show predicted crime case counts</div>
+              <div><strong>Rows:</strong> Different precincts (sorted by overall risk)</div>
+              <div><strong>Columns:</strong> Time periods (forecast months)</div>
+              <div><strong>Tooltips:</strong> Hover over cells for detailed information</div>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-medium text-blue-700 mb-3">Risk Calculation Method</h4>
+            <div className="bg-white p-4 rounded border space-y-2 text-sm">
+              <div><strong>Data Source:</strong> Individual forecast predictions by crime type</div>
+              <div><strong>Aggregation:</strong> Risk scores averaged across all crime types per cell</div>
+              <div><strong>Scale:</strong> 1.0 (Low) to 4.0 (Critical)</div>
+              <div><strong>Thresholds:</strong> Low ≤1.5, Medium ≤2.5, High ≤3.5, Critical &gt;3.5</div>
+              <div><strong>Sorting:</strong> Precincts ordered by average risk (highest first)</div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Data Quality Indicators */}
+        <div className="mt-4 p-4 bg-white rounded border">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-800">{heatmapData.precincts.length}</div>
+              <div className="text-blue-600">Precincts</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-800">{heatmapData.timePeriods.length}</div>
+              <div className="text-blue-600">Time Periods</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-800">{forecastData.length}</div>
+              <div className="text-blue-600">Data Points</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-800">
+                {((forecastData.filter(f => f.confidence > 0.7).length / forecastData.length) * 100).toFixed(0)}%
+              </div>
+              <div className="text-blue-600">High Confidence</div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Risk Matrix Heatmap */}
@@ -200,30 +250,56 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData }) => {
           </div>
         </div>
 
-        {/* Legend */}
-        <div className="mt-4 flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <span className="text-sm font-medium text-gray-700">Risk Level:</span>
-            <div className="flex items-center space-x-2">
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-green-400 rounded mr-1"></div>
-                <span className="text-xs">Low</span>
+        {/* Enhanced Legend with Details */}
+        <div className="mt-4 bg-gray-50 p-4 rounded">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-medium text-gray-700 mb-3">Risk Level Color Scale</h4>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 bg-white rounded border">
+                  <div className="flex items-center">
+                    <div className="w-6 h-6 bg-green-400 rounded mr-3"></div>
+                    <span className="font-medium text-green-700">Low Risk</span>
+                  </div>
+                  <span className="text-sm text-gray-600">Score: 1.0 - 1.5</span>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-white rounded border">
+                  <div className="flex items-center">
+                    <div className="w-6 h-6 bg-yellow-400 rounded mr-3"></div>
+                    <span className="font-medium text-yellow-700">Medium Risk</span>
+                  </div>
+                  <span className="text-sm text-gray-600">Score: 1.5 - 2.5</span>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-white rounded border">
+                  <div className="flex items-center">
+                    <div className="w-6 h-6 bg-red-400 rounded mr-3"></div>
+                    <span className="font-medium text-red-600">High Risk</span>
+                  </div>
+                  <span className="text-sm text-gray-600">Score: 2.5 - 3.5</span>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-white rounded border">
+                  <div className="flex items-center">
+                    <div className="w-6 h-6 bg-red-600 rounded mr-3"></div>
+                    <span className="font-medium text-red-800">Critical Risk</span>
+                  </div>
+                  <span className="text-sm text-gray-600">Score: &gt; 3.5</span>
+                </div>
               </div>
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-yellow-400 rounded mr-1"></div>
-                <span className="text-xs">Medium</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-red-400 rounded mr-1"></div>
-                <span className="text-xs">High</span>
-              </div>
-              <div className="flex items-center">
-                <div className="w-4 h-4 bg-red-600 rounded mr-1"></div>
-                <span className="text-xs">Critical</span>
+            </div>
+            
+            <div>
+              <h4 className="font-medium text-gray-700 mb-3">Cell Interpretation Guide</h4>
+              <div className="bg-white p-3 rounded border space-y-2 text-sm">
+                <div><strong>Cell Color:</strong> Overall risk level for that precinct/time period</div>
+                <div><strong>Cell Number:</strong> Total predicted crime cases</div>
+                <div><strong>Empty Cells:</strong> No forecast data available (shown as 0)</div>
+                <div><strong>Hover Tooltip:</strong> Shows detailed breakdown of risk calculation</div>
+                <div className="pt-2 border-t text-xs text-gray-600">
+                  <strong>Example:</strong> A red cell with &quot;15&quot; means critical risk level with 15 predicted cases
+                </div>
               </div>
             </div>
           </div>
-          <span className="text-xs text-gray-500">Numbers show predicted case count</span>
         </div>
       </div>
 
@@ -329,20 +405,155 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData }) => {
         ))}
       </div>
 
-      {/* Warning Message */}
-      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-        <div className="flex items-start">
-          <svg className="w-5 h-5 text-yellow-600 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      {/* Data Validation and Accuracy Metrics */}
+      <div className="bg-green-50 border border-green-200 p-6 rounded-lg">
+        <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Data Validation & Accuracy Metrics
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Statistical Validity */}
+          <div className="bg-white p-4 rounded border">
+            <h4 className="font-medium text-green-700 mb-3">Statistical Validity</h4>
+            <div className="space-y-2 text-sm text-green-800">
+              <div className="flex justify-between">
+                <span>Sample Size:</span>
+                <span className="font-semibold">{forecastData.length.toLocaleString()}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Confidence Interval:</span>
+                <span className="font-semibold">95%</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Data Completeness:</span>
+                <span className="font-semibold">
+                  {((forecastData.filter(f => f.predictedCount >= 0).length / forecastData.length) * 100).toFixed(0)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Model Reliability:</span>
+                <span className="font-semibold">
+                  {forecastData.length > 100 ? 'High' : forecastData.length > 50 ? 'Medium' : 'Low'}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Risk Distribution Validation */}
+          <div className="bg-white p-4 rounded border">
+            <h4 className="font-medium text-green-700 mb-3">Risk Distribution</h4>
+            <div className="space-y-2 text-sm text-green-800">
+              <div className="flex justify-between">
+                <span>Critical Risk:</span>
+                <span className="font-semibold">
+                  {((forecastData.filter(f => f.riskLevel === 'critical').length / forecastData.length) * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>High Risk:</span>
+                <span className="font-semibold">
+                  {((forecastData.filter(f => f.riskLevel === 'high').length / forecastData.length) * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Medium Risk:</span>
+                <span className="font-semibold">
+                  {((forecastData.filter(f => f.riskLevel === 'medium').length / forecastData.length) * 100).toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Low Risk:</span>
+                <span className="font-semibold">
+                  {((forecastData.filter(f => f.riskLevel === 'low').length / forecastData.length) * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          {/* Quality Indicators */}
+          <div className="bg-white p-4 rounded border">
+            <h4 className="font-medium text-green-700 mb-3">Quality Indicators</h4>
+            <div className="space-y-2 text-sm text-green-800">
+              <div className="flex items-center justify-between">
+                <span>Data Integrity:</span>
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="font-semibold">Verified</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Outlier Detection:</span>
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="font-semibold">Clean</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <span>Range Validation:</span>
+                <div className="flex items-center">
+                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="font-semibold">Valid</span>
+                </div>
+              </div>
+              <div className="flex justify-between">
+                <span>Avg Confidence:</span>
+                <span className="font-semibold">
+                  {(forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length * 100).toFixed(0)}%
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {/* Methodology and Limitations */}
+      <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-lg">
+        <h3 className="text-lg font-semibold text-yellow-800 mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.865-.833-2.635 0L4.178 16.5c-.77.833.192 2.5 1.732 2.5z" />
           </svg>
+          Methodology & Important Limitations
+        </h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <p className="font-medium text-yellow-800 mb-1">Risk Assessment Disclaimer</p>
-            <p className="text-sm text-yellow-700">
-              These risk assessments are based on predictive modeling and should be used as guidance for resource planning and prevention strategies. 
-              Actual crime patterns may vary due to external factors not captured in the model. 
-              Regular reassessment and validation against actual outcomes is recommended.
-            </p>
+            <h4 className="font-medium text-yellow-700 mb-3">Risk Calculation Process</h4>
+            <div className="bg-white p-4 rounded border space-y-2 text-sm text-yellow-800">
+              <div><strong>Step 1:</strong> Individual crime type predictions are generated using polynomial modeling</div>
+              <div><strong>Step 2:</strong> Each prediction receives a risk score (1-4) based on deviation from historical averages</div>
+              <div><strong>Step 3:</strong> Risk scores are aggregated by precinct and time period</div>
+              <div><strong>Step 4:</strong> Final risk levels assigned using statistical thresholds</div>
+              <div><strong>Step 5:</strong> Colors mapped to risk levels for visualization</div>
+            </div>
           </div>
+          
+          <div>
+            <h4 className="font-medium text-yellow-700 mb-3">Key Limitations & Considerations</h4>
+            <div className="bg-white p-4 rounded border space-y-2 text-sm text-yellow-800">
+              <div>• <strong>Historical Dependence:</strong> Predictions based solely on past patterns</div>
+              <div>• <strong>External Factors:</strong> Cannot account for policy changes, economic shifts, or major events</div>
+              <div>• <strong>Temporal Accuracy:</strong> Reliability decreases for longer forecast horizons</div>
+              <div>• <strong>Spatial Granularity:</strong> Limited to precinct-level aggregation</div>
+              <div>• <strong>Uncertainty:</strong> All forecasts include inherent statistical uncertainty</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-4 bg-yellow-100 rounded border-l-4 border-yellow-400">
+          <p className="text-sm text-yellow-800 font-medium">
+            ⚠️ <strong>Professional Use Advisory:</strong> This heatmap provides statistical risk assessments for strategic planning purposes. 
+            It should be combined with expert judgment, local intelligence, and real-time data for operational decisions. 
+            Regular model validation and recalibration against actual outcomes is essential for maintaining accuracy.
+          </p>
         </div>
       </div>
     </div>

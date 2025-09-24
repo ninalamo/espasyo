@@ -17,7 +17,9 @@ import ForecastSummary from './ForecastSummary';
 import ForecastMap from './ForecastMap';
 import { 
   ExtendedForecastData,
-  ForecastMapPoint
+  ForecastMapPoint,
+  ManpowerAllocation,
+  DEFAULT_MANPOWER_ALLOCATION
 } from '../../types/forecast/ExtendedForecastTypes';
 import { 
   calculateReliabilityMetrics,
@@ -29,6 +31,9 @@ import {
   calculateForecastQualityMetrics
 } from '../../utils/forecastEnhancements';
 import SimpleForecastMap from '../../components/SimpleForecastMap';
+import ManpowerAllocationComponent from './ManpowerAllocation';
+import ForecastDocumentation from './ForecastDocumentation';
+import ForecastFilters, { ForecastFilterState, initialForecastFilterState } from './ForecastFilters';
 
 // TypeScript interfaces
 interface HistoricalData {
@@ -70,6 +75,11 @@ const ForecastPage = () => {
   const [forecastMapPoints, setForecastMapPoints] = useState<ForecastMapPoint[]>([]);
   const [selectedTab, setSelectedTab] = useState(0);
   const [analysisLoaded, setAnalysisLoaded] = useState(false);
+  const [manpowerSettings, setManpowerSettings] = useState<ManpowerAllocation>(DEFAULT_MANPOWER_ALLOCATION);
+  
+  // Filtering state
+  const [forecastFilters, setForecastFilters] = useState<ForecastFilterState>(initialForecastFilterState);
+  const [filteredForecastData, setFilteredForecastData] = useState<ForecastData[]>([]);
 
   // Forecast parameters
   const [forecastParams, setForecastParams] = useState<ForecastParams>({
@@ -144,6 +154,7 @@ const ForecastPage = () => {
       // Call statistical forecasting API
       const predictions = await callStatisticalForecastingAPI(processedData, forecastParams);
       setForecastData(predictions);
+      setFilteredForecastData(predictions); // Initialize filtered data
 
       // Enhance forecasts with reliability scoring, time-of-day analysis, and spatial mapping
       console.log('🔬 Enhancing forecasts with reliability scoring and spatial mapping...');
@@ -188,7 +199,7 @@ const ForecastPage = () => {
       };
       
       // Call the .NET statistical forecasting endpoint
-      const response = await apiService.post('/incident/forecast/statistical', requestData);
+      const response = await apiService.post('/incident/forecast/statistical', requestData) as any;
       
       if (response && response.series) {
         toast.success('Generated reliable statistical forecasts using ML.NET');
@@ -200,7 +211,7 @@ const ForecastPage = () => {
     } catch (error) {
       console.warn('ML.NET forecasting failed, using fallback:', error);
       toast.warning('Using local forecasting methods as fallback');
-      return generatePredictions(historicalData, params);
+      return generatePredictions(historicalData, params, manpowerSettings);
     }
   };
 
@@ -235,7 +246,7 @@ const ForecastPage = () => {
   };
 
   // Generate predictions using simple statistical methods
-  const generatePredictions = (historical: HistoricalData[], params: ForecastParams): ForecastData[] => {
+  const generatePredictions = (historical: HistoricalData[], params: ForecastParams, manpowerConfig: ManpowerAllocation): ForecastData[] => {
     const predictions: ForecastData[] = [];
     const baseDate = new Date();
 
@@ -279,7 +290,7 @@ const ForecastPage = () => {
             predictedCount = calculateLinearTrend(groupData, monthOffset);
         }
 
-        // Determine trend and risk level
+        // Determine trend and risk level using configurable thresholds
         const recentAvg = groupData.slice(-6).reduce((sum, d) => sum + d.count, 0) / 6;
         const olderAvg = groupData.slice(-12, -6).reduce((sum, d) => sum + d.count, 0) / 6 || recentAvg;
         
@@ -287,10 +298,12 @@ const ForecastPage = () => {
           predictedCount > recentAvg * 1.1 ? 'increasing' :
           predictedCount < recentAvg * 0.9 ? 'decreasing' : 'stable';
 
+        // Use configurable risk thresholds
+        const riskRatio = predictedCount / recentAvg;
         const riskLevel: 'low' | 'medium' | 'high' | 'critical' =
-          predictedCount > recentAvg * 1.5 ? 'critical' :
-          predictedCount > recentAvg * 1.2 ? 'high' :
-          predictedCount > recentAvg * 0.8 ? 'medium' : 'low';
+          riskRatio > manpowerConfig.riskThresholds.highMax ? 'critical' :
+          riskRatio > manpowerConfig.riskThresholds.mediumMax ? 'high' :
+          riskRatio > manpowerConfig.riskThresholds.lowMax ? 'medium' : 'low';
 
         predictions.push({
           year,
@@ -736,6 +749,16 @@ const ForecastPage = () => {
         </div>
       )}
 
+      {/* Forecast Filters */}
+      {forecastData.length > 0 && (
+        <ForecastFilters
+          forecastData={forecastData}
+          filters={forecastFilters}
+          onFiltersChange={setForecastFilters}
+          onFilteredDataChange={setFilteredForecastData}
+        />
+      )}
+
       {/* Results Tabs */}
       {(historicalData.length > 0 || forecastData.length > 0) && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -746,6 +769,11 @@ const ForecastPage = () => {
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
                 Forecast Results
+                {filteredForecastData.length !== forecastData.length && filteredForecastData.length > 0 && (
+                  <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded text-sm font-medium">
+                    {filteredForecastData.length} of {forecastData.length} filtered
+                  </span>
+                )}
               </h2>
             </div>
             
@@ -755,7 +783,9 @@ const ForecastPage = () => {
                 { key: 'timeseries', label: 'Time Series', icon: '📈' },
                 { key: 'trends', label: 'Trend Analysis', icon: '📊' },
                 { key: 'heatmap', label: 'Risk Heatmap', icon: '🔥' },
-                { key: 'map', label: 'Forecast Map', icon: '🗺️' }
+                { key: 'manpower', label: 'Manpower Allocation', icon: '👮' },
+                { key: 'map', label: 'Forecast Map', icon: '🗺️' },
+                { key: 'documentation', label: 'Documentation', icon: '📚' }
               ].map((tab, index) => (
                 <Tab
                   key={tab.key}
@@ -777,15 +807,16 @@ const ForecastPage = () => {
               <TabPanel className="p-6">
                 <ForecastSummary 
                   historicalData={historicalData}
-                  forecastData={forecastData}
+                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
                   params={forecastParams}
+                  manpowerSettings={manpowerSettings}
                 />
               </TabPanel>
               
               <TabPanel className="p-6">
                 <TimeSeriesChart 
                   historicalData={historicalData}
-                  forecastData={forecastData}
+                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
                   params={forecastParams}
                 />
               </TabPanel>
@@ -793,13 +824,22 @@ const ForecastPage = () => {
               <TabPanel className="p-6">
                 <TrendAnalysis 
                   historicalData={historicalData}
-                  forecastData={forecastData}
+                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
                 />
               </TabPanel>
               
               <TabPanel className="p-6">
                 <RiskHeatmap 
-                  forecastData={forecastData}
+                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
+                />
+              </TabPanel>
+              
+              <TabPanel className="p-6">
+                <ManpowerAllocationComponent 
+                  historicalData={historicalData}
+                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
+                  manpowerSettings={manpowerSettings}
+                  onSettingsChange={setManpowerSettings}
                 />
               </TabPanel>
               
@@ -809,6 +849,13 @@ const ForecastPage = () => {
                   zoom={13}
                   forecastPoints={forecastMapPoints}
                   loading={loading}
+                />
+              </TabPanel>
+              
+              <TabPanel className="p-6">
+                <ForecastDocumentation 
+                  historicalData={historicalData}
+                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
                 />
               </TabPanel>
             </TabPanels>

@@ -1,9 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import L from 'leaflet';
+import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet.heat';
 import { CrimeTypesDictionary, GetPrecinctsDictionary } from '../../constants/consts';
 import { 
   ForecastMapPoint, 
@@ -29,9 +28,11 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   loading 
 }) => {
   const mapRef = useRef<HTMLDivElement>(null);
-  const leafletMap = useRef<L.Map | null>(null);
-  const markersLayerRef = useRef<L.LayerGroup | null>(null);
-  const heatLayerRef = useRef<L.Layer | null>(null);
+  const leafletMap = useRef<any>(null);
+  const markersLayerRef = useRef<any>(null);
+  const heatLayerRef = useRef<any>(null);
+  const [isClient, setIsClient] = useState(false);
+  const [L, setL] = useState<any>(null);
 
   // Filter state
   const [filters, setFilters] = useState<ForecastMapFilters>(DEFAULT_FORECAST_FILTERS);
@@ -151,9 +152,26 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
     return Math.min(baseRadius + scaleFactor, 20);
   };
 
+  // Handle client-side mounting and dynamic import
+  useEffect(() => {
+    setIsClient(true);
+    
+    const loadLeaflet = async () => {
+      try {
+        const leaflet = await import('leaflet');
+        await import('leaflet.heat');
+        setL(leaflet.default);
+      } catch (error) {
+        console.error('Failed to load Leaflet:', error);
+      }
+    };
+    
+    loadLeaflet();
+  }, []);
+
   // Initialize map
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!isClient || !L || !mapRef.current) return;
 
     if (!leafletMap.current) {
       leafletMap.current = L.map(mapRef.current).setView(center, zoom);
@@ -169,11 +187,11 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
         leafletMap.current = null;
       }
     };
-  }, []);
+  }, [isClient, L, center, zoom]);
 
   // Update map markers when filtered points or display settings change
   useEffect(() => {
-    if (!leafletMap.current || !markersLayerRef.current) return;
+    if (!isClient || !L || !leafletMap.current || !markersLayerRef.current) return;
 
     // Clear existing layers
     markersLayerRef.current.clearLayers();
@@ -246,7 +264,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
         markersLayerRef.current!.addLayer(marker);
       });
     }
-  }, [filteredPoints, showPoints, showHeatmap, colorBy, loading]);
+  }, [isClient, L, filteredPoints, showPoints, showHeatmap, colorBy, loading, getPointColor, zoom]);
 
   // Reset filters
   const resetFilters = () => {
@@ -262,7 +280,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  if (loading) {
+  if (!isClient || !L || loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
@@ -270,7 +288,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">Loading forecast map...</p>
+          <p className="text-gray-600">{!isClient || !L ? 'Loading map components...' : 'Loading forecast map...'}</p>
         </div>
       </div>
     );

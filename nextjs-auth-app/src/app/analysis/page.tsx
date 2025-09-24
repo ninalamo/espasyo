@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import withAuth from '../hoc/withAuth';
 import dynamic from 'next/dynamic';
 import { apiService } from '../api/utils/apiService';
@@ -32,6 +32,63 @@ const AnalysisPage = () => {
 
   // Lifted filter state from FilterSection
   const [parentFilterState, setParentFilterState] = useState<FilterState>(initialFilterState);
+
+  // Load existing analysis data from localStorage on component mount
+  useEffect(() => {
+    const loadSavedAnalysis = () => {
+      try {
+        const savedClusters = localStorage.getItem('lastAnalysisClusters');
+        const savedParams = localStorage.getItem('lastAnalysisParams');
+        const savedTimestamp = localStorage.getItem('lastAnalysisTimestamp');
+        
+        if (savedClusters && savedParams) {
+          const clustersData = JSON.parse(savedClusters);
+          const paramsData = JSON.parse(savedParams);
+          const timestamp = savedTimestamp ? new Date(savedTimestamp).toLocaleString() : 'Unknown';
+          
+          // Restore cluster data
+          setClusters(clustersData);
+          setLastAnalysisParams(paramsData);
+          
+          // Restore form parameters if they exist
+          if (paramsData.dateFrom) setDateFrom(paramsData.dateFrom);
+          if (paramsData.dateTo) setDateTo(paramsData.dateTo);
+          if (paramsData.features) setSelectedFeatures(paramsData.features);
+          if (paramsData.numberOfClusters) setNumberOfClusters(paramsData.numberOfClusters);
+          if (paramsData.numberOfRuns) setNumberOfRuns(paramsData.numberOfRuns);
+          if (paramsData.filters) setParentFilterState({
+            selectedCrimeTypes: paramsData.filters.crimeTypes || [],
+            selectedMotive: paramsData.filters.motives || [],
+            selectedSeverity: paramsData.filters.severities || [],
+            selectedWeather: paramsData.filters.weathers || [],
+            selectedPrecinct: paramsData.filters.precincts || []
+          });
+          
+          // Force map re-render
+          setMapKey(prevKey => prevKey + 1);
+          
+          // Calculate data summary
+          const totalItems = clustersData.reduce((sum: number, cluster: any) => sum + cluster.clusterItems.length, 0);
+          
+          console.log('📂 Loaded saved analysis:', {
+            clusters: clustersData.length,
+            totalDataPoints: totalItems,
+            analysisTime: timestamp
+          });
+          
+          toast.success(`Loaded previous analysis: ${clustersData.length} clusters, ${totalItems} data points (${timestamp})`);
+        }
+      } catch (error) {
+        console.error('Error loading saved analysis:', error);
+        // Clear corrupted data
+        localStorage.removeItem('lastAnalysisClusters');
+        localStorage.removeItem('lastAnalysisParams');
+        localStorage.removeItem('lastAnalysisTimestamp');
+      }
+    };
+    
+    loadSavedAnalysis();
+  }, []); // Run only on component mount
 
   const handleFilter = useCallback(async () => {
     if (!dateFrom || !dateTo) {
@@ -111,6 +168,11 @@ const AnalysisPage = () => {
       
     const crimeTypes = new Set(clusters.flatMap(c => c.clusterItems.map(i => i.crimeType)));
     
+    // Check if data was loaded from localStorage
+    const savedTimestamp = localStorage.getItem('lastAnalysisTimestamp');
+    const analysisDate = savedTimestamp ? new Date(savedTimestamp).toLocaleString() : new Date().toLocaleString();
+    const isFromCache = Boolean(savedTimestamp);
+    
     return {
       totalCases,
       totalClusters: clusters.length,
@@ -119,11 +181,27 @@ const AnalysisPage = () => {
         `${format(timeRange.min, 'MMM yyyy')} - ${format(timeRange.max, 'MMM yyyy')}` : 'N/A',
       crimeTypesCount: crimeTypes.size,
       features: selectedFeatures.join(', ') || 'None',
-      analysisDate: new Date().toLocaleString()
+      analysisDate,
+      isFromCache
     };
   }, [clusters, selectedFeatures]);
 
   // Download analysis report
+  // Clear analysis data from localStorage and state
+  const clearAnalysisData = useCallback(() => {
+    // Clear localStorage
+    localStorage.removeItem('lastAnalysisClusters');
+    localStorage.removeItem('lastAnalysisParams');
+    localStorage.removeItem('lastAnalysisTimestamp');
+    
+    // Clear state
+    setClusters([]);
+    setLastAnalysisParams(null);
+    setMapKey(prevKey => prevKey + 1); // Force map re-render
+    
+    toast.success('Analysis data cleared successfully!');
+  }, []);
+
   const downloadAnalysisReport = useCallback(() => {
     if (!analysisSummary || !lastAnalysisParams) {
       toast.error('No analysis data to download');
@@ -213,6 +291,11 @@ const AnalysisPage = () => {
                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
               Last Analysis Results
+              {analysisSummary?.isFromCache && (
+                <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full" title="Data loaded from cache">
+                  📂 Cached
+                </span>
+              )}
             </h3>
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
@@ -232,15 +315,27 @@ const AnalysisPage = () => {
                 <span className="font-semibold ml-2 text-blue-800">{analysisSummary.dateRange}</span>
               </div>
             </div>
-            <button
-              onClick={downloadAnalysisReport}
-              className="mt-3 w-full bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition flex items-center justify-center"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Download Report
-            </button>
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={downloadAnalysisReport}
+                className="flex-1 bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition flex items-center justify-center"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Download Report
+              </button>
+              <button
+                onClick={clearAnalysisData}
+                className="flex-1 bg-red-600 text-white text-sm px-4 py-2 rounded-md hover:bg-red-700 transition flex items-center justify-center"
+                title="Clear all saved analysis data"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Clear Data
+              </button>
+            </div>
           </div>
         )}
       </div>
@@ -312,8 +407,20 @@ const AnalysisPage = () => {
                 </svg>
                 Analysis Results
               </h2>
-              <div className="text-sm text-gray-500">
-                Generated {clusters.length} clusters • {clusters.reduce((sum, c) => sum + (c.clusterCount || 0), 0)} total cases
+              <div className="flex items-center gap-4">
+                <div className="text-sm text-gray-500">
+                  Generated {clusters.length} clusters • {clusters.reduce((sum, c) => sum + (c.clusterCount || 0), 0)} total cases
+                </div>
+                <button
+                  onClick={clearAnalysisData}
+                  className="bg-red-100 text-red-700 px-3 py-1 rounded-md hover:bg-red-200 transition text-sm flex items-center"
+                  title="Clear analysis data"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Clear
+                </button>
               </div>
             </div>
           </div>

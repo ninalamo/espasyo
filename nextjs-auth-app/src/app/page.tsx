@@ -257,7 +257,7 @@ const Home = () => {
               <div>
                 <h3 className="font-medium text-yellow-800 mb-2">No Analysis Data Available</h3>
                 <p className="text-sm text-yellow-700 mb-4">
-                  You haven't run any crime analysis yet. Start by analyzing your crime data to see patterns and generate insights.
+                  You haven&apos;t run any crime analysis yet. Start by analyzing your crime data to see patterns and generate insights.
                 </p>
                 <Link
                   href="/analysis"
