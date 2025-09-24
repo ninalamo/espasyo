@@ -198,29 +198,6 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
         </button>
       </div>
 
-      {/* Filter Summary */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-4 text-xs">
-        <div className="bg-gray-50 p-2 rounded">
-          <span className="text-gray-600">Precincts:</span>
-          <div className="font-medium">{filters.selectedPrecincts.length || 'All'}</div>
-        </div>
-        <div className="bg-gray-50 p-2 rounded">
-          <span className="text-gray-600">Crime Types:</span>
-          <div className="font-medium">{filters.selectedCrimeTypes.length || 'All'}</div>
-        </div>
-        <div className="bg-gray-50 p-2 rounded">
-          <span className="text-gray-600">Risk Levels:</span>
-          <div className="font-medium">{filters.selectedRiskLevels.length}/4</div>
-        </div>
-        <div className="bg-gray-50 p-2 rounded">
-          <span className="text-gray-600">Date Range:</span>
-          <div className="font-medium">{filters.dateFrom || 'All'} - {filters.dateTo || 'All'}</div>
-        </div>
-        <div className="bg-gray-50 p-2 rounded">
-          <span className="text-gray-600">Confidence:</span>
-          <div className="font-medium">{(filters.minConfidence * 100).toFixed(0)}%-{(filters.maxConfidence * 100).toFixed(0)}%</div>
-        </div>
-      </div>
 
       {/* Expanded Filters */}
       {isExpanded && (

@@ -1,8 +1,11 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
+import InfoBadge from '../../components/InfoBadge';
+import DataQualityModal from './modals/DataQualityModal';
+import CalculationMethodologyModal from './modals/CalculationMethodologyModal';
 
 interface HistoricalData {
   year: number;
@@ -53,6 +56,9 @@ interface Props {
 }
 
 const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, manpowerSettings }) => {
+  const [isDataQualityModalOpen, setIsDataQualityModalOpen] = useState(false);
+  const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState(false);
+  
   const summary = useMemo(() => {
     if (forecastData.length === 0) return null;
 
@@ -154,71 +160,24 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
   return (
     <div className="space-y-6">
-      {/* Calculation Basis and Methodology */}
-      <div className="bg-blue-50 border border-blue-200 p-6 rounded-lg">
-        <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          How These Numbers Are Calculated
-        </h3>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-medium text-blue-700 mb-3">Risk Level Classification</h4>
-            <div className="bg-white p-4 rounded border space-y-2 text-sm">
-              <div className="font-medium text-gray-800">Formula: Risk Ratio = Predicted Cases ÷ Historical Average</div>
-              <div className="space-y-1 text-gray-700">
-                <div>• <strong className="text-green-600">Low Risk:</strong> Ratio ≤ {manpowerSettings?.riskThresholds.lowMax || 0.8} ({((manpowerSettings?.riskThresholds.lowMax || 0.8) * 100).toFixed(0)}% of historical average)</div>
-                <div>• <strong className="text-yellow-600">Medium Risk:</strong> Ratio {(manpowerSettings?.riskThresholds.lowMax || 0.8).toFixed(1)} - {(manpowerSettings?.riskThresholds.mediumMax || 1.2).toFixed(1)} ({((manpowerSettings?.riskThresholds.lowMax || 0.8) * 100).toFixed(0)}-{((manpowerSettings?.riskThresholds.mediumMax || 1.2) * 100).toFixed(0)}%)</div>
-                <div>• <strong className="text-orange-600">High Risk:</strong> Ratio {(manpowerSettings?.riskThresholds.mediumMax || 1.2).toFixed(1)} - {(manpowerSettings?.riskThresholds.highMax || 1.5).toFixed(1)} ({((manpowerSettings?.riskThresholds.mediumMax || 1.2) * 100).toFixed(0)}-{((manpowerSettings?.riskThresholds.highMax || 1.5) * 100).toFixed(0)}%)</div>
-                <div>• <strong className="text-red-600">Critical Risk:</strong> Ratio &gt; {(manpowerSettings?.riskThresholds.highMax || 1.5).toFixed(1)} (&gt;{((manpowerSettings?.riskThresholds.highMax || 1.5) * 100).toFixed(0)}% of historical average)</div>
-              </div>
+      {/* Calculation Basis and Methodology - Collapsed to InfoBadge */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h4 className="font-medium text-blue-800">How These Numbers Are Calculated</h4>
+              <p className="text-sm text-blue-600 mt-1">
+                Learn about risk classification formulas, trend calculation methods, and data sources.
+              </p>
             </div>
           </div>
-          
-          <div>
-            <h4 className="font-medium text-blue-700 mb-3">Trend Classification</h4>
-            <div className="bg-white p-4 rounded border space-y-2 text-sm">
-              <div className="font-medium text-gray-800">Based on 6-Month Rolling Average Comparison</div>
-              <div className="space-y-1 text-gray-700">
-                <div>• <strong className="text-red-600">Increasing:</strong> Predicted &gt; 110% of recent 6-month average</div>
-                <div>• <strong className="text-yellow-600">Stable:</strong> Predicted within 90-110% of recent average</div>
-                <div>• <strong className="text-green-600">Decreasing:</strong> Predicted &lt; 90% of recent average</div>
-              </div>
-              <div className="pt-2 border-t text-xs text-gray-600">
-                <strong>Historical Baseline:</strong> Average of last {historicalData.length} crime incident records
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Current Dataset Context */}
-        <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-white p-3 rounded border text-center">
-            <div className="text-lg font-bold text-blue-800">{historicalData.length.toLocaleString()}</div>
-            <div className="text-xs text-blue-600">Historical Records Used</div>
-          </div>
-          <div className="bg-white p-3 rounded border text-center">
-            <div className="text-lg font-bold text-blue-800">
-              {historicalData.length > 0 ? (historicalData.reduce((sum, d) => sum + d.count, 0) / historicalData.length).toFixed(1) : '0'}
-            </div>
-            <div className="text-xs text-blue-600">Avg Cases per Record</div>
-          </div>
-          <div className="bg-white p-3 rounded border text-center">
-            <div className="text-lg font-bold text-blue-800">
-              {historicalData.length > 0 ? 
-                Math.max(...historicalData.map(d => d.year)) - Math.min(...historicalData.map(d => d.year)) + 1 
-                : 0} years
-            </div>
-            <div className="text-xs text-blue-600">Time Span Coverage</div>
-          </div>
-          <div className="bg-white p-3 rounded border text-center">
-            <div className="text-lg font-bold text-blue-800">
-              {new Set(historicalData.map(d => d.precinct)).size}
-            </div>
-            <div className="text-xs text-blue-600">Precincts Analyzed</div>
-          </div>
+          <InfoBadge
+            onClick={() => setIsMethodologyModalOpen(true)}
+            tooltip="Click for detailed calculation methodology and formulas"
+          />
         </div>
       </div>
 
@@ -664,198 +623,24 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         </div>
       </div>
 
-      {/* Data Quality and Validation Metrics */}
-      <div className="bg-green-50 border border-green-200 p-6 rounded-lg">
-        <h3 className="text-lg font-semibold text-green-800 mb-4 flex items-center">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Data Quality & Validation
-        </h3>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          {/* Data Source Metrics */}
-          <div className="bg-white p-4 rounded-lg border">
-            <h4 className="font-medium text-green-700 mb-3">Data Sources</h4>
-            <div className="space-y-2 text-sm text-green-800">
-              <div className="flex justify-between">
-                <span>Historical Records:</span>
-                <span className="font-semibold">{historicalData.length.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Forecast Periods:</span>
-                <span className="font-semibold">{forecastData.length.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Time Span:</span>
-                <span className="font-semibold">
-                  {historicalData.length > 0 ? 
-                    `${Math.max(...historicalData.map(d => d.year)) - Math.min(...historicalData.map(d => d.year)) + 1} years` 
-                    : 'N/A'
-                  }
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Precincts Covered:</span>
-                <span className="font-semibold">{new Set(forecastData.map(f => f.precinct)).size}</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Statistical Reliability */}
-          <div className="bg-white p-4 rounded-lg border">
-            <h4 className="font-medium text-green-700 mb-3">Reliability Metrics</h4>
-            <div className="space-y-2 text-sm text-green-800">
-              <div className="flex justify-between">
-                <span>Avg Confidence:</span>
-                <span className="font-semibold">{(summary.avgConfidence * 100).toFixed(1)}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span>High Confidence:</span>
-                <span className="font-semibold">
-                  {forecastData.filter(f => f.confidence > 0.8).length} 
-                  <span className="text-xs ml-1">({((forecastData.filter(f => f.confidence > 0.8).length / forecastData.length) * 100).toFixed(0)}%)</span>
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Sample Size Grade:</span>
-                <span className="font-semibold">
-                  {historicalData.length > 1000 ? 'A+' : 
-                   historicalData.length > 500 ? 'A' : 
-                   historicalData.length > 250 ? 'B+' : 
-                   historicalData.length > 100 ? 'B' : 'C'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Data Completeness:</span>
-                <span className="font-semibold">
-                  {((forecastData.filter(f => f.predictedCount > 0).length / forecastData.length) * 100).toFixed(0)}%
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Model Performance */}
-          <div className="bg-white p-4 rounded-lg border">
-            <h4 className="font-medium text-green-700 mb-3">Model Performance</h4>
-            <div className="space-y-2 text-sm text-green-800">
-              <div className="flex justify-between">
-                <span>Model Type:</span>
-                <span className="font-semibold">{params.model.toUpperCase()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Forecast Horizon:</span>
-                <span className="font-semibold">{params.forecastPeriod}m</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Trend Accuracy:</span>
-                <span className="font-semibold">
-                  {summary.trends.stable > summary.trends.increasing + summary.trends.decreasing ? 'High' : 
-                   summary.trends.increasing > summary.trends.decreasing ? 'Moderate' : 'Good'}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span>Risk Classification:</span>
-                <span className="font-semibold">
-                  {summary.riskLevels.critical + summary.riskLevels.high > forecastData.length * 0.3 ? 'Conservative' : 'Balanced'}
-                </span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Validation Checks */}
-          <div className="bg-white p-4 rounded-lg border">
-            <h4 className="font-medium text-green-700 mb-3">Validation Status</h4>
-            <div className="space-y-2 text-sm text-green-800">
-              <div className="flex items-center justify-between">
-                <span>Data Integrity:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Passed</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Range Validation:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Passed</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Outlier Detection:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Clean</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Cross-Validation:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Valid</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Data Quality Score */}
-        <div className="mt-6 p-4 bg-white rounded-lg border">
-          <div className="flex items-center justify-between">
+      {/* Data Quality and Validation Metrics - Collapsed to InfoBadge */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
             <div>
-              <h4 className="font-medium text-green-700">Overall Data Quality Score</h4>
+              <h4 className="font-medium text-green-800">Data Quality & Validation</h4>
               <p className="text-sm text-green-600 mt-1">
-                Based on sample size, completeness, confidence levels, and validation checks
+                View detailed metrics, reliability scores, model performance, and validation results.
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold text-green-800">
-                {(() => {
-                  let score = 0;
-                  // Sample size scoring (0-30 points)
-                  if (historicalData.length > 1000) score += 30;
-                  else if (historicalData.length > 500) score += 25;
-                  else if (historicalData.length > 250) score += 20;
-                  else if (historicalData.length > 100) score += 15;
-                  else score += 10;
-                  
-                  // Confidence scoring (0-25 points)
-                  const avgConf = summary.avgConfidence;
-                  if (avgConf > 0.9) score += 25;
-                  else if (avgConf > 0.8) score += 20;
-                  else if (avgConf > 0.7) score += 15;
-                  else if (avgConf > 0.6) score += 10;
-                  else score += 5;
-                  
-                  // Completeness scoring (0-25 points)
-                  const completeness = (forecastData.filter(f => f.predictedCount > 0).length / forecastData.length);
-                  if (completeness > 0.95) score += 25;
-                  else if (completeness > 0.9) score += 20;
-                  else if (completeness > 0.8) score += 15;
-                  else score += 10;
-                  
-                  // Time span scoring (0-20 points)
-                  const timeSpan = historicalData.length > 0 ? 
-                    Math.max(...historicalData.map(d => d.year)) - Math.min(...historicalData.map(d => d.year)) + 1 : 0;
-                  if (timeSpan >= 5) score += 20;
-                  else if (timeSpan >= 3) score += 15;
-                  else if (timeSpan >= 2) score += 10;
-                  else score += 5;
-                  
-                  return Math.min(100, score);
-                })()}
-              </div>
-              <div className="text-sm text-green-600">/100</div>
-            </div>
           </div>
+          <InfoBadge
+            onClick={() => setIsDataQualityModalOpen(true)}
+            tooltip="Click for detailed data quality metrics and validation information"
+          />
         </div>
       </div>
 
@@ -898,6 +683,25 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
           </div>
         </div>
       </div>
+      
+      {/* Modals */}
+      <DataQualityModal
+        isOpen={isDataQualityModalOpen}
+        onClose={() => setIsDataQualityModalOpen(false)}
+        historicalData={historicalData}
+        forecastData={forecastData}
+        params={params}
+        summary={summary}
+      />
+      
+      <CalculationMethodologyModal
+        isOpen={isMethodologyModalOpen}
+        onClose={() => setIsMethodologyModalOpen(false)}
+        historicalData={historicalData}
+        forecastData={forecastData}
+        params={params}
+        manpowerSettings={manpowerSettings}
+      />
     </div>
   );
 };

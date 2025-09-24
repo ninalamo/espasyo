@@ -80,6 +80,9 @@ const ForecastPage = () => {
   // Filtering state
   const [forecastFilters, setForecastFilters] = useState<ForecastFilterState>(initialForecastFilterState);
   const [filteredForecastData, setFilteredForecastData] = useState<ForecastData[]>([]);
+  
+  // UI state
+  const [showDataRequirements, setShowDataRequirements] = useState(false);
 
   // Forecast parameters
   const [forecastParams, setForecastParams] = useState<ForecastParams>({
@@ -551,13 +554,29 @@ const ForecastPage = () => {
       </div>
 
       {/* Data Requirements & Disclaimer */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <div className="flex items-start">
-          <svg className="w-6 h-6 text-blue-600 mr-3 mt-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div className="flex-1">
-            <h3 className="font-semibold text-blue-800 mb-3">📊 Data Requirements & Forecast Reliability</h3>
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <svg className="w-6 h-6 text-blue-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <h3 className="font-semibold text-blue-800">📊 Data Requirements & Forecast Reliability</h3>
+          </div>
+          <button
+            onClick={() => setShowDataRequirements(!showDataRequirements)}
+            className="text-blue-600 hover:text-blue-800 font-medium flex items-center"
+          >
+            {showDataRequirements ? 'Hide Details' : 'Show Details'}
+            <svg className={`w-4 h-4 ml-1 transform transition-transform ${showDataRequirements ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </div>
+        
+        {showDataRequirements && (
+          <div className="mt-4 pt-4 border-t border-blue-200">
+            <div className="flex items-start">
+              <div className="flex-1">
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-blue-700">
               {/* Minimum Requirements */}
@@ -592,12 +611,14 @@ const ForecastPage = () => {
               </p>
             </div>
             
-            <div className="mt-3 text-xs text-blue-600">
-              <strong>💡 Tip:</strong> The system automatically filters low-reliability forecasts from map display. 
-              Check the console for detailed quality metrics after generating forecasts.
+                <div className="mt-3 text-xs text-blue-600">
+                  <strong>💡 Tip:</strong> The system automatically filters low-reliability forecasts from map display. 
+                  Check the console for detailed quality metrics after generating forecasts.
+                </div>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Analysis Status & Configuration */}

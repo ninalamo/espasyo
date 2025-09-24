@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { GetPrecinctsDictionary } from '../../constants/consts';
 import type { 
   ManpowerAllocation as ManpowerAllocationType, 
@@ -83,6 +83,53 @@ const ManpowerAllocation: React.FC<Props> = ({
 
     return totalMultiplier;
   };
+
+  // Calculate dynamic thresholds based on historical data distribution
+  const calculateDynamicThresholds = useCallback(() => {
+    if (forecastData.length === 0) return manpowerSettings.riskThresholds;
+
+    // Calculate actual prediction vs historical ratios from all forecast data
+    const ratios: number[] = [];
+    
+    forecastData.forEach(forecast => {
+      // Find corresponding historical data for this precinct/crime type
+      const historicalMatches = historicalData.filter(h => 
+        h.precinct === forecast.precinct && h.crimeType === forecast.crimeType
+      );
+      
+      if (historicalMatches.length > 0) {
+        const historicalAvg = historicalMatches.reduce((sum, h) => sum + h.count, 0) / historicalMatches.length;
+        if (historicalAvg > 0) {
+          ratios.push(forecast.predictedCount / historicalAvg);
+        }
+      }
+    });
+
+    if (ratios.length === 0) return manpowerSettings.riskThresholds;
+
+    // Sort ratios to find percentiles
+    ratios.sort((a, b) => a - b);
+    
+    // Calculate percentiles for dynamic thresholds
+    const percentile25 = ratios[Math.floor(ratios.length * 0.25)] || 0.8;
+    const percentile75 = ratios[Math.floor(ratios.length * 0.75)] || 1.3;
+    const percentile90 = ratios[Math.floor(ratios.length * 0.90)] || 1.5;
+
+    // Dynamic threshold formula:
+    // Low: Below 25th percentile (bottom quarter of predictions)
+    // Medium: 25th to 75th percentile (middle half)
+    // High: 75th to 90th percentile (upper quarter)
+    // Critical: Above 90th percentile (top 10%)
+    
+    return {
+      lowMax: Math.max(0.6, Math.min(1.0, percentile25)), // Clamp between 0.6 and 1.0
+      mediumMax: Math.max(1.0, Math.min(1.4, percentile75)), // Clamp between 1.0 and 1.4
+      highMax: Math.max(1.3, Math.min(2.0, percentile90)) // Clamp between 1.3 and 2.0
+    };
+  }, [forecastData, historicalData, manpowerSettings.riskThresholds]);
+
+  // Get dynamic thresholds
+  const dynamicThresholds = calculateDynamicThresholds();
 
   const manpowerRecommendations = useMemo(() => {
     if (forecastData.length === 0) return [];
@@ -237,298 +284,180 @@ const ManpowerAllocation: React.FC<Props> = ({
     ? ((totalManpowerRequired - totalBaseManpower) / totalBaseManpower) * 100 
     : 0;
 
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
+
   return (
     <div className="space-y-6">
-      {/* Configuration Section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          Manpower Allocation Settings
-        </h3>
+      {/* Simple Configuration */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-blue-800 flex items-center">
+            <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 715.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+            Manpower Planning
+          </h3>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => setShowExplanation(!showExplanation)}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              How it works
+            </button>
+            <button
+              onClick={() => setShowAdvancedSettings(!showAdvancedSettings)}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              {showAdvancedSettings ? 'Hide' : 'Show'} Advanced
+            </button>
+          </div>
+        </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Base Manpower Setting */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium text-blue-700 mb-2">
-              Base Manpower per Precinct (per year)
+            <label className="block text-sm font-medium text-blue-700 mb-1">
+              Current Personnel per Precinct
             </label>
             <input
               type="number"
-              min="1"
-              max="1000"
+              min="10"
+              max="500"
               value={manpowerSettings.baseManpowerPerYear}
               onChange={(e) => onSettingsChange({
                 ...manpowerSettings,
-                baseManpowerPerYear: parseInt(e.target.value) || 0
+                baseManpowerPerYear: parseInt(e.target.value) || 100
               })}
-              className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
             />
           </div>
-
-          {/* Risk Thresholds */}
+          
           <div>
-            <label className="block text-sm font-medium text-blue-700 mb-2">
-              Risk Level Thresholds (% of Historical Average)
+            <label className="block text-sm font-medium text-blue-700 mb-1">
+              High Risk Adjustment
             </label>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-600 w-16">Low ≤</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="2.0"
-                  value={manpowerSettings.riskThresholds.lowMax}
-                  onChange={(e) => onSettingsChange({
-                    ...manpowerSettings,
-                    riskThresholds: {
-                      ...manpowerSettings.riskThresholds,
-                      lowMax: parseFloat(e.target.value) || 0.8
-                    }
-                  })}
-                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                />
-                <span className="text-xs text-gray-600">({(manpowerSettings.riskThresholds.lowMax * 100).toFixed(0)}%)</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-600 w-16">Mid ≤</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="2.0"
-                  value={manpowerSettings.riskThresholds.mediumMax}
-                  onChange={(e) => onSettingsChange({
-                    ...manpowerSettings,
-                    riskThresholds: {
-                      ...manpowerSettings.riskThresholds,
-                      mediumMax: parseFloat(e.target.value) || 1.2
-                    }
-                  })}
-                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                />
-                <span className="text-xs text-gray-600">({(manpowerSettings.riskThresholds.mediumMax * 100).toFixed(0)}%)</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-600 w-16">High ≤</span>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="2.0"
-                  value={manpowerSettings.riskThresholds.highMax}
-                  onChange={(e) => onSettingsChange({
-                    ...manpowerSettings,
-                    riskThresholds: {
-                      ...manpowerSettings.riskThresholds,
-                      highMax: parseFloat(e.target.value) || 1.5
-                    }
-                  })}
-                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
-                />
-                <span className="text-xs text-gray-600">({(manpowerSettings.riskThresholds.highMax * 100).toFixed(0)}%)</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="text-xs text-gray-600 w-16">Critical &gt;</span>
-                <span className="flex-1 px-2 py-1 text-sm bg-gray-100 rounded text-gray-700">
-                  {(manpowerSettings.riskThresholds.highMax * 100).toFixed(0)}%
-                </span>
-                <span className="text-xs text-gray-600">(auto)</span>
-              </div>
-            </div>
+            <select
+              value={manpowerSettings.riskMultipliers.high}
+              onChange={(e) => {
+                const multiplier = parseFloat(e.target.value);
+                onSettingsChange({
+                  ...manpowerSettings,
+                  riskMultipliers: { 
+                    ...manpowerSettings.riskMultipliers, 
+                    high: multiplier, 
+                    critical: multiplier * 1.3 // Critical is always 30% higher
+                  }
+                });
+              }}
+              className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            >
+              <option value={1.2}>Conservative (+20%)</option>
+              <option value={1.3}>Standard (+30%)</option>
+              <option value={1.5}>Aggressive (+50%)</option>
+            </select>
           </div>
         </div>
 
-        {/* Risk Multipliers */}
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-blue-700 mb-2">
-            Manpower Multipliers by Risk Level
-          </label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {Object.entries(manpowerSettings.riskMultipliers).map(([risk, multiplier]) => (
-              <div key={risk}>
-                <label className="block text-xs text-gray-600 mb-1 capitalize">{risk}</label>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0.1"
-                  max="3.0"
-                  value={multiplier}
-                  onChange={(e) => onSettingsChange({
-                    ...manpowerSettings,
-                    riskMultipliers: {
-                      ...manpowerSettings.riskMultipliers,
-                      [risk]: parseFloat(e.target.value) || 1.0
-                    }
-                  })}
-                  className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
-                <span className="text-xs text-gray-500">({(multiplier * 100).toFixed(0)}%)</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Philippines Context Info */}
-        <div className="mt-6 mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-          <h4 className="text-sm font-medium text-green-800 mb-2 flex items-center">
-            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        {/* Dynamic Threshold Display */}
+        <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-xs">
+          <h4 className="font-medium text-green-800 mb-1 flex items-center">
+            <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
             </svg>
-            Philippines Climate Considerations
+            Auto-calculated Risk Thresholds
           </h4>
-          <div className="text-xs text-green-700 space-y-1">
-            <p><strong>Tropical Climate:</strong> Philippines has less seasonal variation compared to temperate countries.</p>
-            <p><strong>Two Main Seasons:</strong> Dry season (November-April) and Wet season (May-October).</p>
-            <p><strong>Recommendation:</strong> Focus on monthly patterns rather than seasonal adjustments for better accuracy.</p>
+          <div className="text-green-700 flex space-x-4">
+            <span><strong>Low:</strong> ≤{(dynamicThresholds.lowMax * 100).toFixed(0)}%</span>
+            <span><strong>Medium:</strong> ≤{(dynamicThresholds.mediumMax * 100).toFixed(0)}%</span>
+            <span><strong>High:</strong> ≤{(dynamicThresholds.highMax * 100).toFixed(0)}%</span>
+            <span><strong>Critical:</strong> &gt;{(dynamicThresholds.highMax * 100).toFixed(0)}%</span>
+          </div>
+          <div className="text-green-600 mt-1 text-xs">
+            🤖 These thresholds are automatically calculated from your forecast data patterns
           </div>
         </div>
 
-        {/* Dynamic Allocation Settings */}
-        <div className="mt-6">
-          <label className="block text-sm font-medium text-blue-700 mb-3">
-            Dynamic Allocation Settings
-          </label>
-          <div className="space-y-4">
-            {/* Toggle Controls */}
-            <div className="flex flex-wrap gap-4">
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={manpowerSettings.enableSeasonalAdjustment}
-                  onChange={(e) => onSettingsChange({
-                    ...manpowerSettings,
-                    enableSeasonalAdjustment: e.target.checked
-                  })}
-                  className="mr-2"
-                />
-                <div className="flex flex-col">
-                  <span className="text-sm text-gray-700">Enable Seasonal Adjustments</span>
-                  <span className="text-xs text-gray-500">Note: Philippines has tropical climate - seasonal patterns may be less significant</span>
-                </div>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={manpowerSettings.enableMonthlyAdjustment}
-                  onChange={(e) => onSettingsChange({
-                    ...manpowerSettings,
-                    enableMonthlyAdjustment: e.target.checked
-                  })}
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">Enable Monthly Variations</span>
-              </div>
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={manpowerSettings.yearlyAdjustments.enableYearlyAdjustment}
-                  onChange={(e) => onSettingsChange({
-                    ...manpowerSettings,
-                    yearlyAdjustments: {
-                      ...manpowerSettings.yearlyAdjustments,
-                      enableYearlyAdjustment: e.target.checked
-                    }
-                  })}
-                  className="mr-2"
-                />
-                <span className="text-sm text-gray-700">Enable Yearly Growth</span>
-              </div>
+        {/* Explanation Modal/Toggle */}
+        {showExplanation && (
+          <div className="mt-4 p-3 bg-white border border-blue-200 rounded text-xs">
+            <h4 className="font-medium text-blue-800 mb-2">How Dynamic Manpower Allocation Works:</h4>
+            <div className="text-blue-700 space-y-1">
+              <p>• <strong>Base Personnel:</strong> Current number of officers per precinct</p>
+              <p>• <strong>Automatic Risk Assessment:</strong> System analyzes your forecast vs historical data</p>
+              <p>• <strong>Dynamic Thresholds:</strong> Risk levels calculated from data distribution (25th, 75th, 90th percentiles)</p>
+              <p>• <strong>Smart Allocation:</strong> Personnel recommendations based on risk level and your adjustment preference</p>
+              <p>• <strong>No Manual Tuning:</strong> System automatically adapts to your data patterns</p>
             </div>
+            <div className="mt-2 p-2 bg-blue-50 rounded">
+              <p className="font-medium text-blue-800">Formula:</p>
+              <p className="text-blue-700">• Low Risk: Bottom 25% of predictions (0.6-1.0x historical average)</p>
+              <p className="text-blue-700">• Medium Risk: Middle 50% of predictions (1.0-1.4x historical average)</p>
+              <p className="text-blue-700">• High Risk: Upper 25% of predictions (1.3-2.0x historical average)</p>
+              <p className="text-blue-700">• Critical Risk: Top 10% of predictions (&gt;90th percentile)</p>
+            </div>
+          </div>
+        )}
 
-            {/* Seasonal Multipliers */}
-            {manpowerSettings.enableSeasonalAdjustment && (
-              <div className="bg-blue-25 p-4 rounded border">
-                <h4 className="text-sm font-medium text-blue-800 mb-2">Seasonal Multipliers (Philippines Context)</h4>
-                <div className="mb-3 text-xs text-blue-700 bg-blue-50 p-2 rounded">
-                  Philippines climate: Dry season (Nov-Apr), Wet season (May-Oct). Default is 1.0 (no adjustment) as tropical climate has less seasonal crime variation.
-                </div>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {Object.entries(manpowerSettings.seasonalMultipliers).map(([season, multiplier]) => {
-                    const seasonLabels = {
-                      spring: 'Mar-May (Hot/Dry)',
-                      summer: 'Jun-Aug (Wet Start)', 
-                      fall: 'Sep-Nov (Wet Peak)',
-                      winter: 'Dec-Feb (Cool/Dry)'
-                    };
-                    
-                    return (
-                      <div key={season}>
-                        <label className="block text-xs text-gray-600 mb-1">
-                          {seasonLabels[season as keyof typeof seasonLabels]}
-                        </label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          min="0.5"
-                          max="2.0"
-                          value={multiplier}
-                          onChange={(e) => onSettingsChange({
-                            ...manpowerSettings,
-                            seasonalMultipliers: {
-                              ...manpowerSettings.seasonalMultipliers,
-                              [season]: parseFloat(e.target.value) || 1.0
-                            }
-                          })}
-                          className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
-                        />
-                        <div className="text-xs text-gray-500 mt-1">Current: {(multiplier * 100).toFixed(0)}%</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {/* Yearly Growth Settings */}
-            {manpowerSettings.yearlyAdjustments.enableYearlyAdjustment && (
-              <div className="bg-green-25 p-4 rounded border">
-                <h4 className="text-sm font-medium text-green-800 mb-2">Yearly Growth Settings</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Base Year</label>
+        {/* Advanced Settings */}
+        {showAdvancedSettings && (
+          <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded">
+            <h4 className="text-sm font-medium text-gray-800 mb-3">Advanced Configuration</h4>
+            
+            <div className="text-xs">
+              {/* Time Adjustments */}
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-2">Time-based Adjustments</label>
+                <div className="space-y-2">
+                  <label className="flex items-center text-xs">
                     <input
-                      type="number"
-                      min="2020"
-                      max="2030"
-                      value={manpowerSettings.yearlyAdjustments.baseYear}
+                      type="checkbox"
+                      checked={manpowerSettings.enableSeasonalAdjustment}
+                      onChange={(e) => onSettingsChange({ ...manpowerSettings, enableSeasonalAdjustment: e.target.checked })}
+                      className="mr-2 scale-75"
+                    />
+                    Seasonal patterns (tropical climate - usually not needed)
+                  </label>
+                  <label className="flex items-center text-xs">
+                    <input
+                      type="checkbox"
+                      checked={manpowerSettings.enableMonthlyAdjustment}
+                      onChange={(e) => onSettingsChange({ ...manpowerSettings, enableMonthlyAdjustment: e.target.checked })}
+                      className="mr-2 scale-75"
+                    />
+                    Monthly variations
+                  </label>
+                  <label className="flex items-center text-xs">
+                    <input
+                      type="checkbox"
+                      checked={manpowerSettings.yearlyAdjustments.enableYearlyAdjustment}
                       onChange={(e) => onSettingsChange({
                         ...manpowerSettings,
-                        yearlyAdjustments: {
-                          ...manpowerSettings.yearlyAdjustments,
-                          baseYear: parseInt(e.target.value) || new Date().getFullYear()
-                        }
+                        yearlyAdjustments: { ...manpowerSettings.yearlyAdjustments, enableYearlyAdjustment: e.target.checked }
                       })}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                      className="mr-2 scale-75"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-gray-600 mb-1">Annual Growth Rate</label>
+                    Yearly growth trends
+                  </label>
+                </div>
+                {manpowerSettings.yearlyAdjustments.enableYearlyAdjustment && (
+                  <div className="mt-2 text-xs">
+                    <label className="block text-gray-600 mb-1">Annual Growth Rate</label>
                     <input
-                      type="number"
-                      step="0.01"
-                      min="0.9"
-                      max="1.2"
+                      type="number" step="0.01" min="0.9" max="1.2"
                       value={manpowerSettings.yearlyAdjustments.yearOverYearGrowth}
                       onChange={(e) => onSettingsChange({
                         ...manpowerSettings,
-                        yearlyAdjustments: {
-                          ...manpowerSettings.yearlyAdjustments,
-                          yearOverYearGrowth: parseFloat(e.target.value) || 1.02
-                        }
+                        yearlyAdjustments: { ...manpowerSettings.yearlyAdjustments, yearOverYearGrowth: parseFloat(e.target.value) || 1.02 }
                       })}
-                      className="w-full px-2 py-1 text-sm border border-gray-300 rounded"
+                      className="w-full px-2 py-1 text-xs border rounded"
                     />
-                    <span className="text-xs text-gray-500">({((manpowerSettings.yearlyAdjustments.yearOverYearGrowth - 1) * 100).toFixed(1)}% annually)</span>
+                    <span className="text-gray-500">({((manpowerSettings.yearlyAdjustments.yearOverYearGrowth - 1) * 100).toFixed(1)}% annually)</span>
                   </div>
-                </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Dynamic Allocation Summary */}
