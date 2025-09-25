@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import { GetPrecinctsDictionary, PrecinctNumberToNameMap } from '../../constants/consts';
+import { GetPrecinctsDictionary, PrecinctNumberToNameMap, PrecinctGuidToNumberMap } from '../../constants/consts';
 import type { 
   ManpowerAllocation as ManpowerAllocationType, 
   ManpowerRecommendation
@@ -94,18 +94,19 @@ const ManpowerAllocation: React.FC<Props> = ({
       return 0; // No allocation data exists
     }
     
-    // Get the precinct name from the number
-    const precinctName = PrecinctNumberToNameMap[precinct];
-    if (!precinctName) {
+    // Find the GUID for this precinct number by searching the mapping
+    const precinctGuid = Object.entries(PrecinctGuidToNumberMap).find(
+      ([guid, precinctNum]) => precinctNum === precinct
+    )?.[0];
+    
+    if (!precinctGuid) {
       return 0; // Unknown precinct number
     }
     
-    // Find allocations that match this precinct by name
-    // Note: The API returns precinct names, not numbers or IDs in the precinct field
+    // Find allocations that match this precinct by GUID
+    // The API returns precinctId as GUID
     const precinctAllocations = actualManpowerData.filter(allocation => {
-      // Match by precinct name (case-insensitive)
-      const allocationPrecinct = allocation.precinct || allocation.precinctName || '';
-      return allocationPrecinct.toLowerCase().trim() === precinctName.toLowerCase().trim();
+      return allocation.precinctId === precinctGuid;
     });
     
     if (precinctAllocations.length === 0) {
@@ -374,35 +375,34 @@ const ManpowerAllocation: React.FC<Props> = ({
       // Get actual current allocation from API
       const currentAllocation = getActualAllocation(precinct);
       
-      // If no actual data exists, show 0 for both current and recommended
-      let recommendedAllocation = 0;
-      let changeFromBase = 0;
-      
-      if (currentAllocation > 0) {
-        // Only calculate recommendations if we have actual baseline data
-        const riskMultiplier = manpowerSettings.riskMultipliers[dominantRisk];
-        
-        // Calculate weighted average allocation across all forecast months
-        let totalWeightedAllocation = 0;
-        let totalMonths = 0;
-        
-        Object.values(data.monthlyBreakdown).forEach(monthData => {
-          const dynamicMultiplier = calculateDynamicMultiplier(
-            monthData.month, 
-            monthData.year, 
-            riskMultiplier
-          );
-          totalWeightedAllocation += currentAllocation * dynamicMultiplier;
-          totalMonths++;
-        });
-        
-        recommendedAllocation = totalMonths > 0 
-          ? Math.round(totalWeightedAllocation / totalMonths)
-          : Math.round(currentAllocation * riskMultiplier);
-        
-        // Calculate change percentage from current allocation
-        changeFromBase = ((recommendedAllocation - currentAllocation) / currentAllocation) * 100;
+      // Skip precincts that have no manpower allocation data
+      if (currentAllocation === 0) {
+        return; // Don't include in recommendations
       }
+      
+      // Calculate recommendations since we have actual baseline data
+      const riskMultiplier = manpowerSettings.riskMultipliers[dominantRisk];
+      
+      // Calculate weighted average allocation across all forecast months
+      let totalWeightedAllocation = 0;
+      let totalMonths = 0;
+      
+      Object.values(data.monthlyBreakdown).forEach(monthData => {
+        const dynamicMultiplier = calculateDynamicMultiplier(
+          monthData.month, 
+          monthData.year, 
+          riskMultiplier
+        );
+        totalWeightedAllocation += currentAllocation * dynamicMultiplier;
+        totalMonths++;
+      });
+      
+      const recommendedAllocation = totalMonths > 0 
+        ? Math.round(totalWeightedAllocation / totalMonths)
+        : Math.round(currentAllocation * riskMultiplier);
+      
+      // Calculate change percentage from current allocation
+      const changeFromBase = ((recommendedAllocation - currentAllocation) / currentAllocation) * 100;
 
       // Generate enhanced justification with detailed risk computation
       const criticalCount = data.riskCounts.critical;
@@ -454,9 +454,7 @@ const ManpowerAllocation: React.FC<Props> = ({
         ? ` (adjusted for ${dynamicFactors.join(', ')})` 
         : '';
       
-      if (currentAllocation === 0) {
-        justification = `No current manpower allocation data available. ${riskBreakdown}.${predictionText}${thresholdText} Add allocation data to get recommendations based on ${dominantRisk.toUpperCase()} risk level forecast.`;
-      } else if (dominantRisk === 'critical') {
+      if (dominantRisk === 'critical') {
         justification = `${dominantRisk.toUpperCase()} RISK LEVEL determined by majority of forecast periods. ${riskBreakdown} across ${monthCount} months${factorsText}.${predictionText}${thresholdText} Significant manpower increase required.`;
       } else if (dominantRisk === 'high') {
         justification = `${dominantRisk.toUpperCase()} RISK LEVEL determined by majority of forecast periods. ${riskBreakdown} across ${monthCount} months${factorsText}.${predictionText}${thresholdText} Increased surveillance recommended.`;
@@ -469,7 +467,7 @@ const ManpowerAllocation: React.FC<Props> = ({
       recommendations.push({
         precinct,
         precinctName: GetPrecinctsDictionary[precinct] || `Precinct ${precinct}`,
-        currentAllocation: currentAllocation, // Use actual API data instead of baseline
+        currentAllocation: currentAllocation,
         recommendedAllocation,
         riskLevel: dominantRisk,
         predictedCases: data.totalPredicted,
