@@ -87,6 +87,7 @@ const ForecastPage = () => {
   // Filtering state
   const [forecastFilters, setForecastFilters] = useState<ForecastFilterState>(initialForecastFilterState);
   const [filteredForecastData, setFilteredForecastData] = useState<ForecastData[]>([]);
+  const [filteredForecastMapPoints, setFilteredForecastMapPoints] = useState<ForecastMapPoint[]>([]);
   
   // UI state
   const [showDataRequirements, setShowDataRequirements] = useState(false);
@@ -106,6 +107,24 @@ const ForecastPage = () => {
       ...prev,
       [tabKey]: !prev[tabKey as keyof typeof prev]
     }));
+  };
+  
+  // Helper function to get consistent filtered data for all components
+  const getFilteredForecastData = () => {
+    const dataToUse = filteredForecastData.length > 0 ? filteredForecastData : forecastData;
+    
+    // Log when components request filtered data
+    if (dataToUse.length > 0) {
+      console.log('🔍 Component requesting filtered data:', {
+        usingFiltered: filteredForecastData.length > 0,
+        dataCount: dataToUse.length,
+        filtersActive: Object.values(forecastFilters).some(filter => 
+          Array.isArray(filter) ? filter.length > 0 : filter !== null
+        )
+      });
+    }
+    
+    return dataToUse;
   };
 
   // Forecast parameters
@@ -223,6 +242,49 @@ const ForecastPage = () => {
       }
     }
   }, []);
+
+  // Regenerate map points when filtered data changes
+  useEffect(() => {
+    if (filteredForecastData.length > 0) {
+      console.log('🗺️ Regenerating map points for filtered data:', {
+        originalCount: forecastData.length,
+        filteredCount: filteredForecastData.length,
+        filterState: forecastFilters
+      });
+      
+      // Convert filtered forecast data to extended format for map processing
+      const enhancedFilteredForecasts = filteredForecastData.map(forecast => {
+        // Find corresponding enhanced data or create basic enhanced format
+        const enhancedData = extendedForecastData.find(ext => 
+          ext.precinct === forecast.precinct &&
+          ext.crimeType === forecast.crimeType &&
+          ext.year === forecast.year &&
+          ext.month === forecast.month
+        );
+        
+        if (enhancedData) {
+          return enhancedData;
+        } else {
+          // Create basic enhanced format if not found
+          return enhanceForecastData(forecast, historicalData, clusters);
+        }
+      });
+      
+      // Filter reliable forecasts and create map points
+      const reliableFilteredForecasts = filterReliableForecasts(enhancedFilteredForecasts, 0.3, 3, 1.5);
+      const filteredMapPoints = createForecastMapPoints(reliableFilteredForecasts, 0.3);
+      
+      setFilteredForecastMapPoints(filteredMapPoints);
+      
+      console.log('🗺️ Filtered map points generated:', {
+        reliableForecasts: reliableFilteredForecasts.length,
+        mapPoints: filteredMapPoints.length
+      });
+    } else {
+      // No filtered data, use original map points
+      setFilteredForecastMapPoints(forecastMapPoints);
+    }
+  }, [filteredForecastData, forecastData, extendedForecastData, forecastMapPoints, historicalData, clusters, forecastFilters]);
 
   // Generate forecast using statistical APIs and clustering analysis
   const generateForecast = useCallback(async () => {
@@ -996,8 +1058,23 @@ const ForecastPage = () => {
         <ForecastFilters
           forecastData={forecastData}
           filters={forecastFilters}
-          onFiltersChange={setForecastFilters}
-          onFilteredDataChange={setFilteredForecastData}
+          onFiltersChange={(newFilters) => {
+            console.log('🔍 Filter change detected:', {
+              previousFilters: forecastFilters,
+              newFilters: newFilters,
+              originalDataCount: forecastData.length
+            });
+            setForecastFilters(newFilters);
+          }}
+          onFilteredDataChange={(filteredData) => {
+            console.log('🔍 Filtered data updated:', {
+              originalCount: forecastData.length,
+              filteredCount: filteredData.length,
+              reduction: forecastData.length - filteredData.length,
+              reductionPercentage: ((forecastData.length - filteredData.length) / forecastData.length * 100).toFixed(1) + '%'
+            });
+            setFilteredForecastData(filteredData);
+          }}
         />
       )}
 
@@ -1070,7 +1147,7 @@ const ForecastPage = () => {
               <TabPanel className="p-6">
                 <ForecastSummary 
                   historicalData={historicalData}
-                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
+                  forecastData={getFilteredForecastData()}
                   params={forecastParams}
                   manpowerSettings={manpowerSettings}
                 />
@@ -1079,7 +1156,7 @@ const ForecastPage = () => {
               <TabPanel className="p-6">
                 <TimeSeriesChart 
                   historicalData={historicalData}
-                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
+                  forecastData={getFilteredForecastData()}
                   params={forecastParams}
                 />
               </TabPanel>
@@ -1087,20 +1164,20 @@ const ForecastPage = () => {
               <TabPanel className="p-6">
                 <TrendAnalysis 
                   historicalData={historicalData}
-                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
+                  forecastData={getFilteredForecastData()}
                 />
               </TabPanel>
               
               <TabPanel className="p-6">
                 <RiskHeatmap 
-                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
+                  forecastData={getFilteredForecastData()}
                 />
               </TabPanel>
               
               <TabPanel className="p-6">
                 <ManpowerAllocationComponent 
                   historicalData={historicalData}
-                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
+                  forecastData={getFilteredForecastData()}
                   manpowerSettings={manpowerSettings}
                   onSettingsChange={setManpowerSettings}
                 />
@@ -1110,7 +1187,7 @@ const ForecastPage = () => {
                 <ForecastMap 
                   center={[14.4081, 121.0415]} // Muntinlupa center
                   zoom={13}
-                  forecastPoints={forecastMapPoints}
+                  forecastPoints={filteredForecastData.length > 0 ? filteredForecastMapPoints : forecastMapPoints}
                   loading={loading}
                 />
               </TabPanel>
@@ -1118,7 +1195,7 @@ const ForecastPage = () => {
               <TabPanel className="p-6">
                 <ForecastDocumentation 
                   historicalData={historicalData}
-                  forecastData={filteredForecastData.length > 0 ? filteredForecastData : forecastData}
+                  forecastData={getFilteredForecastData()}
                 />
               </TabPanel>
             </TabPanels>
