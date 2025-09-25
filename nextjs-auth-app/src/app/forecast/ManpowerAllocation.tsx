@@ -894,187 +894,602 @@ const ManpowerAllocation: React.FC<Props> = ({
         </div>
       )}
 
-      {/* Dynamic Allocation Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-600 rounded-lg">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 715.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+      {/* Enhanced Manpower Overview Cards */}
+      <div className="space-y-6">
+        {/* Primary Metrics Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Current Allocation Card */}
+          <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-3 bg-blue-600 rounded-lg shadow-lg">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 715.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-blue-900">Current Deployment</h3>
+                  <p className="text-sm text-blue-700">Active officers across all precincts</p>
+                </div>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-700">Current Allocation</p>
+            
+            <div className="mt-4">
               {isLoadingManpower ? (
                 <div className="flex items-center">
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
-                  <p className="text-sm text-gray-500">Loading...</p>
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
+                  <p className="text-lg text-blue-700">Loading deployment data...</p>
                 </div>
               ) : manpowerError ? (
-                <div>
-                  <p className="text-2xl font-bold text-red-600">Error</p>
-                  <p className="text-xs text-red-500">Failed to load data</p>
+                <div className="space-y-2">
+                  <p className="text-3xl font-bold text-red-700">Error</p>
+                  <p className="text-sm text-red-600 bg-red-100 rounded p-2">{manpowerError}</p>
                 </div>
               ) : (
-                <div>
-                  <p className="text-2xl font-bold text-gray-900">{totalCurrentManpower.toLocaleString()}</p>
-                  <p className="text-xs text-gray-500">
-                    {totalCurrentManpower === 0 ? 'No data available' : 'From API data'}
+                <div className="space-y-2">
+                  <p className="text-4xl font-bold text-blue-900">
+                    {totalCurrentManpower.toLocaleString()}
+                    <span className="text-lg font-medium text-blue-700 ml-2">officers</span>
                   </p>
+                  <div className="flex items-center space-x-4 text-sm">
+                    <span className={`px-3 py-1 rounded-full ${
+                      totalCurrentManpower === 0 
+                        ? 'bg-red-100 text-red-700' 
+                        : 'bg-green-100 text-green-700'
+                    }`}>
+                      {totalCurrentManpower === 0 ? '⚠️ No deployment data' : '✅ Live data'}
+                    </span>
+                    {dataFetchTimestamp && (
+                      <span className="text-blue-600">Updated: {dataFetchTimestamp}</span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           </div>
-        </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-600 rounded-lg">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-              </svg>
+          {/* Recommended Allocation Card */}
+          <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className="p-3 bg-green-600 rounded-lg shadow-lg">
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className="text-lg font-semibold text-green-900">AI Recommendation</h3>
+                  <p className="text-sm text-green-700">Optimal allocation based on forecast</p>
+                </div>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-700">Recommended</p>
-              <p className="text-2xl font-bold text-gray-900">{totalManpowerRequired.toLocaleString()}</p>
-              <p className="text-xs text-gray-500">
-                {totalManpowerRequired === 0 ? 'Need allocation data' : 'Based on forecast'}
+            
+            <div className="mt-4 space-y-2">
+              <p className="text-4xl font-bold text-green-900">
+                {totalManpowerRequired.toLocaleString()}
+                <span className="text-lg font-medium text-green-700 ml-2">officers</span>
               </p>
+              <div className="flex items-center space-x-4 text-sm">
+                <span className={`px-3 py-1 rounded-full ${
+                  totalManpowerRequired === 0 
+                    ? 'bg-amber-100 text-amber-700' 
+                    : 'bg-green-100 text-green-700'
+                }`}>
+                  {totalManpowerRequired === 0 ? '⚠️ Need baseline data' : '🤖 AI optimized'}
+                </span>
+                <span className="text-green-600">
+                  {manpowerRecommendations.length} precincts analyzed
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Impact Analysis Card */}
+          <div className={`rounded-xl p-6 border shadow-lg ${
+            Math.abs(overallChange) > 20 
+              ? 'bg-gradient-to-br from-red-50 to-red-100 border-red-200' 
+              : Math.abs(overallChange) > 10
+                ? 'bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-200'
+                : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'
+          }`}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center">
+                <div className={`p-3 rounded-lg shadow-lg ${
+                  Math.abs(overallChange) > 20 
+                    ? 'bg-red-600' 
+                    : Math.abs(overallChange) > 10
+                      ? 'bg-yellow-600'
+                      : 'bg-gray-600'
+                }`}>
+                  <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                  </svg>
+                </div>
+                <div className="ml-4">
+                  <h3 className={`text-lg font-semibold ${
+                    Math.abs(overallChange) > 20 
+                      ? 'text-red-900' 
+                      : Math.abs(overallChange) > 10
+                        ? 'text-yellow-900'
+                        : 'text-gray-900'
+                  }`}>Resource Impact</h3>
+                  <p className={`text-sm ${
+                    Math.abs(overallChange) > 20 
+                      ? 'text-red-700' 
+                      : Math.abs(overallChange) > 10
+                        ? 'text-yellow-700'
+                        : 'text-gray-700'
+                  }`}>Change from current deployment</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-4 space-y-2">
+              <div className="flex items-baseline space-x-2">
+                <p className={`text-4xl font-bold ${
+                  Math.abs(overallChange) > 20 
+                    ? 'text-red-900' 
+                    : Math.abs(overallChange) > 10
+                      ? 'text-yellow-900'
+                      : 'text-gray-900'
+                }`}>
+                  {totalCurrentManpower === 0 ? 'N/A' : `${overallChange > 0 ? '+' : ''}${overallChange.toFixed(1)}%`}
+                </p>
+                {totalCurrentManpower > 0 && (
+                  <span className={`text-lg font-medium ${
+                    Math.abs(overallChange) > 20 
+                      ? 'text-red-700' 
+                      : Math.abs(overallChange) > 10
+                        ? 'text-yellow-700'
+                        : 'text-gray-700'
+                  }`}>
+                    ({overallChange > 0 ? '+' : ''}{totalManpowerRequired - totalCurrentManpower} officers)
+                  </span>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-4 text-sm">
+                <span className={`px-3 py-1 rounded-full font-medium ${
+                  Math.abs(overallChange) > 20 
+                    ? 'bg-red-100 text-red-700' 
+                    : Math.abs(overallChange) > 10
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-green-100 text-green-700'
+                }`}>
+                  {Math.abs(overallChange) > 20 
+                    ? '🚨 Significant change needed' 
+                    : Math.abs(overallChange) > 10
+                      ? '⚠️ Moderate adjustment'
+                      : '✅ Minor adjustment'}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 rounded-lg border border-gray-200">
-          <div className="flex items-center">
-            <div className="p-2 bg-purple-600 rounded-lg">
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-700">Active Adjustments</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {[
-                  manpowerSettings.enableSeasonalAdjustment && 'S',
-                  manpowerSettings.enableMonthlyAdjustment && 'M', 
-                  manpowerSettings.yearlyAdjustments.enableYearlyAdjustment && 'Y'
-                ].filter(Boolean).join('+') || 'None'}
-              </p>
-              <p className="text-xs text-gray-500">S=Seasonal, M=Monthly, Y=Yearly</p>
+        {/* Configuration Summary */}
+        <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <div className="p-3 bg-purple-600 rounded-lg">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-lg font-semibold text-gray-900">Analysis Configuration</h3>
+                <p className="text-sm text-gray-600">Current adjustment factors applied</p>
+              </div>
             </div>
           </div>
-        </div>
-
-        <div className={`p-4 rounded-lg border ${
-          overallChange > 10 
-            ? 'bg-red-50 border-red-200' 
-            : overallChange < -10 
-              ? 'bg-green-50 border-green-200'
-              : 'bg-yellow-50 border-yellow-200'
-        }`}>
-          <div className="flex items-center">
-            <div className={`p-2 rounded-lg ${
-              overallChange > 10 
-                ? 'bg-red-600' 
-                : overallChange < -10 
-                  ? 'bg-green-600'
-                  : 'bg-yellow-600'
-            }`}>
-              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
+          
+          <div className="mt-4">
+            <div className="flex items-center space-x-6">
+              <div className="flex items-center space-x-3">
+                <span className="text-sm font-medium text-gray-700">Active Adjustments:</span>
+                <div className="flex items-center space-x-2">
+                  {[
+                    { key: 'seasonal', enabled: manpowerSettings.enableSeasonalAdjustment, label: 'Seasonal', icon: '🌤️' },
+                    { key: 'monthly', enabled: manpowerSettings.enableMonthlyAdjustment, label: 'Monthly', icon: '📅' },
+                    { key: 'yearly', enabled: manpowerSettings.yearlyAdjustments.enableYearlyAdjustment, label: 'Yearly Growth', icon: '📈' }
+                  ].map(adjustment => (
+                    <span key={adjustment.key} className={`px-3 py-1 rounded-full text-xs font-medium ${
+                      adjustment.enabled 
+                        ? 'bg-purple-100 text-purple-800' 
+                        : 'bg-gray-100 text-gray-500'
+                    }`}>
+                      {adjustment.icon} {adjustment.label} {adjustment.enabled ? '✓' : '○'}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className={`text-sm font-medium ${
-                overallChange > 10 
-                  ? 'text-red-700' 
-                  : overallChange < -10 
-                    ? 'text-green-700'
-                    : 'text-yellow-700'
-              }`}>Overall Change</p>
-              <p className={`text-2xl font-bold ${
-                overallChange > 10 
-                  ? 'text-red-900' 
-                  : overallChange < -10 
-                    ? 'text-green-900'
-                    : 'text-gray-900'
-              }`}>
-                {totalCurrentManpower === 0 ? 'N/A' : `${overallChange > 0 ? '+' : ''}${overallChange.toFixed(1)}%`}
-              </p>
+            
+            <div className="mt-3 p-3 bg-purple-50 rounded-lg">
+              <div className="flex items-center space-x-4 text-sm text-purple-700">
+                <span><strong>Risk Thresholds:</strong></span>
+                <span>Low: ≤{(dynamicThresholds.lowMax * 100).toFixed(0)}%</span>
+                <span>Medium: ≤{(dynamicThresholds.mediumMax * 100).toFixed(0)}%</span>
+                <span>High: ≤{(dynamicThresholds.highMax * 100).toFixed(0)}%</span>
+                <span>Critical: &gt;{(dynamicThresholds.highMax * 100).toFixed(0)}%</span>
+              </div>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Detailed Recommendations */}
-      <div className="bg-white rounded-lg border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-800 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-            Manpower Recommendations by Precinct
-            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-              ⚙️ Responds to Filters
-            </span>
-          </h3>
-          <p className="text-sm text-gray-600 mt-2">
-            These recommendations adjust based on your applied forecast filters (e.g., specific crime types, date ranges, risk levels).
-          </p>
+      {/* Enhanced Manpower Recommendations */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+        <div className="px-6 py-5 border-b border-gray-200 bg-gradient-to-r from-indigo-50 to-blue-50">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                <svg className="w-6 h-6 mr-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                </svg>
+                AI-Powered Manpower Recommendations
+              </h3>
+              <p className="text-sm text-gray-600 mt-1 ml-9">
+                Intelligent staffing suggestions based on crime forecasts and historical patterns
+              </p>
+            </div>
+            <div className="flex items-center space-x-2">
+              <span className="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-medium">
+                ⚙️ Filter-Responsive
+              </span>
+              <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-xs font-medium">
+                🤖 AI-Optimized
+              </span>
+            </div>
+          </div>
         </div>
 
         <div className="p-6">
           {manpowerRecommendations.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              No forecast data available for manpower recommendations.
+            <div className="text-center py-12">
+              <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 7h.01M9 16h.01M15 11h.01" />
+              </svg>
+              <h4 className="text-lg font-medium text-gray-900 mb-2">No Recommendations Available</h4>
+              <p className="text-gray-500">No forecast data or manpower baseline available for generating recommendations.</p>
+              <p className="text-sm text-gray-400 mt-2">Ensure you have both forecast data and current manpower allocations to see AI recommendations.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b border-gray-200">
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Precinct</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Risk Level</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Predicted Cases</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Current</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Recommended</th>
-                    <th className="text-center py-3 px-4 font-medium text-gray-700">Change</th>
-                    <th className="text-left py-3 px-4 font-medium text-gray-700">Justification</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {manpowerRecommendations.map((rec, index) => (
-                    <tr key={rec.precinct} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                      <td className="py-3 px-4 font-medium text-gray-900">{rec.precinctName}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          rec.riskLevel === 'critical' ? 'bg-red-100 text-red-800' :
-                          rec.riskLevel === 'high' ? 'bg-orange-100 text-orange-800' :
-                          rec.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                          'bg-green-100 text-green-800'
+            <div className="space-y-4">
+              {manpowerRecommendations.map((rec, index) => {
+                const isHighPriority = rec.riskLevel === 'critical' || rec.riskLevel === 'high';
+                const isPositiveChange = rec.changeFromBase > 0;
+                const isSignificantChange = Math.abs(rec.changeFromBase) > 10;
+                
+                return (
+                  <div key={rec.precinct} className={`rounded-lg border p-6 transition-all hover:shadow-md ${
+                    rec.riskLevel === 'critical' ? 'border-red-200 bg-red-50' :
+                    rec.riskLevel === 'high' ? 'border-orange-200 bg-orange-50' :
+                    rec.riskLevel === 'medium' ? 'border-yellow-200 bg-yellow-50' :
+                    'border-green-200 bg-green-50'
+                  }`}>
+                    {/* Header Section */}
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center">
+                        <div className={`p-3 rounded-lg ${
+                          rec.riskLevel === 'critical' ? 'bg-red-100' :
+                          rec.riskLevel === 'high' ? 'bg-orange-100' :
+                          rec.riskLevel === 'medium' ? 'bg-yellow-100' :
+                          'bg-green-100'
                         }`}>
-                          {rec.riskLevel.toUpperCase()}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-center font-medium">{rec.predictedCases}</td>
-                      <td className="py-3 px-4 text-center">{rec.currentAllocation}</td>
-                      <td className="py-3 px-4 text-center font-bold">{rec.recommendedAllocation}</td>
-                      <td className={`py-3 px-4 text-center font-medium ${
-                        rec.changeFromBase > 10 ? 'text-red-600' :
-                        rec.changeFromBase < -10 ? 'text-green-600' :
-                        'text-gray-600'
-                      }`}>
-                        {rec.changeFromBase > 0 ? '+' : ''}{rec.changeFromBase.toFixed(1)}%
-                      </td>
-                      <td className="py-3 px-4 text-sm text-gray-600">{rec.justification}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                          <svg className={`w-5 h-5 ${
+                            rec.riskLevel === 'critical' ? 'text-red-600' :
+                            rec.riskLevel === 'high' ? 'text-orange-600' :
+                            rec.riskLevel === 'medium' ? 'text-yellow-600' :
+                            'text-green-600'
+                          }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div className="ml-4">
+                          <h4 className="text-xl font-bold text-gray-900">{rec.precinctName}</h4>
+                          <div className="flex items-center space-x-3 mt-1">
+                            <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+                              rec.riskLevel === 'critical' ? 'bg-red-100 text-red-800' :
+                              rec.riskLevel === 'high' ? 'bg-orange-100 text-orange-800' :
+                              rec.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-green-100 text-green-800'
+                            }`}>
+                              {rec.riskLevel === 'critical' ? '🚨' : 
+                               rec.riskLevel === 'high' ? '⚠️' : 
+                               rec.riskLevel === 'medium' ? '⚡' : '✅'} 
+                              {rec.riskLevel.toUpperCase()} RISK
+                            </span>
+                            <span className="px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm font-medium">
+                              📊 {rec.predictedCases} predicted cases
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {isHighPriority && (
+                        <div className="text-right">
+                          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                            rec.riskLevel === 'critical' ? 'bg-red-600 text-white' : 'bg-orange-600 text-white'
+                          }`}>
+                            ⚡ HIGH PRIORITY
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Metrics Section */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+                      <div className="text-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div className="text-2xl font-bold text-gray-900">{rec.currentAllocation}</div>
+                        <div className="text-sm text-gray-600 mt-1">Current Officers</div>
+                      </div>
+                      <div className="text-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div className="text-2xl font-bold text-indigo-600">{rec.recommendedAllocation}</div>
+                        <div className="text-sm text-gray-600 mt-1">AI Recommended</div>
+                      </div>
+                      <div className="text-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div className={`text-2xl font-bold ${
+                          isPositiveChange ? 'text-red-600' : 'text-green-600'
+                        }`}>
+                          {isPositiveChange ? '+' : ''}{(rec.recommendedAllocation - rec.currentAllocation)}
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">Net Change</div>
+                      </div>
+                      <div className="text-center p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
+                        <div className={`text-2xl font-bold ${
+                          rec.changeFromBase > 10 ? 'text-red-600' :
+                          rec.changeFromBase < -10 ? 'text-green-600' :
+                          'text-gray-600'
+                        }`}>
+                          {rec.changeFromBase > 0 ? '+' : ''}{rec.changeFromBase.toFixed(1)}%
+                        </div>
+                        <div className="text-sm text-gray-600 mt-1">Percentage Change</div>
+                      </div>
+                    </div>
+                    
+                    {/* Analysis & Justification */}
+                    <div className="bg-white rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-start">
+                        <div className="p-2 bg-blue-100 rounded-lg mr-3 mt-1">
+                          <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <h5 className="font-semibold text-gray-900 mb-2">AI Analysis & Recommendations</h5>
+                          <p className="text-sm text-gray-700 leading-relaxed">{rec.justification}</p>
+                          
+                          {isSignificantChange && (
+                            <div className={`mt-3 p-3 rounded-lg ${
+                              isPositiveChange ? 'bg-red-50 border border-red-200' : 'bg-green-50 border border-green-200'
+                            }`}>
+                              <div className="flex items-center">
+                                <svg className={`w-4 h-4 mr-2 ${
+                                  isPositiveChange ? 'text-red-600' : 'text-green-600'
+                                }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.865-.833-2.635 0L4.178 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                                </svg>
+                                <span className={`text-sm font-medium ${
+                                  isPositiveChange ? 'text-red-800' : 'text-green-800'
+                                }`}>
+                                  {isPositiveChange 
+                                    ? 'Significant staffing increase recommended - budget impact expected' 
+                                    : 'Resource optimization opportunity - potential cost savings'
+                                  }
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
       </div>
+
+      {/* Strategic Insights & Executive Summary */}
+      {manpowerRecommendations.length > 0 && (
+        <div className="bg-gradient-to-r from-slate-50 to-gray-50 rounded-xl shadow-sm border border-gray-200">
+          <div className="px-6 py-5 border-b border-gray-200">
+            <div className="flex items-center">
+              <div className="p-3 bg-slate-600 rounded-lg">
+                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <h3 className="text-xl font-bold text-gray-900">Strategic Insights & Executive Summary</h3>
+                <p className="text-sm text-gray-600 mt-1">Key findings and actionable recommendations for leadership</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Key Metrics */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Key Performance Indicators
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <div className="text-2xl font-bold text-blue-600">{manpowerRecommendations.length}</div>
+                    <div className="text-sm text-gray-600">Precincts Analyzed</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <div className="text-2xl font-bold text-red-600">
+                      {manpowerRecommendations.filter(r => r.riskLevel === 'critical' || r.riskLevel === 'high').length}
+                    </div>
+                    <div className="text-sm text-gray-600">High-Risk Areas</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <div className="text-2xl font-bold text-green-600">
+                      {manpowerRecommendations.reduce((sum, r) => sum + r.predictedCases, 0).toLocaleString()}
+                    </div>
+                    <div className="text-sm text-gray-600">Total Predicted Cases</div>
+                  </div>
+                  <div className="bg-white p-4 rounded-lg border border-gray-200">
+                    <div className={`text-2xl font-bold ${
+                      Math.abs(overallChange) > 15 ? 'text-red-600' :
+                      Math.abs(overallChange) > 5 ? 'text-yellow-600' : 'text-green-600'
+                    }`}>
+                      {totalCurrentManpower === 0 ? 'N/A' : `${overallChange > 0 ? '+' : ''}${overallChange.toFixed(0)}%`}
+                    </div>
+                    <div className="text-sm text-gray-600">Resource Adjustment</div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Strategic Recommendations */}
+              <div className="space-y-4">
+                <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  Strategic Recommendations
+                </h4>
+                
+                <div className="space-y-3">
+                  {(() => {
+                    const criticalAreas = manpowerRecommendations.filter(r => r.riskLevel === 'critical');
+                    const highRiskAreas = manpowerRecommendations.filter(r => r.riskLevel === 'high');
+                    const needsIncrease = manpowerRecommendations.filter(r => r.changeFromBase > 10);
+                    const canOptimize = manpowerRecommendations.filter(r => r.changeFromBase < -10);
+                    
+                    const recommendations = [];
+                    
+                    if (criticalAreas.length > 0) {
+                      recommendations.push({
+                        icon: '🚨',
+                        priority: 'CRITICAL',
+                        color: 'red',
+                        text: `Immediate attention required for ${criticalAreas.length} critical-risk ${criticalAreas.length === 1 ? 'area' : 'areas'}: ${criticalAreas.map(a => a.precinctName).join(', ')}`
+                      });
+                    }
+                    
+                    if (needsIncrease.length > 0) {
+                      const totalIncrease = needsIncrease.reduce((sum, r) => sum + (r.recommendedAllocation - r.currentAllocation), 0);
+                      recommendations.push({
+                        icon: '📈',
+                        priority: 'HIGH',
+                        color: 'orange',
+                        text: `Budget impact: +${totalIncrease} officers needed across ${needsIncrease.length} ${needsIncrease.length === 1 ? 'precinct' : 'precincts'} for optimal coverage`
+                      });
+                    }
+                    
+                    if (canOptimize.length > 0) {
+                      const totalOptimization = Math.abs(canOptimize.reduce((sum, r) => sum + (r.recommendedAllocation - r.currentAllocation), 0));
+                      recommendations.push({
+                        icon: '💡',
+                        priority: 'OPPORTUNITY',
+                        color: 'green',
+                        text: `Resource optimization: ${totalOptimization} officers can be reallocated from ${canOptimize.length} lower-risk ${canOptimize.length === 1 ? 'area' : 'areas'}`
+                      });
+                    }
+                    
+                    if (totalCurrentManpower > 0 && Math.abs(overallChange) < 5) {
+                      recommendations.push({
+                        icon: '✅',
+                        priority: 'STABLE',
+                        color: 'blue',
+                        text: 'Current deployment is well-aligned with forecast patterns. Minor adjustments recommended.'
+                      });
+                    }
+                    
+                    if (recommendations.length === 0) {
+                      recommendations.push({
+                        icon: '📋',
+                        priority: 'INFO',
+                        color: 'gray',
+                        text: 'Insufficient baseline data for strategic recommendations. Establish current allocation baselines first.'
+                      });
+                    }
+                    
+                    return recommendations.map((rec, index) => (
+                      <div key={index} className={`p-4 rounded-lg border ${
+                        rec.color === 'red' ? 'bg-red-50 border-red-200' :
+                        rec.color === 'orange' ? 'bg-orange-50 border-orange-200' :
+                        rec.color === 'green' ? 'bg-green-50 border-green-200' :
+                        rec.color === 'blue' ? 'bg-blue-50 border-blue-200' :
+                        'bg-gray-50 border-gray-200'
+                      }`}>
+                        <div className="flex items-start">
+                          <span className="text-2xl mr-3 mt-1">{rec.icon}</span>
+                          <div>
+                            <div className={`text-xs font-bold mb-1 ${
+                              rec.color === 'red' ? 'text-red-800' :
+                              rec.color === 'orange' ? 'text-orange-800' :
+                              rec.color === 'green' ? 'text-green-800' :
+                              rec.color === 'blue' ? 'text-blue-800' :
+                              'text-gray-800'
+                            }`}>
+                              {rec.priority}
+                            </div>
+                            <p className={`text-sm ${
+                              rec.color === 'red' ? 'text-red-700' :
+                              rec.color === 'orange' ? 'text-orange-700' :
+                              rec.color === 'green' ? 'text-green-700' :
+                              rec.color === 'blue' ? 'text-blue-700' :
+                              'text-gray-700'
+                            }`}>
+                              {rec.text}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </div>
+            </div>
+            
+            {/* Executive Action Items */}
+            <div className="mt-6 p-4 bg-slate-100 rounded-lg border border-slate-200">
+              <h5 className="font-semibold text-slate-900 mb-3 flex items-center">
+                <svg className="w-4 h-4 mr-2 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 7h.01M9 16h.01M15 11h.01" />
+                </svg>
+                Next Steps for Leadership
+              </h5>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="flex items-start">
+                  <div className="w-6 h-6 bg-blue-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-1">1</div>
+                  <div>
+                    <div className="font-medium text-slate-900">Review High-Priority Areas</div>
+                    <div className="text-slate-600">Focus on critical and high-risk precincts requiring immediate resource adjustments</div>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="w-6 h-6 bg-green-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-1">2</div>
+                  <div>
+                    <div className="font-medium text-slate-900">Budget Planning</div>
+                    <div className="text-slate-600">Assess financial impact of recommended staffing changes and plan accordingly</div>
+                  </div>
+                </div>
+                <div className="flex items-start">
+                  <div className="w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold mr-3 mt-1">3</div>
+                  <div>
+                    <div className="font-medium text-slate-900">Implementation Timeline</div>
+                    <div className="text-slate-600">Develop phased approach for deployment changes based on urgency and resources</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Shift-Based Analysis Section */}
       <div className="bg-white rounded-lg border border-gray-200">
