@@ -578,6 +578,33 @@ const ManpowerAllocation: React.FC<Props> = ({
             No manual configuration needed - the system adapts to your data.
           </p>
         </div>
+        
+        {/* Filter Behavior Explanation */}
+        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <div className="flex items-start">
+            <svg className="w-4 h-4 text-yellow-600 mt-0.5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div className="text-xs">
+              <h4 className="font-medium text-yellow-800 mb-1">How Forecast Filters Affect This Tab:</h4>
+              <div className="text-yellow-700 space-y-1">
+                <p><strong>✅ What Changes with Filters:</strong></p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li><strong>Recommended Manpower:</strong> Recalculated based on filtered forecast data (e.g., "burglar only")</li>
+                  <li><strong>Risk Assessments:</strong> Updated to reflect only the filtered crime types/periods</li>
+                  <li><strong>Dynamic Thresholds:</strong> Adjusted based on filtered data distribution</li>
+                  <li><strong>Justifications:</strong> Show reasoning based only on filtered forecasts</li>
+                </ul>
+                <p className="mt-2"><strong>🔒 What Stays the Same:</strong></p>
+                <ul className="list-disc list-inside ml-2 space-y-0.5">
+                  <li><strong>Current Manpower:</strong> Real deployment data from API - not affected by analysis filters</li>
+                  <li><strong>Actual Officer Counts:</strong> Shows what's actually deployed regardless of which crimes you're analyzing</li>
+                </ul>
+                <p className="mt-2 text-yellow-600 font-medium">💡 This design lets you see how different crime patterns would affect staffing needs while keeping real-world context.</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Dynamic Threshold Display */}
         <div className="mt-3 p-2 bg-green-50 border border-green-200 rounded text-xs">
@@ -687,7 +714,7 @@ const ManpowerAllocation: React.FC<Props> = ({
           <div className="px-6 py-4 border-b border-gray-200">
             <h3 className="text-lg font-semibold text-gray-800 flex items-center">
               <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
               Current Manpower by Precinct
               {dataFetchTimestamp && (
@@ -695,7 +722,13 @@ const ManpowerAllocation: React.FC<Props> = ({
                   As of {dataFetchTimestamp}
                 </span>
               )}
+              <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs font-medium">
+                🔒 Real Deployment Data
+              </span>
             </h3>
+            <p className="text-sm text-gray-600 mt-2">
+              This shows actual officer deployments from the system database - not affected by forecast filters.
+            </p>
           </div>
           
           <div className="p-6">
@@ -983,7 +1016,13 @@ const ManpowerAllocation: React.FC<Props> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
             </svg>
             Manpower Recommendations by Precinct
+            <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+              ⚙️ Responds to Filters
+            </span>
           </h3>
+          <p className="text-sm text-gray-600 mt-2">
+            These recommendations adjust based on your applied forecast filters (e.g., specific crime types, date ranges, risk levels).
+          </p>
         </div>
 
         <div className="p-6">
