@@ -186,7 +186,100 @@ const AnalysisPage = () => {
     };
   }, [clusters, selectedFeatures]);
 
-  // Download analysis report
+  // Download analysis as CSV
+  const downloadAnalysisCSV = useCallback(() => {
+    if (clusters.length === 0) {
+      toast.error('No analysis data to download');
+      return;
+    }
+
+    // Flatten cluster data for CSV
+    const csvData = clusters.flatMap(cluster =>
+      cluster.clusterItems.map(item => ({
+        ClusterId: cluster.clusterId,
+        CaseId: item.caseId || 'N/A',
+        Year: item.year,
+        Month: item.month,
+        CrimeType: item.crimeType,
+        CrimeTypeName: CrimeTypesDictionary[item.crimeType] || 'Unknown',
+        Precinct: item.precinct,
+        PrecinctName: GetPrecinctsDictionary[item.precinct] || 'Unknown',
+        Latitude: item.latitude,
+        Longitude: item.longitude,
+        Severity: item.severity || 'N/A',
+        Motive: item.motive || 'N/A',
+        Weather: item.weather || 'N/A',
+        ClusterColor: clusterColorsMapping[cluster.clusterId] || '#D3D3D3'
+      }))
+    );
+
+    // Convert to CSV format
+    const headers = Object.keys(csvData[0]);
+    const csvContent = [
+      headers.join(','),
+      ...csvData.map(row => 
+        headers.map(header => 
+          typeof row[header as keyof typeof row] === 'string' && 
+          (row[header as keyof typeof row] as string).includes(',') 
+            ? `"${row[header as keyof typeof row]}"` 
+            : row[header as keyof typeof row]
+        ).join(',')
+      )
+    ].join('\n');
+
+    // Create and download file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crime-analysis-data-${format(new Date(), 'yyyy-MM-dd-HHmm')}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Analysis data downloaded as CSV successfully!');
+  }, [clusters]);
+
+  // Download analysis as JSON
+  const downloadAnalysisJSON = useCallback(() => {
+    if (clusters.length === 0) {
+      toast.error('No analysis data to download');
+      return;
+    }
+
+    const analysisData = {
+      metadata: {
+        exportDate: new Date().toISOString(),
+        analysisDate: analysisSummary?.analysisDate || 'Unknown',
+        totalClusters: clusters.length,
+        totalCases: clusters.reduce((sum, c) => sum + (c.clusterCount || 0), 0),
+        parameters: lastAnalysisParams,
+        version: '1.0'
+      },
+      clusters: clusters.map(cluster => ({
+        ...cluster,
+        clusterItems: cluster.clusterItems.map(item => ({
+          ...item,
+          crimeTypeName: CrimeTypesDictionary[item.crimeType] || 'Unknown',
+          precinctName: GetPrecinctsDictionary[item.precinct] || 'Unknown',
+          clusterColor: clusterColorsMapping[cluster.clusterId] || '#D3D3D3'
+        }))
+      }))
+    };
+
+    // Create and download file
+    const blob = new Blob([JSON.stringify(analysisData, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `crime-analysis-data-${format(new Date(), 'yyyy-MM-dd-HHmm')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast.success('Analysis data downloaded as JSON successfully!');
+  }, [clusters, analysisSummary, lastAnalysisParams]);
+
   // Clear analysis data from localStorage and state
   const clearAnalysisData = useCallback(() => {
     // Clear localStorage
@@ -318,22 +411,43 @@ const AnalysisPage = () => {
             <div className="mt-3 flex gap-2">
               <button
                 onClick={downloadAnalysisReport}
-                className="flex-1 bg-blue-600 text-white text-sm px-4 py-2 rounded-md hover:bg-blue-700 transition flex items-center justify-center"
+                className="flex-1 bg-blue-600 text-white text-sm px-3 py-2 rounded-md hover:bg-blue-700 transition flex items-center justify-center"
+                title="Download analysis report (Markdown)"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Download Report
+                Report
+              </button>
+              <button
+                onClick={downloadAnalysisCSV}
+                className="flex-1 bg-green-600 text-white text-sm px-3 py-2 rounded-md hover:bg-green-700 transition flex items-center justify-center"
+                title="Download analysis data as CSV"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a4 4 0 01-4-4V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                CSV
+              </button>
+              <button
+                onClick={downloadAnalysisJSON}
+                className="flex-1 bg-purple-600 text-white text-sm px-3 py-2 rounded-md hover:bg-purple-700 transition flex items-center justify-center"
+                title="Download analysis data as JSON"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+                JSON
               </button>
               <button
                 onClick={clearAnalysisData}
-                className="flex-1 bg-red-600 text-white text-sm px-4 py-2 rounded-md hover:bg-red-700 transition flex items-center justify-center"
+                className="flex-1 bg-red-600 text-white text-sm px-3 py-2 rounded-md hover:bg-red-700 transition flex items-center justify-center"
                 title="Clear all saved analysis data"
               >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                Clear Data
+                Clear
               </button>
             </div>
           </div>

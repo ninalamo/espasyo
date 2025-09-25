@@ -119,7 +119,7 @@ const CrimeList = () => {
             </button>
           </Link>
           <Link href="/crime-record/bulk-upload">
-            <button className="bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition" disabled title="Disabled">
+            <button className="bg-orange-600 text-white px-4 py-2 rounded-md hover:bg-orange-700 transition">
               Bulk Upload
             </button>
           </Link>

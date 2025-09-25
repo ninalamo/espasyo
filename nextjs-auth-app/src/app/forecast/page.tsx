@@ -117,6 +117,72 @@ const ForecastPage = () => {
     weightRecentData: true
   });
 
+  // Upload analysis state
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Handle analysis file upload
+  const handleAnalysisUpload = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      setUploadError('Please select a valid JSON file');
+      return;
+    }
+
+    try {
+      const fileContent = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target?.result as string);
+        reader.onerror = () => reject(new Error('Failed to read file'));
+        reader.readAsText(file);
+      });
+
+      const analysisData = JSON.parse(fileContent);
+      
+      // Validate the uploaded data structure
+      if (!analysisData.clusters || !Array.isArray(analysisData.clusters)) {
+        setUploadError('Invalid analysis file format: clusters array not found');
+        return;
+      }
+
+      // Check if there's existing data and ask for confirmation
+      const existingClusters = localStorage.getItem('lastAnalysisClusters');
+      if (existingClusters) {
+        const confirmed = window.confirm(
+          'This will overwrite your existing analysis data. Do you want to continue?'
+        );
+        if (!confirmed) {
+          return;
+        }
+      }
+
+      // Save to localStorage
+      localStorage.setItem('lastAnalysisClusters', JSON.stringify(analysisData.clusters));
+      if (analysisData.metadata?.parameters) {
+        localStorage.setItem('lastAnalysisParams', JSON.stringify(analysisData.metadata.parameters));
+      }
+      localStorage.setItem('lastAnalysisTimestamp', new Date().toISOString());
+
+      // Update state
+      setClusters(analysisData.clusters);
+      setAnalysisLoaded(true);
+
+      const totalItems = analysisData.clusters.reduce((sum: number, cluster: any) => sum + (cluster.clusterItems?.length || 0), 0);
+      
+      toast.success(`Analysis data uploaded successfully! ${analysisData.clusters.length} clusters, ${totalItems} data points`);
+      setShowUploadModal(false);
+      setUploadError(null);
+      
+      // Reset file input
+      event.target.value = '';
+      
+    } catch (error) {
+      setUploadError(`Failed to process file: ${error}`);
+    }
+  }, []);
+
   // Load existing analysis data from localStorage
   useEffect(() => {
     const savedClusters = localStorage.getItem('lastAnalysisClusters');
@@ -762,21 +828,32 @@ const ForecastPage = () => {
             <svg className="w-6 h-6 text-yellow-600 mr-3 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.865-.833-2.635 0L4.178 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
-            <div>
+            <div className="flex-1">
               <h3 className="font-semibold text-yellow-800 mb-2">No Analysis Data Found</h3>
               <p className="text-sm text-yellow-700 mb-4">
                 Crime forecasting requires clustering analysis data to generate predictions. 
-                Please run the clustering analysis first to identify crime patterns.
+                You can run a new analysis or upload previously downloaded analysis data.
               </p>
-              <Link
-                href="/analysis"
-                className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition"
-              >
-                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                Go to Analysis Page
-              </Link>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Link
+                  href="/analysis"
+                  className="inline-flex items-center px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  Run New Analysis
+                </Link>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                >
+                  <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Upload Analysis Data
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -797,6 +874,16 @@ const ForecastPage = () => {
                   </svg>
                   Analysis Data Loaded ({clusters.length} clusters)
                 </div>
+                <button
+                  onClick={() => setShowUploadModal(true)}
+                  className="text-xs bg-blue-100 text-blue-700 px-3 py-1 rounded-md hover:bg-blue-200 transition flex items-center"
+                  title="Upload new analysis data"
+                >
+                  <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Upload
+                </button>
                 <button
                   onClick={clearAnalysisData}
                   className="text-xs bg-red-100 text-red-700 px-3 py-1 rounded-md hover:bg-red-200 transition flex items-center"
@@ -1776,6 +1863,69 @@ const ForecastPage = () => {
               <p>🔍 Select historical date range for training data</p>
               <p>📅 Choose forecast period (1-12 months ahead)</p>
               <p>🎯 Pick prediction model (Linear, Polynomial, Seasonal, ARIMA)</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload Analysis Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-800">Upload Analysis Data</h3>
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadError(null);
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-3">
+                  Upload a JSON file containing analysis data downloaded from the Analysis page.
+                </p>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <h4 className="text-sm font-medium text-blue-800 mb-2">Supported Format:</h4>
+                  <ul className="text-xs text-blue-700 space-y-1">
+                    <li>• JSON files exported from the Analysis page</li>
+                    <li>• Files must contain clusters and metadata</li>
+                    <li>• Previously downloaded analysis results</li>
+                  </ul>
+                </div>
+                
+                {uploadError && (
+                  <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
+                    {uploadError}
+                  </div>
+                )}
+                
+                <input
+                  type="file"
+                  accept=".json,application/json"
+                  onChange={handleAnalysisUpload}
+                  className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                />
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setUploadError(null);
+                  }}
+                  className="px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition"
+                >
+                  Cancel
+                </button>
+              </div>
             </div>
           </div>
         </div>

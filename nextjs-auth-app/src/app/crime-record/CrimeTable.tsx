@@ -1,6 +1,7 @@
 import { format } from 'date-fns';
-import Link from "next/link";
+import { useState } from 'react';
 import { IncidentDto } from "../../types/crime-record/IncidentDto";
+import CrimeDetailModal from '../../components/CrimeDetailModal';
 
 interface CrimeTableProps {
   crimeRecords: IncidentDto[];
@@ -19,6 +20,18 @@ const CrimeTable: React.FC<CrimeTableProps> = ({
   totalPages,
   onPageChange,
 }) => {
+  const [selectedIncident, setSelectedIncident] = useState<IncidentDto | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleViewDetails = (incident: IncidentDto) => {
+    setSelectedIncident(incident);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedIncident(null);
+  };
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-40">
@@ -65,11 +78,12 @@ const CrimeTable: React.FC<CrimeTableProps> = ({
                 <td className="border p-2">{formatDate(record.timeStamp)}</td>
                 <td className="border p-2">{record.motiveText}</td>
                 <td className="border p-2">
-                  <Link href={`/crime-record/${record.id}`}>
-                    <button className="bg-gray-500 text-white px-3 py-1 rounded-md hover:bg-gray-600 transition" disabled title="Disabled">
-                      View
-                    </button>
-                  </Link>
+                  <button 
+                    onClick={() => handleViewDetails(record)}
+                    className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition"
+                  >
+                    View
+                  </button>
                 </td>
               </tr>
             ))}
@@ -111,6 +125,13 @@ const CrimeTable: React.FC<CrimeTableProps> = ({
           Last
         </button>
       </div>
+
+      {/* Crime Detail Modal */}
+      <CrimeDetailModal 
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        incident={selectedIncident}
+      />
     </div>
   );
 };
