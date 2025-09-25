@@ -55,6 +55,13 @@ interface ForecastData {
   confidence: number;
   trend: 'increasing' | 'decreasing' | 'stable';
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  // Enhanced with shift-based data
+  shiftBreakdown?: {
+    Morning: { predicted: number; percentage: number; riskLevel: string };
+    Afternoon: { predicted: number; percentage: number; riskLevel: string };
+    Night: { predicted: number; percentage: number; riskLevel: string };
+  };
+  dominantShift?: string;
 }
 
 interface ForecastParams {
@@ -175,7 +182,12 @@ const ForecastPage = () => {
       const qualityMetrics = calculateForecastQualityMetrics(enhancedForecasts);
       console.log('📊 Forecast Quality Metrics:', qualityMetrics);
 
-      toast.success(`Statistical forecast generated! ${predictions.length} predictions (${mapPoints.length} reliable for map display) from ${clusters.length} clusters.`);
+      // Calculate shift patterns for analysis summary
+      const shiftPatterns = calculateShiftPatterns(processedData);
+      const shiftsWithData = Array.from(shiftPatterns.values()).filter(pattern => pattern.total > 0).length;
+      console.log(`📊 Shift Analysis: ${shiftsWithData} precinct/crime-type combinations have time-of-day data`);
+      
+      toast.success(`Shift-based forecast generated! ${predictions.length} predictions with time-of-day analysis (${mapPoints.length} reliable for map display) from ${clusters.length} clusters.`);
 
     } catch (err: any) {
       console.error('Forecast generation error:', err);
@@ -248,10 +260,110 @@ const ForecastPage = () => {
     );
   };
 
-  // Generate predictions using simple statistical methods
+  // Helper function to map time of day to shift
+  const getShiftFromTimeOfDay = (timeOfDay: string): string => {
+    if (!timeOfDay) return 'Unknown';
+    
+    const time = timeOfDay.toLowerCase();
+    if (time.includes('morning') || time.includes('dawn') || time.includes('am') || 
+        (time.includes('06') || time.includes('07') || time.includes('08') || 
+         time.includes('09') || time.includes('10') || time.includes('11') ||
+         time.includes('12') || time.includes('13'))) {
+      return 'Morning';
+    } else if (time.includes('afternoon') || time.includes('evening') || time.includes('pm') ||
+               (time.includes('14') || time.includes('15') || time.includes('16') ||
+                time.includes('17') || time.includes('18') || time.includes('19') ||
+                time.includes('20') || time.includes('21'))) {
+      return 'Afternoon';
+    } else if (time.includes('night') || time.includes('midnight') ||
+               (time.includes('22') || time.includes('23') || time.includes('00') ||
+                time.includes('01') || time.includes('02') || time.includes('03') ||
+                time.includes('04') || time.includes('05'))) {
+      return 'Night';
+    }
+    
+    return 'Unknown';
+  };
+
+  // Calculate shift patterns from historical data
+  const calculateShiftPatterns = (data: HistoricalData[]): Map<string, { Morning: number; Afternoon: number; Night: number; total: number }> => {
+    const shiftPatterns = new Map<string, { Morning: number; Afternoon: number; Night: number; total: number }>();
+    
+    data.forEach(item => {
+      const key = `${item.precinct}-${item.crimeType}`;
+      const shift = getShiftFromTimeOfDay(item.timeOfDay);
+      
+      if (shift === 'Unknown') return;
+      
+      if (!shiftPatterns.has(key)) {
+        shiftPatterns.set(key, { Morning: 0, Afternoon: 0, Night: 0, total: 0 });
+      }
+      
+      const pattern = shiftPatterns.get(key)!;
+      if (shift === 'Morning') pattern.Morning += item.count;
+      else if (shift === 'Afternoon') pattern.Afternoon += item.count;
+      else if (shift === 'Night') pattern.Night += item.count;
+      
+      pattern.total += item.count;
+    });
+    
+    return shiftPatterns;
+  };
+
+  // Apply shift patterns to predictions
+  const applyShiftPatterns = (basePrediction: number, shiftPatterns: { Morning: number; Afternoon: number; Night: number; total: number }) => {
+    if (shiftPatterns.total === 0) {
+      // Default equal distribution if no shift data
+      return {
+        Morning: { predicted: Math.round(basePrediction * 0.33), percentage: 33.3, riskLevel: 'medium' },
+        Afternoon: { predicted: Math.round(basePrediction * 0.33), percentage: 33.3, riskLevel: 'medium' },
+        Night: { predicted: Math.round(basePrediction * 0.34), percentage: 33.4, riskLevel: 'medium' }
+      };
+    }
+    
+    const morningRatio = shiftPatterns.Morning / shiftPatterns.total;
+    const afternoonRatio = shiftPatterns.Afternoon / shiftPatterns.total;
+    const nightRatio = shiftPatterns.Night / shiftPatterns.total;
+    
+    const morningPredicted = Math.round(basePrediction * morningRatio);
+    const afternoonPredicted = Math.round(basePrediction * afternoonRatio);
+    const nightPredicted = basePrediction - morningPredicted - afternoonPredicted; // Ensure total matches
+    
+    // Determine risk levels based on concentration
+    const getRiskLevel = (percentage: number) => {
+      if (percentage > 50) return 'critical';
+      if (percentage > 40) return 'high';
+      if (percentage > 25) return 'medium';
+      return 'low';
+    };
+    
+    return {
+      Morning: { 
+        predicted: morningPredicted, 
+        percentage: morningRatio * 100, 
+        riskLevel: getRiskLevel(morningRatio * 100) 
+      },
+      Afternoon: { 
+        predicted: afternoonPredicted, 
+        percentage: afternoonRatio * 100, 
+        riskLevel: getRiskLevel(afternoonRatio * 100) 
+      },
+      Night: { 
+        predicted: nightPredicted, 
+        percentage: nightRatio * 100, 
+        riskLevel: getRiskLevel(nightRatio * 100) 
+      }
+    };
+  };
+
+  // Generate predictions with shift-based enhancements
   const generatePredictions = (historical: HistoricalData[], params: ForecastParams, manpowerConfig: ManpowerAllocation): ForecastData[] => {
     const predictions: ForecastData[] = [];
     const baseDate = new Date();
+
+    // Calculate shift patterns for all data
+    const shiftPatterns = calculateShiftPatterns(historical);
+    console.log('🕐 Shift Patterns Calculated:', Object.fromEntries(shiftPatterns));
 
     // Group historical data by precinct and crime type
     const groups = new Map<string, HistoricalData[]>();
@@ -264,9 +376,10 @@ const ForecastPage = () => {
       groups.get(key)!.push(data);
     });
 
-    // Generate predictions for each group
+    // Generate predictions for each group with shift analysis
     groups.forEach((groupData, key) => {
       const [precinct, crimeType] = key.split('-').map(Number);
+      const groupShiftPattern = shiftPatterns.get(key) || { Morning: 0, Afternoon: 0, Night: 0, total: 0 };
       
       for (let monthOffset = 1; monthOffset <= params.forecastPeriod; monthOffset++) {
         const forecastDate = addMonths(baseDate, monthOffset);
@@ -308,6 +421,12 @@ const ForecastPage = () => {
           riskRatio > manpowerConfig.riskThresholds.mediumMax ? 'high' :
           riskRatio > manpowerConfig.riskThresholds.lowMax ? 'medium' : 'low';
 
+        // Apply shift patterns to the prediction
+        const shiftBreakdown = applyShiftPatterns(Math.max(0, Math.round(predictedCount)), groupShiftPattern);
+        const dominantShift = Object.entries(shiftBreakdown).reduce((max, [shift, data]) => 
+          data.predicted > shiftBreakdown[max].predicted ? shift : max, 'Morning'
+        );
+
         predictions.push({
           year,
           month,
@@ -316,7 +435,10 @@ const ForecastPage = () => {
           predictedCount: Math.max(0, Math.round(predictedCount)),
           confidence: Math.max(0.5, confidence - (monthOffset * 0.05)), // Confidence decreases with distance
           trend,
-          riskLevel
+          riskLevel,
+          // Enhanced shift-based data
+          shiftBreakdown,
+          dominantShift
         });
       }
     });

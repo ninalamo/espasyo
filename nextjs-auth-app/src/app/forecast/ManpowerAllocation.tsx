@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { GetPrecinctsDictionary } from '../../constants/consts';
 import type { 
   ManpowerAllocation as ManpowerAllocationType, 
   ManpowerRecommendation
 } from '../../types/forecast/ExtendedForecastTypes';
 import { DEFAULT_MANPOWER_ALLOCATION } from '../../types/forecast/ExtendedForecastTypes';
+import { manpowerApi, ManpowerAllocation as ManpowerApiType } from '../../utils/manpowerApi';
 
 interface HistoricalData {
   year: number;
@@ -15,6 +16,23 @@ interface HistoricalData {
   crimeType: number;
   count: number;
   timeOfDay: string;
+}
+
+interface ShiftAnalysis {
+  shift: string;
+  crimeCount: number;
+  percentage: number;
+  recommendedOfficers: number;
+  riskLevel: 'low' | 'medium' | 'high' | 'critical';
+}
+
+interface PrecinctShiftData {
+  precinct: number;
+  precinctName: string;
+  totalCrimes: number;
+  shifts: ShiftAnalysis[];
+  dominantShift: string;
+  coverage24h: boolean;
 }
 
 interface ForecastData {
@@ -41,6 +59,44 @@ const ManpowerAllocation: React.FC<Props> = ({
   manpowerSettings, 
   onSettingsChange 
 }) => {
+  // State for actual manpower data from API
+  const [actualManpowerData, setActualManpowerData] = useState<ManpowerApiType[]>([]);
+  const [isLoadingManpower, setIsLoadingManpower] = useState(true);
+  const [manpowerError, setManpowerError] = useState<string | null>(null);
+  
+  // Fetch actual manpower allocations from API
+  useEffect(() => {
+    const fetchManpowerData = async () => {
+      try {
+        setIsLoadingManpower(true);
+        setManpowerError(null);
+        const data = await manpowerApi.getAllManpower();
+        setActualManpowerData(data);
+      } catch (error) {
+        console.error('Failed to fetch manpower data:', error);
+        setManpowerError(error instanceof Error ? error.message : 'Failed to fetch manpower data');
+        setActualManpowerData([]);
+      } finally {
+        setIsLoadingManpower(false);
+      }
+    };
+    
+    fetchManpowerData();
+  }, []);
+  
+  // Helper function to get actual allocation for a precinct from API data
+  const getActualAllocation = useCallback((precinct: number): number => {
+    const precinctAllocations = actualManpowerData.filter(allocation => 
+      parseInt(allocation.precinct) === precinct
+    );
+    
+    if (precinctAllocations.length === 0) {
+      return 0; // No allocation exists yet
+    }
+    
+    // Sum all officer counts for this precinct (in case of multiple entries/shifts)
+    return precinctAllocations.reduce((total, allocation) => total + allocation.officerCount, 0);
+  }, [actualManpowerData]);
   // Helper function to get season from month
   const getSeason = (month: number): keyof typeof manpowerSettings.seasonalMultipliers => {
     if (month >= 3 && month <= 5) return 'spring';
@@ -131,6 +187,111 @@ const ManpowerAllocation: React.FC<Props> = ({
   // Get dynamic thresholds
   const dynamicThresholds = calculateDynamicThresholds();
 
+  // Helper function to map time of day to shift
+  const getShiftFromTimeOfDay = (timeOfDay: string): string => {
+    if (!timeOfDay) return 'Unknown';
+    
+    const time = timeOfDay.toLowerCase();
+    if (time.includes('morning') || time.includes('dawn') || time.includes('am') || 
+        (time.includes('06') || time.includes('07') || time.includes('08') || 
+         time.includes('09') || time.includes('10') || time.includes('11') ||
+         time.includes('12') || time.includes('13'))) {
+      return 'Morning';
+    } else if (time.includes('afternoon') || time.includes('evening') || time.includes('pm') ||
+               (time.includes('14') || time.includes('15') || time.includes('16') ||
+                time.includes('17') || time.includes('18') || time.includes('19') ||
+                time.includes('20') || time.includes('21'))) {
+      return 'Afternoon';
+    } else if (time.includes('night') || time.includes('midnight') ||
+               (time.includes('22') || time.includes('23') || time.includes('00') ||
+                time.includes('01') || time.includes('02') || time.includes('03') ||
+                time.includes('04') || time.includes('05'))) {
+      return 'Night';
+    }
+    
+    return 'Unknown';
+  };
+
+  // Calculate shift-based analysis
+  const calculateShiftAnalysis = useMemo(() => {
+    if (historicalData.length === 0 && forecastData.length === 0) return [];
+
+    const precinctShiftData = new Map<number, Map<string, number>>();
+    const allShifts = ['Morning', 'Afternoon', 'Night'];
+
+    // Analyze historical data for shift patterns
+    historicalData.forEach(data => {
+      const shift = getShiftFromTimeOfDay(data.timeOfDay);
+      if (shift === 'Unknown') return;
+
+      if (!precinctShiftData.has(data.precinct)) {
+        precinctShiftData.set(data.precinct, new Map());
+      }
+      
+      const precinctData = precinctShiftData.get(data.precinct)!;
+      precinctData.set(shift, (precinctData.get(shift) || 0) + data.count);
+    });
+
+    // Convert to analysis format
+    const shiftAnalysisResults: PrecinctShiftData[] = [];
+
+    precinctShiftData.forEach((shiftData, precinct) => {
+      const totalCrimes = Array.from(shiftData.values()).reduce((sum, count) => sum + count, 0);
+      if (totalCrimes === 0) return;
+
+      const shifts: ShiftAnalysis[] = allShifts.map(shift => {
+        const crimeCount = shiftData.get(shift) || 0;
+        const percentage = totalCrimes > 0 ? (crimeCount / totalCrimes) * 100 : 0;
+        
+        // Calculate recommended officers based on crime density
+        // Use actual allocation if available, otherwise fall back to default baseline
+        const actualAllocation = getActualAllocation(precinct);
+        const baseOfficersTotal = actualAllocation > 0 ? actualAllocation : manpowerSettings.baseManpowerPerYear;
+        const baseOfficersPerShift = Math.max(2, Math.floor(baseOfficersTotal / 3)); // Divide by 3 shifts
+        const crimeRatio = percentage / 33.33; // 33.33% would be equal distribution
+        let recommendedOfficers = Math.round(baseOfficersPerShift * crimeRatio);
+        
+        // Apply minimum staffing rules
+        recommendedOfficers = Math.max(1, recommendedOfficers); // At least 1 officer per shift
+        if (shift === 'Night') recommendedOfficers = Math.max(2, recommendedOfficers); // Night shift minimum 2
+        
+        // Determine risk level based on crime concentration
+        let riskLevel: 'low' | 'medium' | 'high' | 'critical';
+        if (percentage > 50) riskLevel = 'critical';
+        else if (percentage > 40) riskLevel = 'high';
+        else if (percentage > 25) riskLevel = 'medium';
+        else riskLevel = 'low';
+
+        return {
+          shift,
+          crimeCount,
+          percentage,
+          recommendedOfficers,
+          riskLevel
+        };
+      });
+
+      // Find dominant shift
+      const dominantShift = shifts.reduce((max, current) => 
+        current.crimeCount > max.crimeCount ? current : max
+      ).shift;
+
+      // Check 24/7 coverage (all shifts have at least some activity)
+      const coverage24h = shifts.every(s => s.crimeCount > 0);
+
+      shiftAnalysisResults.push({
+        precinct,
+        precinctName: GetPrecinctsDictionary[precinct] || `Precinct ${precinct}`,
+        totalCrimes,
+        shifts,
+        dominantShift,
+        coverage24h
+      });
+    });
+
+    return shiftAnalysisResults.sort((a, b) => b.totalCrimes - a.totalCrimes);
+  }, [historicalData, forecastData, actualManpowerData, getActualAllocation]);
+
   const manpowerRecommendations = useMemo(() => {
     if (forecastData.length === 0) return [];
 
@@ -187,8 +348,11 @@ const ManpowerAllocation: React.FC<Props> = ({
         current[1] > max[1] ? current : max
       )[0] as 'low' | 'medium' | 'high' | 'critical';
 
-      // Calculate dynamic recommended manpower based on monthly patterns
-      const baseAllocation = manpowerSettings.baseManpowerPerYear;
+      // Get actual current allocation from API
+      const currentAllocation = getActualAllocation(precinct);
+      
+      // Use actual allocation as baseline, or fallback to settings baseline for recommendations
+      const calculationBaseline = currentAllocation > 0 ? currentAllocation : manpowerSettings.baseManpowerPerYear;
       const riskMultiplier = manpowerSettings.riskMultipliers[dominantRisk];
       
       // Calculate weighted average allocation across all forecast months
@@ -201,16 +365,18 @@ const ManpowerAllocation: React.FC<Props> = ({
           monthData.year, 
           riskMultiplier
         );
-        totalWeightedAllocation += baseAllocation * dynamicMultiplier;
+        totalWeightedAllocation += calculationBaseline * dynamicMultiplier;
         totalMonths++;
       });
       
       const recommendedAllocation = totalMonths > 0 
         ? Math.round(totalWeightedAllocation / totalMonths)
-        : Math.round(baseAllocation * riskMultiplier);
+        : Math.round(calculationBaseline * riskMultiplier);
       
-      // Calculate change percentage
-      const changeFromBase = ((recommendedAllocation - baseAllocation) / baseAllocation) * 100;
+      // Calculate change percentage from current allocation or baseline
+      const changeFromBase = calculationBaseline > 0 
+        ? ((recommendedAllocation - calculationBaseline) / calculationBaseline) * 100
+        : 0;
 
       // Generate enhanced justification with dynamic factors
       const criticalCount = data.riskCounts.critical;
@@ -252,7 +418,7 @@ const ManpowerAllocation: React.FC<Props> = ({
       recommendations.push({
         precinct,
         precinctName: GetPrecinctsDictionary[precinct] || `Precinct ${precinct}`,
-        currentAllocation: baseAllocation,
+        currentAllocation: currentAllocation, // Use actual API data instead of baseline
         recommendedAllocation,
         riskLevel: dominantRisk,
         predictedCases: data.totalPredicted,
@@ -270,22 +436,61 @@ const ManpowerAllocation: React.FC<Props> = ({
       if (aPriority !== bPriority) return bPriority - aPriority;
       return a.precinct - b.precinct;
     });
-  }, [forecastData, historicalData, manpowerSettings]);
+  }, [forecastData, historicalData, manpowerSettings, actualManpowerData, getActualAllocation]);
 
   const totalManpowerRequired = manpowerRecommendations.reduce(
     (sum, rec) => sum + rec.recommendedAllocation, 0
   );
   
-  const totalBaseManpower = manpowerRecommendations.reduce(
+  const totalCurrentManpower = manpowerRecommendations.reduce(
     (sum, rec) => sum + rec.currentAllocation, 0
   );
 
-  const overallChange = totalBaseManpower > 0 
-    ? ((totalManpowerRequired - totalBaseManpower) / totalBaseManpower) * 100 
+  const overallChange = totalCurrentManpower > 0 
+    ? ((totalManpowerRequired - totalCurrentManpower) / totalCurrentManpower) * 100 
     : 0;
 
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
+  const [showShiftAnalysis, setShowShiftAnalysis] = useState(false);
+  const [selectedPrecinctForShifts, setSelectedPrecinctForShifts] = useState<number | null>(null);
+
+  // Show loading state while fetching manpower data
+  if (isLoadingManpower) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-8">
+          <div className="flex items-center justify-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mr-4"></div>
+            <div>
+              <h3 className="text-lg font-semibold text-blue-800">Loading Manpower Data...</h3>
+              <p className="text-sm text-blue-600">Fetching actual allocations from API</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show error state if manpower API failed
+  if (manpowerError) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-8">
+          <div className="flex items-center">
+            <svg className="w-8 h-8 text-red-500 mr-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h3 className="text-lg font-semibold text-red-800">Failed to Load Manpower Data</h3>
+              <p className="text-sm text-red-600">{manpowerError}</p>
+              <p className="text-xs text-red-500 mt-1">Using forecast recommendations only</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -317,7 +522,8 @@ const ManpowerAllocation: React.FC<Props> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-blue-700 mb-1">
-              Current Personnel per Precinct
+              Baseline for New Precincts
+              <span className="text-xs text-gray-600 block">Used for precincts with no API allocation data</span>
             </label>
             <input
               type="number"
@@ -470,9 +676,25 @@ const ManpowerAllocation: React.FC<Props> = ({
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-700">Base Allocation</p>
-              <p className="text-2xl font-bold text-gray-900">{totalBaseManpower.toLocaleString()}</p>
-              <p className="text-xs text-gray-500">Static baseline</p>
+              <p className="text-sm font-medium text-gray-700">Current Allocation</p>
+              {isLoadingManpower ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+                  <p className="text-sm text-gray-500">Loading...</p>
+                </div>
+              ) : manpowerError ? (
+                <div>
+                  <p className="text-2xl font-bold text-red-600">Error</p>
+                  <p className="text-xs text-red-500">Failed to load data</p>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-2xl font-bold text-gray-900">{totalCurrentManpower.toLocaleString()}</p>
+                  <p className="text-xs text-gray-500">
+                    {totalCurrentManpower === 0 ? 'No allocations yet' : 'From API data'}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -616,6 +838,223 @@ const ManpowerAllocation: React.FC<Props> = ({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Shift-Based Analysis Section */}
+      <div className="bg-white rounded-lg border border-gray-200">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Shift-Based Crime Analysis
+              <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                NEW
+              </span>
+            </h3>
+            <button
+              onClick={() => setShowShiftAnalysis(!showShiftAnalysis)}
+              className="text-sm text-purple-600 hover:text-purple-800 flex items-center"
+            >
+              {showShiftAnalysis ? 'Hide' : 'Show'} Analysis
+              <svg className={`w-4 h-4 ml-1 transform transition-transform ${showShiftAnalysis ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {showShiftAnalysis && (
+          <div className="p-6">
+            {calculateShiftAnalysis.length === 0 ? (
+              <div className="text-center text-gray-500 py-8">
+                <svg className="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <h4 className="text-lg font-medium text-gray-900 mb-2">No Time-of-Day Data Available</h4>
+                <p className="text-gray-500">Shift analysis requires historical data with time-of-day information.</p>
+                <p className="text-sm text-gray-400 mt-2">Ensure your crime data includes detailed timestamps for accurate shift-based recommendations.</p>
+              </div>
+            ) : (
+              <>
+                {/* Shift Analysis Summary */}
+                <div className="mb-6">
+                  <h4 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
+                    <svg className="w-4 h-4 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    Overall Shift Patterns ({calculateShiftAnalysis.length} precincts analyzed)
+                  </h4>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    {['Morning', 'Afternoon', 'Night'].map(shift => {
+                      const totalCrimes = calculateShiftAnalysis.reduce((sum, p) => 
+                        sum + (p.shifts.find(s => s.shift === shift)?.crimeCount || 0), 0
+                      );
+                      const totalAllCrimes = calculateShiftAnalysis.reduce((sum, p) => sum + p.totalCrimes, 0);
+                      const percentage = totalAllCrimes > 0 ? (totalCrimes / totalAllCrimes) * 100 : 0;
+                      const totalOfficers = calculateShiftAnalysis.reduce((sum, p) => 
+                        sum + (p.shifts.find(s => s.shift === shift)?.recommendedOfficers || 0), 0
+                      );
+                      
+                      return (
+                        <div key={shift} className={`p-4 rounded-lg border ${
+                          shift === 'Morning' ? 'bg-yellow-50 border-yellow-200' :
+                          shift === 'Afternoon' ? 'bg-orange-50 border-orange-200' :
+                          'bg-blue-50 border-blue-200'
+                        }`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h5 className="font-medium text-gray-900">{shift} Shift</h5>
+                              <p className="text-sm text-gray-600">
+                                {shift === 'Morning' ? '6:00 AM - 2:00 PM' :
+                                 shift === 'Afternoon' ? '2:00 PM - 10:00 PM' :
+                                 '10:00 PM - 6:00 AM'}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-lg font-bold text-gray-900">{percentage.toFixed(1)}%</p>
+                              <p className="text-xs text-gray-500">{totalCrimes} crimes</p>
+                              <p className="text-xs font-medium text-purple-600">{totalOfficers} officers</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Detailed Precinct Shift Analysis */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-3">Detailed Shift Breakdown by Precinct</h4>
+                  <div className="space-y-4">
+                    {calculateShiftAnalysis.map((precinctData) => (
+                      <div key={precinctData.precinct} className="border border-gray-200 rounded-lg">
+                        <div 
+                          className="p-4 cursor-pointer hover:bg-gray-50"
+                          onClick={() => setSelectedPrecinctForShifts(
+                            selectedPrecinctForShifts === precinctData.precinct ? null : precinctData.precinct
+                          )}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                              </svg>
+                              <div>
+                                <h5 className="font-medium text-gray-900">{precinctData.precinctName}</h5>
+                                <p className="text-sm text-gray-600">
+                                  {precinctData.totalCrimes} total crimes • Dominant: {precinctData.dominantShift}
+                                  {precinctData.coverage24h && (
+                                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                                      24/7 Coverage Needed
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center">
+                              <div className="grid grid-cols-3 gap-2 mr-4">
+                                {precinctData.shifts.map(shift => (
+                                  <div key={shift.shift} className="text-center">
+                                    <div className={`w-3 h-3 rounded-full mx-auto mb-1 ${
+                                      shift.riskLevel === 'critical' ? 'bg-red-500' :
+                                      shift.riskLevel === 'high' ? 'bg-orange-500' :
+                                      shift.riskLevel === 'medium' ? 'bg-yellow-500' :
+                                      'bg-green-500'
+                                    }`}></div>
+                                    <p className="text-xs font-medium">{shift.recommendedOfficers}</p>
+                                  </div>
+                                ))}
+                              </div>
+                              <svg className={`w-4 h-4 text-gray-400 transform transition-transform ${
+                                selectedPrecinctForShifts === precinctData.precinct ? 'rotate-180' : ''
+                              }`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {selectedPrecinctForShifts === precinctData.precinct && (
+                          <div className="px-4 pb-4 border-t border-gray-100">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                              {precinctData.shifts.map(shift => (
+                                <div key={shift.shift} className="bg-gray-50 p-3 rounded-lg">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <h6 className="font-medium text-gray-900">{shift.shift}</h6>
+                                    <span className={`px-2 py-1 text-xs rounded-full ${
+                                      shift.riskLevel === 'critical' ? 'bg-red-100 text-red-800' :
+                                      shift.riskLevel === 'high' ? 'bg-orange-100 text-orange-800' :
+                                      shift.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                                      'bg-green-100 text-green-800'
+                                    }`}>
+                                      {shift.riskLevel.toUpperCase()}
+                                    </span>
+                                  </div>
+                                  <div className="space-y-1 text-sm">
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Crimes:</span>
+                                      <span className="font-medium">{shift.crimeCount}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Percentage:</span>
+                                      <span className="font-medium">{shift.percentage.toFixed(1)}%</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Officers:</span>
+                                      <span className="font-bold text-purple-600">{shift.recommendedOfficers}</span>
+                                    </div>
+                                  </div>
+                                  
+                                  {/* Visual bar chart */}
+                                  <div className="mt-2">
+                                    <div className="bg-gray-200 rounded-full h-2">
+                                      <div 
+                                        className={`h-2 rounded-full ${
+                                          shift.riskLevel === 'critical' ? 'bg-red-500' :
+                                          shift.riskLevel === 'high' ? 'bg-orange-500' :
+                                          shift.riskLevel === 'medium' ? 'bg-yellow-500' :
+                                          'bg-green-500'
+                                        }`}
+                                        style={{ width: `${Math.min(100, shift.percentage)}%` }}
+                                      ></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                            
+                            {/* Shift Recommendations */}
+                            <div className="mt-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                              <h6 className="font-medium text-purple-800 mb-2 flex items-center">
+                                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Shift Recommendations
+                              </h6>
+                              <div className="text-sm text-purple-700">
+                                <p><strong>Primary Focus:</strong> {precinctData.dominantShift} shift ({precinctData.shifts.find(s => s.shift === precinctData.dominantShift)?.percentage.toFixed(1)}% of crimes)</p>
+                                <p><strong>Total Officers Needed:</strong> {precinctData.shifts.reduce((sum, s) => sum + s.recommendedOfficers, 0)} across all shifts</p>
+                                {precinctData.coverage24h ? (
+                                  <p><strong>Coverage:</strong> 24/7 staffing recommended due to crimes in all time periods</p>
+                                ) : (
+                                  <p><strong>Coverage:</strong> Focus resources on active periods, minimal overnight staffing</p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
