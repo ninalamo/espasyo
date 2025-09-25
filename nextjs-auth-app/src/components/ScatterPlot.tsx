@@ -1,5 +1,5 @@
 // ScatterPlot.tsx
-import React from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Bubble } from 'react-chartjs-2';
 import 'chart.js/auto'; // Auto-registers Chart.js components
 import 'chartjs-adapter-date-fns'; // Adapter for date handling using date-fns
@@ -23,6 +23,24 @@ interface ScatterPlotProps {
 }
 
 const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping }) => {
+  const [isContainerReady, setIsContainerReady] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkContainerSize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          setIsContainerReady(true);
+        }
+      }
+    };
+
+    checkContainerSize();
+    const timer = setTimeout(() => setIsContainerReady(true), 150);
+    
+    return () => clearTimeout(timer);
+  }, []);
   // Helper: Converts a Date to a time-of-day category.
   const getTimeCategory = (dt: Date): string => {
     const hour = dt.getHours();
@@ -175,7 +193,20 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
   const chartData = { datasets };
   console.log("Chart Data:", chartData);
 
-  return <Bubble data={chartData} options={options} />;
+  return (
+    <div ref={containerRef} style={{ position: 'relative', height: '400px' }}>
+      {isContainerReady ? (
+        <Bubble data={chartData} options={options} />
+      ) : (
+        <div className="flex items-center justify-center h-full text-gray-500">
+          <div className="text-center">
+            <div className="animate-spin h-6 w-6 mx-auto mb-2 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+            <p className="text-sm">Loading chart...</p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 };
 
 export default ScatterPlot;

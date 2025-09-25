@@ -95,7 +95,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
+  const [dropdownStates, setDropdownStates] = useState<Record<string, boolean>>({});
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  const toggleDropdown = (dropdownName: string) => {
+    setDropdownStates(prev => ({
+      ...prev,
+      [dropdownName]: !prev[dropdownName]
+    }));
+  };
 
   // Close user dropdown when clicking outside
   useEffect(() => {
@@ -187,12 +195,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             } else if (group.type === 'dropdown' && group.dropdown) {
               const dropdown = group.dropdown;
               const isAnyChildActive = dropdown.items.some(item => pathname === item.href);
-              const [isOpen, setIsOpen] = useState(false);
+              const isOpen = dropdownStates[dropdown.name] || false;
               
               return (
                 <div key={dropdown.name} className="space-y-1">
                   <button
-                    onClick={() => setIsOpen(!isOpen)}
+                    onClick={() => toggleDropdown(dropdown.name)}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
                       isAnyChildActive
                         ? 'bg-blue-50 text-blue-700'

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState, useRef } from 'react';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler } from 'chart.js';
 import { Line } from 'react-chartjs-2';
 import { format, startOfMonth } from 'date-fns';
@@ -40,6 +40,40 @@ interface Props {
 }
 
 const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params }) => {
+  const [isContainerReady, setIsContainerReady] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Wait for container to have proper dimensions before rendering chart
+  useEffect(() => {
+    const checkContainerSize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          setIsContainerReady(true);
+        }
+      }
+    };
+
+    // Initial check
+    checkContainerSize();
+
+    // Set up resize observer to handle dynamic sizing
+    const resizeObserver = new ResizeObserver(checkContainerSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+
+    // Fallback timeout
+    const fallbackTimer = setTimeout(() => {
+      setIsContainerReady(true);
+    }, 100);
+
+    return () => {
+      resizeObserver.disconnect();
+      clearTimeout(fallbackTimer);
+    };
+  }, []);
+
   const chartData = useMemo(() => {
     if (historicalData.length === 0 && forecastData.length === 0) {
       return null;
@@ -182,7 +216,7 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
         text: `Crime Forecast Time Series (${params.model.toUpperCase()} Model)`,
         font: {
           size: 16,
-          weight: 'bold',
+          weight: 'bold' as const,
         },
       },
       tooltip: {
@@ -215,7 +249,7 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
           text: 'Time Period',
           font: {
             size: 14,
-            weight: 'bold',
+            weight: 'bold' as const,
           },
         },
         grid: {
@@ -230,7 +264,7 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
           text: 'Number of Cases',
           font: {
             size: 14,
-            weight: 'bold',
+            weight: 'bold' as const,
           },
         },
         beginAtZero: true,
@@ -266,8 +300,20 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
       </div>
 
       <div className="bg-white p-4 rounded-lg border border-gray-200">
-        <div style={{ height: '400px' }}>
-          <Line data={chartData} options={options} />
+        <div ref={containerRef} style={{ height: '400px' }}>
+          {isContainerReady && chartData ? (
+            <Line data={chartData} options={options} />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="text-center">
+                <svg className="animate-spin h-8 w-8 mx-auto mb-2 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p className="text-sm">Loading chart...</p>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

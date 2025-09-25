@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
-import { GetPrecinctsDictionary } from '../../constants/consts';
+import { GetPrecinctsDictionary, PrecinctNumberToNameMap } from '../../constants/consts';
 import type { 
   ManpowerAllocation as ManpowerAllocationType, 
   ManpowerRecommendation
@@ -63,6 +63,7 @@ const ManpowerAllocation: React.FC<Props> = ({
   const [actualManpowerData, setActualManpowerData] = useState<ManpowerApiType[]>([]);
   const [isLoadingManpower, setIsLoadingManpower] = useState(true);
   const [manpowerError, setManpowerError] = useState<string | null>(null);
+  const [dataFetchTimestamp, setDataFetchTimestamp] = useState<string | null>(null);
   
   // Fetch actual manpower allocations from API
   useEffect(() => {
@@ -72,10 +73,13 @@ const ManpowerAllocation: React.FC<Props> = ({
         setManpowerError(null);
         const data = await manpowerApi.getAllManpower();
         setActualManpowerData(data);
+        // Set timestamp when data is successfully fetched
+        setDataFetchTimestamp(new Date().toLocaleString());
       } catch (error) {
         console.error('Failed to fetch manpower data:', error);
         setManpowerError(error instanceof Error ? error.message : 'Failed to fetch manpower data');
         setActualManpowerData([]);
+        setDataFetchTimestamp(null);
       } finally {
         setIsLoadingManpower(false);
       }
@@ -86,16 +90,33 @@ const ManpowerAllocation: React.FC<Props> = ({
   
   // Helper function to get actual allocation for a precinct from API data
   const getActualAllocation = useCallback((precinct: number): number => {
-    const precinctAllocations = actualManpowerData.filter(allocation => 
-      parseInt(allocation.precinct) === precinct
-    );
-    
-    if (precinctAllocations.length === 0) {
-      return 0; // No allocation exists yet
+    if (actualManpowerData.length === 0) {
+      return 0; // No allocation data exists
     }
     
-    // Sum all officer counts for this precinct (in case of multiple entries/shifts)
-    return precinctAllocations.reduce((total, allocation) => total + allocation.officerCount, 0);
+    // Get the precinct name from the number
+    const precinctName = PrecinctNumberToNameMap[precinct];
+    if (!precinctName) {
+      return 0; // Unknown precinct number
+    }
+    
+    // Find allocations that match this precinct by name
+    // Note: The API returns precinct names, not numbers or IDs in the precinct field
+    const precinctAllocations = actualManpowerData.filter(allocation => {
+      // Match by precinct name (case-insensitive)
+      const allocationPrecinct = allocation.precinct || allocation.precinctName || '';
+      return allocationPrecinct.toLowerCase().trim() === precinctName.toLowerCase().trim();
+    });
+    
+    if (precinctAllocations.length === 0) {
+      return 0; // No allocation exists for this precinct
+    }
+    
+    // Sum all head counts for this precinct (in case of multiple entries/shifts)
+    return precinctAllocations.reduce((total, allocation) => {
+      const headCount = allocation.headCount || allocation.officerCount || allocation.allocatedCount || 0;
+      return total + headCount;
+    }, 0);
   }, [actualManpowerData]);
   // Helper function to get season from month
   const getSeason = (month: number): keyof typeof manpowerSettings.seasonalMultipliers => {
@@ -243,17 +264,19 @@ const ManpowerAllocation: React.FC<Props> = ({
         const crimeCount = shiftData.get(shift) || 0;
         const percentage = totalCrimes > 0 ? (crimeCount / totalCrimes) * 100 : 0;
         
-        // Calculate recommended officers based on crime density
-        // Use actual allocation if available, otherwise fall back to default baseline
+        // Calculate recommended officers based on actual allocation data only
         const actualAllocation = getActualAllocation(precinct);
-        const baseOfficersTotal = actualAllocation > 0 ? actualAllocation : manpowerSettings.baseManpowerPerYear;
-        const baseOfficersPerShift = Math.max(2, Math.floor(baseOfficersTotal / 3)); // Divide by 3 shifts
-        const crimeRatio = percentage / 33.33; // 33.33% would be equal distribution
-        let recommendedOfficers = Math.round(baseOfficersPerShift * crimeRatio);
+        let recommendedOfficers = 0;
         
-        // Apply minimum staffing rules
-        recommendedOfficers = Math.max(1, recommendedOfficers); // At least 1 officer per shift
-        if (shift === 'Night') recommendedOfficers = Math.max(2, recommendedOfficers); // Night shift minimum 2
+        if (actualAllocation > 0) {
+          const baseOfficersPerShift = Math.max(2, Math.floor(actualAllocation / 3)); // Divide by 3 shifts
+          const crimeRatio = percentage / 33.33; // 33.33% would be equal distribution
+          recommendedOfficers = Math.round(baseOfficersPerShift * crimeRatio);
+          
+          // Apply minimum staffing rules only if we have actual data
+          recommendedOfficers = Math.max(1, recommendedOfficers); // At least 1 officer per shift
+          if (shift === 'Night') recommendedOfficers = Math.max(2, recommendedOfficers); // Night shift minimum 2
+        }
         
         // Determine risk level based on crime concentration
         let riskLevel: 'low' | 'medium' | 'high' | 'critical';
@@ -351,37 +374,63 @@ const ManpowerAllocation: React.FC<Props> = ({
       // Get actual current allocation from API
       const currentAllocation = getActualAllocation(precinct);
       
-      // Use actual allocation as baseline, or fallback to settings baseline for recommendations
-      const calculationBaseline = currentAllocation > 0 ? currentAllocation : manpowerSettings.baseManpowerPerYear;
-      const riskMultiplier = manpowerSettings.riskMultipliers[dominantRisk];
+      // If no actual data exists, show 0 for both current and recommended
+      let recommendedAllocation = 0;
+      let changeFromBase = 0;
       
-      // Calculate weighted average allocation across all forecast months
-      let totalWeightedAllocation = 0;
-      let totalMonths = 0;
-      
-      Object.values(data.monthlyBreakdown).forEach(monthData => {
-        const dynamicMultiplier = calculateDynamicMultiplier(
-          monthData.month, 
-          monthData.year, 
-          riskMultiplier
-        );
-        totalWeightedAllocation += calculationBaseline * dynamicMultiplier;
-        totalMonths++;
-      });
-      
-      const recommendedAllocation = totalMonths > 0 
-        ? Math.round(totalWeightedAllocation / totalMonths)
-        : Math.round(calculationBaseline * riskMultiplier);
-      
-      // Calculate change percentage from current allocation or baseline
-      const changeFromBase = calculationBaseline > 0 
-        ? ((recommendedAllocation - calculationBaseline) / calculationBaseline) * 100
-        : 0;
+      if (currentAllocation > 0) {
+        // Only calculate recommendations if we have actual baseline data
+        const riskMultiplier = manpowerSettings.riskMultipliers[dominantRisk];
+        
+        // Calculate weighted average allocation across all forecast months
+        let totalWeightedAllocation = 0;
+        let totalMonths = 0;
+        
+        Object.values(data.monthlyBreakdown).forEach(monthData => {
+          const dynamicMultiplier = calculateDynamicMultiplier(
+            monthData.month, 
+            monthData.year, 
+            riskMultiplier
+          );
+          totalWeightedAllocation += currentAllocation * dynamicMultiplier;
+          totalMonths++;
+        });
+        
+        recommendedAllocation = totalMonths > 0 
+          ? Math.round(totalWeightedAllocation / totalMonths)
+          : Math.round(currentAllocation * riskMultiplier);
+        
+        // Calculate change percentage from current allocation
+        changeFromBase = ((recommendedAllocation - currentAllocation) / currentAllocation) * 100;
+      }
 
-      // Generate enhanced justification with dynamic factors
+      // Generate enhanced justification with detailed risk computation
       const criticalCount = data.riskCounts.critical;
       const highCount = data.riskCounts.high;
+      const mediumCount = data.riskCounts.medium;
+      const lowCount = data.riskCounts.low;
       const monthCount = Object.keys(data.monthlyBreakdown).length;
+      
+      // Calculate risk breakdown percentages
+      const totalMonthsWithRisk = criticalCount + highCount + mediumCount + lowCount;
+      const criticalPct = totalMonthsWithRisk > 0 ? (criticalCount / totalMonthsWithRisk * 100).toFixed(1) : '0';
+      const highPct = totalMonthsWithRisk > 0 ? (highCount / totalMonthsWithRisk * 100).toFixed(1) : '0';
+      const mediumPct = totalMonthsWithRisk > 0 ? (mediumCount / totalMonthsWithRisk * 100).toFixed(1) : '0';
+      const lowPct = totalMonthsWithRisk > 0 ? (lowCount / totalMonthsWithRisk * 100).toFixed(1) : '0';
+      
+      // Create risk breakdown text
+      const riskBreakdown = `Risk distribution: ${criticalCount} Critical (${criticalPct}%), ${highCount} High (${highPct}%), ${mediumCount} Medium (${mediumPct}%), ${lowCount} Low (${lowPct}%)`;
+      
+      // Calculate predicted vs historical ratio for this precinct
+      const historicalTotal = data.totalHistorical;
+      const predictedTotal = data.totalPredicted;
+      const predictionRatio = historicalTotal > 0 ? (predictedTotal / historicalTotal).toFixed(2) : 'N/A';
+      const predictionText = predictionRatio !== 'N/A' 
+        ? ` Forecast vs historical ratio: ${predictionRatio}x.` 
+        : '';
+      
+      // Get current dynamic thresholds for context
+      const thresholdText = ` Dynamic thresholds: Low ≤${(dynamicThresholds.lowMax * 100).toFixed(0)}%, Medium ≤${(dynamicThresholds.mediumMax * 100).toFixed(0)}%, High ≤${(dynamicThresholds.highMax * 100).toFixed(0)}%, Critical >${(dynamicThresholds.highMax * 100).toFixed(0)}%.`;
       
       let justification = '';
       let dynamicFactors = [];
@@ -405,14 +454,16 @@ const ManpowerAllocation: React.FC<Props> = ({
         ? ` (adjusted for ${dynamicFactors.join(', ')})` 
         : '';
       
-      if (dominantRisk === 'critical') {
-        justification = `${criticalCount} critical risk periods across ${monthCount} months${factorsText}. Significant manpower increase required.`;
+      if (currentAllocation === 0) {
+        justification = `No current manpower allocation data available. ${riskBreakdown}.${predictionText}${thresholdText} Add allocation data to get recommendations based on ${dominantRisk.toUpperCase()} risk level forecast.`;
+      } else if (dominantRisk === 'critical') {
+        justification = `${dominantRisk.toUpperCase()} RISK LEVEL determined by majority of forecast periods. ${riskBreakdown} across ${monthCount} months${factorsText}.${predictionText}${thresholdText} Significant manpower increase required.`;
       } else if (dominantRisk === 'high') {
-        justification = `${highCount} high risk periods across ${monthCount} months${factorsText}. Increased surveillance recommended.`;
+        justification = `${dominantRisk.toUpperCase()} RISK LEVEL determined by majority of forecast periods. ${riskBreakdown} across ${monthCount} months${factorsText}.${predictionText}${thresholdText} Increased surveillance recommended.`;
       } else if (dominantRisk === 'medium') {
-        justification = `Stable crime patterns expected across ${monthCount} months${factorsText}. Dynamic allocation applied.`;
+        justification = `${dominantRisk.toUpperCase()} RISK LEVEL determined by majority of forecast periods. ${riskBreakdown} across ${monthCount} months${factorsText}.${predictionText}${thresholdText} Stable crime patterns expected.`;
       } else {
-        justification = `Low crime activity predicted across ${monthCount} months${factorsText}. Resource reallocation opportunity.`;
+        justification = `${dominantRisk.toUpperCase()} RISK LEVEL determined by majority of forecast periods. ${riskBreakdown} across ${monthCount} months${factorsText}.${predictionText}${thresholdText} Resource reallocation opportunity due to predicted decrease in crime activity.`;
       }
 
       recommendations.push({
@@ -448,7 +499,7 @@ const ManpowerAllocation: React.FC<Props> = ({
 
   const overallChange = totalCurrentManpower > 0 
     ? ((totalManpowerRequired - totalCurrentManpower) / totalCurrentManpower) * 100 
-    : 0;
+    : 0; // No change when no current data
 
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
@@ -519,49 +570,13 @@ const ManpowerAllocation: React.FC<Props> = ({
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-blue-700 mb-1">
-              Baseline for New Precincts
-              <span className="text-xs text-gray-600 block">Used for precincts with no API allocation data</span>
-            </label>
-            <input
-              type="number"
-              min="10"
-              max="500"
-              value={manpowerSettings.baseManpowerPerYear}
-              onChange={(e) => onSettingsChange({
-                ...manpowerSettings,
-                baseManpowerPerYear: parseInt(e.target.value) || 100
-              })}
-              className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-blue-700 mb-1">
-              High Risk Adjustment
-            </label>
-            <select
-              value={manpowerSettings.riskMultipliers.high}
-              onChange={(e) => {
-                const multiplier = parseFloat(e.target.value);
-                onSettingsChange({
-                  ...manpowerSettings,
-                  riskMultipliers: { 
-                    ...manpowerSettings.riskMultipliers, 
-                    high: multiplier, 
-                    critical: multiplier * 1.3 // Critical is always 30% higher
-                  }
-                });
-              }}
-              className="w-full px-3 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-            >
-              <option value={1.2}>Conservative (+20%)</option>
-              <option value={1.3}>Standard (+30%)</option>
-              <option value={1.5}>Aggressive (+50%)</option>
-            </select>
-          </div>
+        <div className="text-center py-4">
+          <p className="text-blue-700 text-sm">
+            Manpower recommendations are calculated automatically based on actual allocation data and forecast risk levels.
+          </p>
+          <p className="text-blue-600 text-xs mt-2">
+            No manual configuration needed - the system adapts to your data.
+          </p>
         </div>
 
         {/* Dynamic Threshold Display */}
@@ -666,6 +681,188 @@ const ManpowerAllocation: React.FC<Props> = ({
         )}
       </div>
 
+      {/* Current Manpower by Precinct */}
+      {actualManpowerData.length > 0 && (
+        <div className="bg-white rounded-lg border border-gray-200">
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-semibold text-gray-800 flex items-center">
+              <svg className="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Current Manpower by Precinct
+              {dataFetchTimestamp && (
+                <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+                  As of {dataFetchTimestamp}
+                </span>
+              )}
+            </h3>
+          </div>
+          
+          <div className="p-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {(() => {
+                // Group actual manpower data by precinct
+                const precinctMap = new Map<string, {
+                  precinctName: string;
+                  precinctId?: string;
+                  shifts: Array<{ shift: string; headCount: number; id: string }>;
+                  totalHeadCount: number;
+                }>();
+                
+                actualManpowerData.forEach(allocation => {
+                  const precinctKey = allocation.precinctId;
+                  const precinctName = allocation.precinctName || allocation.precinct || 'Unknown Precinct';
+                  const shiftName = allocation.shift || 'Not Specified';
+                  const headCount = allocation.headCount || allocation.officerCount || allocation.allocatedCount || 0;
+                  
+                  if (!precinctMap.has(precinctKey)) {
+                    precinctMap.set(precinctKey, {
+                      precinctName,
+                      precinctId: allocation.precinctId || allocation.precinct,
+                      shifts: [],
+                      totalHeadCount: 0
+                    });
+                  }
+                  
+                  const precinctData = precinctMap.get(precinctKey)!;
+                  precinctData.shifts.push({
+                    shift: shiftName,
+                    headCount,
+                    id: allocation.id
+                  });
+                  precinctData.totalHeadCount += headCount;
+                });
+                
+                return Array.from(precinctMap.values()).map((precinctData, index) => (
+                  <div key={index} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <div>
+                          <h4 className="font-semibold text-gray-900 text-sm">
+                            {precinctData.precinctName}
+                          </h4>
+                          {precinctData.precinctId && (
+                            <p className="text-xs text-gray-500">ID: {precinctData.precinctId}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-lg font-bold text-gray-900">
+                          {precinctData.totalHeadCount}
+                        </div>
+                        <div className="text-xs text-gray-500">officers</div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <h5 className="text-xs font-medium text-gray-700 mb-2">By Shift:</h5>
+                      {precinctData.shifts.map((shift, shiftIndex) => {
+                        const shiftColor = shift.shift === 'Morning' ? 'bg-yellow-100 text-yellow-800' :
+                                          shift.shift === 'Evening' || shift.shift === 'Afternoon' ? 'bg-orange-100 text-orange-800' :
+                                          shift.shift === 'Night' ? 'bg-blue-100 text-blue-800' :
+                                          'bg-gray-100 text-gray-800';
+                        
+                        return (
+                          <div key={shiftIndex} className="flex items-center justify-between text-xs">
+                            <span className={`px-2 py-1 rounded-full ${shiftColor} font-medium`}>
+                              {shift.shift}
+                            </span>
+                            <span className="font-semibold text-gray-900">
+                              {shift.headCount} officers
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Coverage indicator */}
+                    <div className="mt-3 pt-3 border-t border-gray-200">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-600">Coverage:</span>
+                        <span className="text-xs font-medium">
+                          {precinctData.shifts.length === 3 ? (
+                            <span className="text-green-600">24/7 ✓</span>
+                          ) : precinctData.shifts.length === 2 ? (
+                            <span className="text-yellow-600">Partial</span>
+                          ) : (
+                            <span className="text-orange-600">Limited</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ));
+              })()}
+            </div>
+            
+            {/* Summary row */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  </svg>
+                  <span className="text-sm font-medium text-gray-700">Total Active Officers:</span>
+                </div>
+                <div className="flex items-center">
+                  <span className="text-2xl font-bold text-blue-600 mr-2">{totalCurrentManpower}</span>
+                  <span className="text-sm text-gray-500">across all precincts</span>
+                </div>
+              </div>
+              
+              <div className="mt-2 text-xs text-gray-500 text-center">
+                Data refreshed automatically from Precinct Management
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* No Real Data Notice */}
+      {actualManpowerData.length === 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-amber-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.865-.833-2.635 0L4.178 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div>
+              <h4 className="text-amber-800 font-medium">No Manpower Allocation Data Available</h4>
+              <p className="text-amber-700 text-sm mt-1">
+                No actual manpower allocations found in the system. Recommendations are based on forecast data and baseline calculations only.
+                To see actual vs. recommended comparisons, please add manpower allocations via the Precincts page.
+              </p>
+              <p className="text-amber-600 text-xs mt-2">
+                📊 All &quot;Current Allocation&quot; values show 0 • Using baseline of {manpowerSettings.baseManpowerPerYear} officers per precinct for calculations
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {actualManpowerData.length > 0 && totalCurrentManpower === 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div className="flex items-center">
+            <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              <h4 className="text-blue-800 font-medium">Precinct Name Mismatch</h4>
+              <p className="text-blue-700 text-sm mt-1">
+                Found {actualManpowerData.length} manpower allocation(s) in the system, but could not match them to forecast precincts.
+                This may be due to precinct name differences between the forecast and manpower data.
+              </p>
+              <p className="text-blue-600 text-xs mt-2">
+                🔍 Available allocations: {actualManpowerData.map(a => a.precinct || a.precinctName || 'Unknown').join(', ')}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Dynamic Allocation Summary */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg border border-gray-200">
@@ -691,7 +888,7 @@ const ManpowerAllocation: React.FC<Props> = ({
                 <div>
                   <p className="text-2xl font-bold text-gray-900">{totalCurrentManpower.toLocaleString()}</p>
                   <p className="text-xs text-gray-500">
-                    {totalCurrentManpower === 0 ? 'No allocations yet' : 'From API data'}
+                    {totalCurrentManpower === 0 ? 'No data available' : 'From API data'}
                   </p>
                 </div>
               )}
@@ -707,9 +904,11 @@ const ManpowerAllocation: React.FC<Props> = ({
               </svg>
             </div>
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-700">Dynamic Allocation</p>
+              <p className="text-sm font-medium text-gray-700">Recommended</p>
               <p className="text-2xl font-bold text-gray-900">{totalManpowerRequired.toLocaleString()}</p>
-              <p className="text-xs text-gray-500">Time-adjusted</p>
+              <p className="text-xs text-gray-500">
+                {totalManpowerRequired === 0 ? 'Need allocation data' : 'Based on forecast'}
+              </p>
             </div>
           </div>
         </div>
@@ -767,9 +966,9 @@ const ManpowerAllocation: React.FC<Props> = ({
                   ? 'text-red-900' 
                   : overallChange < -10 
                     ? 'text-green-900'
-                    : 'text-yellow-900'
+                    : 'text-gray-900'
               }`}>
-                {overallChange > 0 ? '+' : ''}{overallChange.toFixed(1)}%
+                {totalCurrentManpower === 0 ? 'N/A' : `${overallChange > 0 ? '+' : ''}${overallChange.toFixed(1)}%`}
               </p>
             </div>
           </div>

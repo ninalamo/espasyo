@@ -9,10 +9,14 @@ import { apiService } from "../../api/utils/apiService"; // API service for HTTP
 import { validateIncident } from "../../api/utils/validators/createIncidentValidator"; // Custom validation function
 import { fetchCachedData } from "../../api/utils/fetchCachedData";
 
+// Import precinct types
+import { PrecinctDto } from '../../../types/PrecinctDto';
+
 // Define an interface for Street objects
 interface Street {
   street: string;
-  barangay: number;
+  precinctId: string;
+  precinctName: string;
 }
 
 // Extend AddIncidentDto with additional fields for our form
@@ -43,7 +47,7 @@ const AddCrimePage = () => {
       timeStamp: "",
       motive: 0,
       weather: 0,
-      precinct: -1,        // -1 indicates no precinct selected
+      precinctId: "",      // Empty string indicates no precinct selected
       additionalInfo: "",
       location: "",        // Additional location info (e.g., unit number)
       street: ""           // Selected street value
@@ -54,7 +58,7 @@ const AddCrimePage = () => {
   const [crimeTypes, setCrimeTypes] = useState<string[]>([]);
   const [severities, setSeverities] = useState<string[]>([]);
   const [weathers, setWeathers] = useState<string[]>([]);
-  const [precincts, setPrecincts] = useState<string[]>([]);
+  const [precincts, setPrecincts] = useState<PrecinctDto[]>([]);
   const [motives, setMotives] = useState<string[]>([]);
 
   // State for storing the list of streets from the API or localStorage
@@ -88,10 +92,10 @@ const AddCrimePage = () => {
         setWeathers(fetchedWeathers);
 
         // --- Precincts ---
-        const fetchedPrecincts = await fetchCachedData<string[]>(
+        const fetchedPrecincts = await fetchCachedData<PrecinctDto[]>(
           "precincts",
-          "/Incident/enums?name=precinct",
-          (data) => Object.values(data)
+          "/manpower/precincts",
+          (data) => data
         );
         setPrecincts(fetchedPrecincts);
 
@@ -133,23 +137,22 @@ const AddCrimePage = () => {
   // Use RHF's watch function to monitor specific form fields in real time.
   // These values are used to dynamically generate the full address.
   const watchLocation = watch("location");
-  const watchPrecinct = watch("precinct");
+  const watchPrecinctId = watch("precinctId");
   const watchStreet = watch("street");
 
   // useEffect to update the 'address' field whenever location, precinct, or street changes.
   useEffect(() => {
-    // Determine the precinct name from the precincts array using the selected index.
-    const precinctName =
-      watchPrecinct !== -1 && precincts[Number(watchPrecinct)]
-        ? precincts[Number(watchPrecinct)]
-        : "";
+    // Determine the precinct name from the precincts array using the selected ID.
+    const selectedPrecinct = precincts.find(p => p.id === watchPrecinctId);
+    const precinctName = selectedPrecinct ? selectedPrecinct.name : "";
+    
     // If a street is selected, add it with a trailing comma.
     const streetPart = watchStreet ? watchStreet + ", " : "";
     // Construct the full formatted address string.
-    const formattedAddress = `${watchLocation}, ${streetPart}${precinctName} Muntinlupa City, NCR, Philippines`;
+    const formattedAddress = `${watchLocation}, ${streetPart}${precinctName}, Muntinlupa City, NCR, Philippines`;
     // Update the 'address' field in our form using setValue (this field is hidden from the user).
     setValue("address", formattedAddress.replace("_", " "));
-  }, [watchLocation, watchPrecinct, watchStreet, precincts, setValue]);
+  }, [watchLocation, watchPrecinctId, watchStreet, precincts, setValue]);
 
   // onSubmit handler, executed when the form is submitted and validations pass.
   const onSubmit = async (data: FormData) => {
@@ -174,11 +177,11 @@ const AddCrimePage = () => {
     }
   };
 
-  // Filter the streets based on the selected precinct value.
-  // This ensures only the streets matching the selected precinct (barangay) are shown.
+  // Filter the streets based on the selected precinct ID.
+  // This ensures only the streets matching the selected precinct are shown.
   const filteredStreets =
-    watchPrecinct !== -1
-      ? streets.filter((s) => s.barangay === Number(watchPrecinct))
+    watchPrecinctId
+      ? streets.filter((s) => s.precinctId === watchPrecinctId)
       : [];
 
   return (
@@ -267,22 +270,21 @@ const AddCrimePage = () => {
                   Precinct
                 </label>
                 <select
-                  id="precinct"
-                  {...register("precinct", {
-                    valueAsNumber: true,
+                  id="precinctId"
+                  {...register("precinctId", {
                     required: "Precinct is required"
                   })}
                   className="border p-2 rounded w-full"
                 >
-                  <option value={-1}>Select Precinct</option>
-                  {precincts.map((precinct, index) => (
-                    <option key={index} value={index}>
-                      {precinct}
+                  <option value="">Select Precinct</option>
+                  {precincts.map((precinct) => (
+                    <option key={precinct.id} value={precinct.id}>
+                      {precinct.name} ({precinct.code})
                     </option>
                   ))}
                 </select>
-                {errors.precinct && (
-                  <p className="text-red-500 text-sm">{errors.precinct.message}</p>
+                {errors.precinctId && (
+                  <p className="text-red-500 text-sm">{errors.precinctId.message}</p>
                 )}
               </div>
             </div>

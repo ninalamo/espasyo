@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { ChartOptions, ChartData } from 'chart.js';
 import { Chart } from 'react-chartjs-2';
 import 'chart.js/auto';
@@ -42,7 +42,25 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
   const toRender = selected !== null ? [selected] : precincts;
 
   const ChartTile: React.FC<{ precinct: number }> = ({ precinct }) => {
+    const [isContainerReady, setIsContainerReady] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
     const brgyName = precinctNames[precinct] || `Precinct ${precinct}`;
+
+    useEffect(() => {
+      const checkContainerSize = () => {
+        if (containerRef.current) {
+          const { width, height } = containerRef.current.getBoundingClientRect();
+          if (width > 0 && height > 0) {
+            setIsContainerReady(true);
+          }
+        }
+      };
+
+      checkContainerSize();
+      const timer = setTimeout(() => setIsContainerReady(true), 100);
+      
+      return () => clearTimeout(timer);
+    }, []);
     const counts: Record<number, Record<TimeSlot, number>> = {};
     months.forEach(m => {
       counts[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 };
@@ -79,12 +97,21 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
     return (
       <>
         <h3 className="text-center font-medium mb-2">{brgyName}</h3>
-        <div style={{ height: 300 }}>
-          <Chart
-            type="bar"
-            data={chartData}
-            options={options}
-          />
+        <div ref={containerRef} style={{ height: 300 }}>
+          {isContainerReady ? (
+            <Chart
+              type="bar"
+              data={chartData}
+              options={options}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-gray-500">
+              <div className="text-center">
+                <div className="animate-spin h-6 w-6 mx-auto mb-2 border-2 border-blue-600 border-t-transparent rounded-full"></div>
+                <p className="text-sm">Loading...</p>
+              </div>
+            </div>
+          )}
         </div>
       </>
     );

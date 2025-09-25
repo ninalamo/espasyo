@@ -697,9 +697,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
       <CalculationMethodologyModal
         isOpen={isMethodologyModalOpen}
         onClose={() => setIsMethodologyModalOpen(false)}
-        historicalData={historicalData}
-        forecastData={forecastData}
-        params={params}
+        historicalDataLength={historicalData.length}
         manpowerSettings={manpowerSettings}
       />
     </div>

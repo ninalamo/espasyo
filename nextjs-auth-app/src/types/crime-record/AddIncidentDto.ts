@@ -8,6 +8,6 @@ export interface AddIncidentDto {
   timeStamp: string;
   motive: number;
   weather: number;
-  precinct: number;
+  precinctId: string;
   additionalInfo: string;
 }

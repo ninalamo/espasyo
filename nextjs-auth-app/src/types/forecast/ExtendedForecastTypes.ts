@@ -171,7 +171,7 @@ export const DEFAULT_FORECAST_FILTERS: ForecastMapFilters = {
 
 // Default manpower allocation settings
 export const DEFAULT_MANPOWER_ALLOCATION: ManpowerAllocation = {
-  baseManpowerPerYear: 100, // Base number of personnel per precinct per year
+  baseManpowerPerYear: 25, // Realistic baseline for a small precinct if no actual data
   riskMultipliers: {
     low: 0.8,      // 20% reduction for low risk
     medium: 1.0,   // Base allocation for medium risk

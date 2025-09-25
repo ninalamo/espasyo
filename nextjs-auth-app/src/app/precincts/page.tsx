@@ -19,24 +19,24 @@ import { manpowerApi, ManpowerAllocation, CreateManpowerRequest } from '../../ut
 
 const SHIFT_OPTIONS = [
   { value: 'Morning', label: 'Morning (6:00 AM - 2:00 PM)' },
-  { value: 'Afternoon', label: 'Afternoon (2:00 PM - 10:00 PM)' },
-  { value: 'Night', label: 'Night (10:00 PM - 6:00 AM)' },
-  { value: 'Full Day', label: 'Full Day Coverage' }
+  { value: 'Evening', label: 'Evening (2:00 PM - 10:00 PM)' },
+  { value: 'Night', label: 'Night (10:00 PM - 6:00 AM)' }
 ];
 
 export default function PrecinctsPage() {
   const [manpowerAllocations, setManpowerAllocations] = useState<ManpowerAllocation[]>([]);
-  const [precincts, setPrecincts] = useState<Array<{ value: number; name: string }>>([]);
+  const [precincts, setPrecincts] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Partial<ManpowerAllocation>>({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<CreateManpowerRequest>({
-    precinct: '',
-    officerCount: 5,
+    precinctId: '',
+    headCount: 5,
     shift: 'Morning'
   });
+  const [showPerShift, setShowPerShift] = useState(true); // Toggle for per-shift vs totaled view
 
   useEffect(() => {
     fetchPrecincts();
@@ -56,7 +56,7 @@ export default function PrecinctsPage() {
   const fetchManpowerAllocations = async () => {
     setLoading(true);
     try {
-      const data = await manpowerApi.getAllManpower();
+      const data = await manpowerApi.getAllManpowerWithShifts();
       setManpowerAllocations(data);
       if (!refreshing) {
         toast.success('Data loaded successfully');
@@ -80,28 +80,57 @@ export default function PrecinctsPage() {
     setEditingId(allocation.id);
     setEditForm({ 
       ...allocation,
-      officerCount: allocation.officerCount || allocation.allocatedCount 
+      headCount: allocation.headCount || allocation.officerCount || allocation.allocatedCount 
     });
   };
 
   const handleSaveEdit = async () => {
     if (!editForm.id) return;
     
+    // Enhanced validation for edit form
+    if (!editForm.precinctId) {
+      toast.error('Please select a precinct');
+      return;
+    }
+    const headCount = editForm.headCount || editForm.officerCount || editForm.allocatedCount;
+    if (!headCount || headCount <= 0) {
+      toast.error('Please enter a valid number of officers (greater than 0)');
+      return;
+    }
+    if (!editForm.shift) {
+      toast.error('Please select a shift');
+      return;
+    }
+    
     try {
       const updateData = {
-        precinct: editForm.precinct,
-        officerCount: editForm.officerCount || editForm.allocatedCount,
+        precinctId: editForm.precinctId,
+        headCount: headCount,
         shift: editForm.shift
       };
       
       await manpowerApi.updateManpower(editForm.id, updateData);
       await fetchManpowerAllocations();
+      
+      const precinctName = getPrecinctNameById(editForm.precinctId!);
+      toast.success(`✏️ Updated ${precinctName} - ${editForm.shift} shift (${headCount} officers)`);
+      
       setEditingId(null);
       setEditForm({});
-      toast.success('Updated successfully');
     } catch (error) {
       console.error('Error updating:', error);
-      toast.error('Update failed');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      // Show specific error messages
+      if (errorMessage.includes('400')) {
+        toast.error('❌ Invalid data provided. Please check your inputs.');
+      } else if (errorMessage.includes('404')) {
+        toast.error('❌ Allocation not found.');
+      } else if (errorMessage.includes('500')) {
+        toast.error('❌ Server error. Please try again later.');
+      } else {
+        toast.error(`❌ Failed to update allocation: ${errorMessage}`);
+      }
     }
   };
 
@@ -111,24 +140,57 @@ export default function PrecinctsPage() {
   };
 
   const handleAdd = async () => {
-    if (!addForm.precinct || !addForm.officerCount) {
-      toast.error('Please fill in all required fields');
+    // Enhanced validation with specific error messages
+    if (!addForm.precinctId) {
+      toast.error('Please select a precinct');
+      return;
+    }
+    if (!addForm.headCount || addForm.headCount <= 0) {
+      toast.error('Please enter a valid number of officers (greater than 0)');
+      return;
+    }
+    if (!addForm.shift) {
+      toast.error('Please select a shift');
       return;
     }
     
     try {
-      await manpowerApi.createManpower(addForm);
+      // Check if this precinct+shift combination already exists to determine if it's new or update
+      const existingAllocation = manpowerAllocations.find(alloc => 
+        alloc.precinctId === addForm.precinctId && 
+        alloc.shift === addForm.shift
+      );
+      
+      const result = await manpowerApi.createOrUpdateManpowerWithShift(addForm);
       await fetchManpowerAllocations();
       setShowAddForm(false);
       setAddForm({
-        precinct: '',
-        officerCount: 5,
+        precinctId: '',
+        headCount: 5,
         shift: 'Morning'
       });
-      toast.success('Created successfully');
+      
+      // Show different toast messages based on operation
+      const precinctName = getPrecinctNameById(addForm.precinctId);
+      if (existingAllocation) {
+        toast.success(`✏️ Updated ${precinctName} - ${addForm.shift} shift (${addForm.headCount} officers)`);
+      } else {
+        toast.success(`✅ Created new allocation for ${precinctName} - ${addForm.shift} shift (${addForm.headCount} officers)`);
+      }
     } catch (error) {
-      console.error('Error creating:', error);
-      toast.error('Creation failed');
+      console.error('Error with allocation:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      
+      // Show specific error messages
+      if (errorMessage.includes('400')) {
+        toast.error('❌ Invalid data provided. Please check your inputs.');
+      } else if (errorMessage.includes('404')) {
+        toast.error('❌ Precinct not found. Please select a valid precinct.');
+      } else if (errorMessage.includes('500')) {
+        toast.error('❌ Server error. Please try again later.');
+      } else {
+        toast.error(`❌ Failed to save allocation: ${errorMessage}`);
+      }
     }
   };
 
@@ -143,13 +205,52 @@ export default function PrecinctsPage() {
 
   const getTotalOfficers = () => {
     return manpowerAllocations.reduce((sum, allocation) => 
-      sum + (allocation.officerCount || allocation.allocatedCount || 0), 0
+      sum + (allocation.headCount || allocation.officerCount || allocation.allocatedCount || 0), 0
     );
   };
 
   const getUniquePrecincts = () => {
-    const precincts = new Set(manpowerAllocations.map(a => a.precinct));
+    const precincts = new Set(manpowerAllocations.map(a => a.precinctName || a.precinct));
     return precincts.size;
+  };
+
+  const getPrecinctNameById = (precinctId: string): string => {
+    const precinct = precincts.find(p => p.id === precinctId);
+    return precinct ? `${precinct.name} (${precinct.code})` : precinctId;
+  };
+
+  // Process allocations based on view toggle
+  const getDisplayAllocations = () => {
+    if (showPerShift) {
+      return manpowerAllocations; // Show all individual shift allocations
+    }
+    
+    // Group by precinct and sum headcount
+    const groupedByPrecinct = new Map<string, ManpowerAllocation>();
+    
+    manpowerAllocations.forEach(allocation => {
+      const precinctKey = allocation.precinctId;
+      const precinctName = allocation.precinctName || allocation.precinct || 'Unknown';
+      
+      if (groupedByPrecinct.has(precinctKey)) {
+        const existing = groupedByPrecinct.get(precinctKey)!;
+        existing.headCount = (existing.headCount || 0) + (allocation.headCount || 0);
+        
+        // Combine shifts in display
+        const existingShifts = existing.shift ? existing.shift.split(', ') : [];
+        const newShift = allocation.shift || 'Unknown';
+        if (!existingShifts.includes(newShift)) {
+          existing.shift = [...existingShifts, newShift].join(', ');
+        }
+      } else {
+        groupedByPrecinct.set(precinctKey, {
+          ...allocation,
+          shift: allocation.shift || 'All Shifts'
+        });
+      }
+    });
+    
+    return Array.from(groupedByPrecinct.values());
   };
 
   if (loading) {
@@ -170,22 +271,41 @@ export default function PrecinctsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Precinct Manpower Management</h1>
           <p className="text-gray-600">Manage officer allocations across precincts</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-700 transition-colors disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </button>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add Allocation
-          </button>
+        <div className="flex items-center gap-4">
+          {/* View Toggle */}
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="viewToggle"
+              checked={showPerShift}
+              onChange={(e) => setShowPerShift(e.target.checked)}
+              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+            />
+            <label htmlFor="viewToggle" className="text-sm text-gray-700 cursor-pointer">
+              Show per shift
+            </label>
+            <span className="text-xs text-gray-500 ml-1">
+              ({showPerShift ? 'Individual shifts' : 'Totaled by precinct'})
+            </span>
+          </div>
+          
+          <div className="flex gap-2">
+            <button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="bg-gray-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-gray-700 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </button>
+            <button
+              onClick={() => setShowAddForm(true)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              Add Allocation
+            </button>
+          </div>
         </div>
       </div>
 
@@ -206,7 +326,7 @@ export default function PrecinctsPage() {
             <MapPin className="w-8 h-8 text-green-600" />
             <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{getUniquePrecincts()}</h3>
-              <p className="text-sm text-gray-600">Active Precincts</p>
+              <p className="text-sm text-gray-600">Precincts with Allocations</p>
             </div>
           </div>
         </div>
@@ -239,49 +359,71 @@ export default function PrecinctsPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Precinct *
+                  Precinct <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={addForm.precinct}
-                  onChange={(e) => setAddForm(prev => ({ ...prev, precinct: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={addForm.precinctId}
+                  onChange={(e) => setAddForm(prev => ({ ...prev, precinctId: e.target.value }))}
+                  className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 ${
+                    !addForm.precinctId 
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                   required
                 >
                   <option value="">Select Precinct</option>
                   {precincts.map((precinct) => (
-                    <option key={precinct.value} value={precinct.name}>{precinct.name}</option>
+                    <option key={precinct.id} value={precinct.id}>{precinct.name} ({precinct.code})</option>
                   ))}
                 </select>
+                {!addForm.precinctId && (
+                  <p className="mt-1 text-sm text-red-600">Please select a precinct</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Number of Officers *
+                  Number of Officers <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
                   min="1"
                   max="50"
-                  value={addForm.officerCount}
-                  onChange={(e) => setAddForm(prev => ({ ...prev, officerCount: parseInt(e.target.value) }))}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={addForm.headCount || ''}
+                  onChange={(e) => setAddForm(prev => ({ ...prev, headCount: parseInt(e.target.value) || 0 }))}
+                  className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 ${
+                    !addForm.headCount || addForm.headCount <= 0
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
+                  placeholder="Enter number of officers"
                   required
                 />
+                {(!addForm.headCount || addForm.headCount <= 0) && (
+                  <p className="mt-1 text-sm text-red-600">Please enter a valid number greater than 0</p>
+                )}
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Shift
+                  Shift <span className="text-red-500">*</span>
                 </label>
                 <select
-                  value={addForm.shift}
+                  value={addForm.shift || ''}
                   onChange={(e) => setAddForm(prev => ({ ...prev, shift: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 ${
+                    !addForm.shift
+                      ? 'border-red-300 focus:ring-red-500 focus:border-red-500'
+                      : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'
+                  }`}
                 >
                   {SHIFT_OPTIONS.map((shift) => (
                     <option key={shift.value} value={shift.value}>{shift.label}</option>
                   ))}
                 </select>
+                {!addForm.shift && (
+                  <p className="mt-1 text-sm text-red-600">Please select a shift</p>
+                )}
               </div>
 
 
@@ -317,7 +459,7 @@ export default function PrecinctsPage() {
                   Officers
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Shift
+                  {showPerShift ? 'Shift' : 'Shifts'}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -325,7 +467,7 @@ export default function PrecinctsPage() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {manpowerAllocations.map((allocation) => (
+              {getDisplayAllocations().map((allocation) => (
                 <tr key={allocation.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
@@ -333,22 +475,24 @@ export default function PrecinctsPage() {
                       <div>
                         {editingId === allocation.id ? (
                           <select
-                            value={editForm.precinct || ''}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, precinct: e.target.value }))}
-                            className="border border-gray-300 rounded px-2 py-1 text-sm"
+                            value={editForm.precinctId || allocation.precinctId}
+                            onChange={(e) => setEditForm(prev => ({ ...prev, precinctId: e.target.value }))}
+                            className="border border-gray-300 rounded px-2 py-1 text-sm w-48"
                           >
                             {precincts.map((precinct) => (
-                              <option key={precinct.value} value={precinct.name}>{precinct.name}</option>
+                              <option key={precinct.id} value={precinct.id}>{precinct.name} ({precinct.code})</option>
                             ))}
                           </select>
                         ) : (
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {allocation.precinct}
+                              {allocation.precinctName || allocation.precinct || 'Unknown Precinct'}
                             </div>
-                            <div className="text-sm text-gray-500">
-                              ID: {allocation.id.substring(0, 8)}...
-                            </div>
+                            {allocation.precinctId && (
+                              <div className="text-sm text-gray-500">
+                                ID: {allocation.precinctId}
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -362,16 +506,16 @@ export default function PrecinctsPage() {
                           type="number"
                           min="1"
                           max="50"
-                          value={editForm.officerCount || editForm.allocatedCount || ''}
+                          value={editForm.headCount || editForm.officerCount || editForm.allocatedCount || ''}
                           onChange={(e) => setEditForm(prev => ({ 
                             ...prev, 
-                            officerCount: parseInt(e.target.value) 
+                            headCount: parseInt(e.target.value) 
                           }))}
                           className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
                         />
                       ) : (
                         <span className="text-sm font-medium text-gray-900">
-                          {allocation.officerCount || allocation.allocatedCount}
+                          {allocation.headCount || allocation.officerCount || allocation.allocatedCount}
                         </span>
                       )}
                     </div>
@@ -395,31 +539,37 @@ export default function PrecinctsPage() {
                     )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {editingId === allocation.id ? (
-                      <div className="flex items-center space-x-2">
+                    {showPerShift ? (
+                      editingId === allocation.id ? (
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={handleSaveEdit}
+                            className="text-green-600 hover:text-green-900"
+                            title="Save changes"
+                          >
+                            <Save className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={handleCancelEdit}
+                            className="text-red-600 hover:text-red-900"
+                            title="Cancel edit"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      ) : (
                         <button
-                          onClick={handleSaveEdit}
-                          className="text-green-600 hover:text-green-900"
-                          title="Save changes"
+                          onClick={() => handleEdit(allocation)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit allocation"
                         >
-                          <Save className="w-4 h-4" />
+                          <Edit3 className="w-4 h-4" />
                         </button>
-                        <button
-                          onClick={handleCancelEdit}
-                          className="text-red-600 hover:text-red-900"
-                          title="Cancel edit"
-                        >
-                          <X className="w-4 h-4" />
-                        </button>
-                      </div>
+                      )
                     ) : (
-                      <button
-                        onClick={() => handleEdit(allocation)}
-                        className="text-blue-600 hover:text-blue-900"
-                        title="Edit allocation"
-                      >
-                        <Edit3 className="w-4 h-4" />
-                      </button>
+                      <span className="text-gray-400 text-xs" title="Switch to 'Show per shift' to edit individual allocations">
+                        View only
+                      </span>
                     )}
                   </td>
                 </tr>
@@ -428,7 +578,7 @@ export default function PrecinctsPage() {
           </table>
         </div>
         
-        {manpowerAllocations.length === 0 && (
+        {getDisplayAllocations().length === 0 && (
           <div className="text-center py-12">
             <MapPin className="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No allocations found</h3>

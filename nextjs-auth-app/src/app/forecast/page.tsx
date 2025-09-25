@@ -90,6 +90,23 @@ const ForecastPage = () => {
   
   // UI state
   const [showDataRequirements, setShowDataRequirements] = useState(false);
+  const [showInfoModals, setShowInfoModals] = useState({
+    summary: false,
+    timeseries: false,
+    trends: false,
+    heatmap: false,
+    manpower: false,
+    map: false,
+    documentation: false
+  });
+
+  // Helper function to toggle info modals
+  const toggleInfoModal = (tabKey: string) => {
+    setShowInfoModals(prev => ({
+      ...prev,
+      [tabKey]: !prev[tabKey as keyof typeof prev]
+    }));
+  };
 
   // Forecast parameters
   const [forecastParams, setForecastParams] = useState<ForecastParams>({
@@ -637,7 +654,7 @@ const ForecastPage = () => {
         const date = format(new Date(f.year, f.month - 1), 'yyyy-MM');
         return `${date},${precinct},${crimeType},${f.predictedCount},${(f.confidence * 100).toFixed(1)}%,${f.trend},${f.riskLevel}`;
       })
-    ].join('\\n');
+    ].join('\n');
 
     const blob = new Blob([reportLines], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -697,9 +714,6 @@ const ForecastPage = () => {
         
         {showDataRequirements && (
           <div className="mt-4 pt-4 border-t border-blue-200">
-            <div className="flex items-start">
-              <div className="flex-1">
-            
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-blue-700">
               {/* Minimum Requirements */}
               <div>
@@ -733,11 +747,9 @@ const ForecastPage = () => {
               </p>
             </div>
             
-                <div className="mt-3 text-xs text-blue-600">
-                  <strong>💡 Tip:</strong> The system automatically filters low-reliability forecasts from map display. 
-                  Check the console for detailed quality metrics after generating forecasts.
-                </div>
-              </div>
+            <div className="mt-3 text-xs text-blue-600">
+              <strong>💡 Tip:</strong> The system automatically filters low-reliability forecasts from map display. 
+              Check the console for detailed quality metrics after generating forecasts.
             </div>
           </div>
         )}
@@ -934,13 +946,34 @@ const ForecastPage = () => {
                   key={tab.key}
                   className={({ selected }) =>
                     selected
-                      ? 'flex-1 py-3 px-4 text-sm font-medium text-blue-700 bg-white border-b-2 border-blue-600 focus:outline-none'
-                      : 'flex-1 py-3 px-4 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none'
+                      ? 'relative flex-1 py-3 px-4 text-sm font-medium text-blue-700 bg-white border-b-2 border-blue-600 focus:outline-none'
+                      : 'relative flex-1 py-3 px-4 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none'
                   }
                 >
-                  <span className="flex items-center justify-center">
+                  <span className="flex items-center justify-center w-full">
                     <span className="mr-2">{tab.icon}</span>
                     {tab.label}
+                    <span
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleInfoModal(tab.key);
+                      }}
+                      className="ml-2 p-1 rounded-full hover:bg-blue-100 hover:text-blue-600 transition-colors cursor-pointer"
+                      title={`Learn about ${tab.label}`}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          toggleInfoModal(tab.key);
+                        }
+                      }}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </span>
                   </span>
                 </Tab>
               ))}
@@ -1003,6 +1036,730 @@ const ForecastPage = () => {
               </TabPanel>
             </TabPanels>
           </TabGroup>
+        </div>
+      )}
+
+      {/* Info Modals for Each Tab */}
+      {/* Summary Info Modal */}
+      {showInfoModals.summary && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">📋</span>
+                  Forecast Summary - How It Works
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('summary')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-2">🎯 What is the Summary Tab?</h4>
+                  <p className="text-blue-700">The Summary tab provides a high-level overview of your forecast results, including key metrics, risk distributions, and accuracy indicators for all precincts and crime types.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">📊 Key Metrics Displayed</h4>
+                    <ul className="text-green-700 space-y-1">
+                      <li>• <strong>Total Predicted Cases:</strong> Sum across all precincts/crime types</li>
+                      <li>• <strong>Average Confidence:</strong> Mean prediction reliability</li>
+                      <li>• <strong>Risk Distribution:</strong> Breakdown by Low/Medium/High/Critical</li>
+                      <li>• <strong>Trend Analysis:</strong> Increasing/Decreasing/Stable patterns</li>
+                      <li>• <strong>Top Risk Areas:</strong> Precincts requiring immediate attention</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-orange-800 mb-2">🔍 How Risk Levels Are Calculated</h4>
+                    <ul className="text-orange-700 space-y-1">
+                      <li>• <strong>Dynamic Thresholds:</strong> Based on data distribution percentiles</li>
+                      <li>• <strong>25th Percentile:</strong> Low risk threshold</li>
+                      <li>• <strong>75th Percentile:</strong> Medium→High risk threshold</li>
+                      <li>• <strong>90th Percentile:</strong> High→Critical risk threshold</li>
+                      <li>• <strong>Confidence Weighting:</strong> Lower confidence = higher risk adjustment</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-purple-800 mb-2">⚡ Quick Actions Available</h4>
+                  <ul className="text-purple-700 space-y-1">
+                    <li>• <strong>Export Data:</strong> Download forecast results as CSV/Excel</li>
+                    <li>• <strong>Filter Results:</strong> Focus on specific precincts, crime types, or risk levels</li>
+                    <li>• <strong>Drill Down:</strong> Click on any metric to see detailed breakdowns</li>
+                    <li>• <strong>Compare Periods:</strong> View month-by-month predictions</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  💡 <strong>Pro Tip:</strong> Use the Summary tab first to get an overall understanding of your forecast, then dive into specific tabs for detailed analysis of areas showing high risk levels.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Time Series Info Modal */}
+      {showInfoModals.timeseries && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">📈</span>
+                  Time Series Analysis - Temporal Patterns
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('timeseries')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-2">📈 What is Time Series Analysis?</h4>
+                  <p className="text-blue-700">Time series analysis shows how crime patterns change over time, helping you identify seasonal trends, cyclical patterns, and long-term trajectories for better resource planning.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">📊 Chart Components</h4>
+                    <ul className="text-green-700 space-y-1">
+                      <li>• <strong>Historical Line:</strong> Past crime data (solid blue line)</li>
+                      <li>• <strong>Forecast Line:</strong> Predicted future values (dashed red line)</li>
+                      <li>• <strong>Confidence Bands:</strong> Gray shaded areas showing uncertainty</li>
+                      <li>• <strong>Trend Line:</strong> Overall directional movement</li>
+                      <li>• <strong>Seasonal Patterns:</strong> Recurring monthly/yearly cycles</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-orange-800 mb-2">🔄 Prediction Models Used</h4>
+                    <ul className="text-orange-700 space-y-1">
+                      <li>• <strong>Linear Regression:</strong> Basic trend extrapolation</li>
+                      <li>• <strong>Polynomial:</strong> Captures curved trends and accelerations</li>
+                      <li>• <strong>Seasonal ARIMA:</strong> Accounts for cyclical patterns</li>
+                      <li>• <strong>Weighted Recent:</strong> Emphasizes more recent data</li>
+                      <li>• <strong>Ensemble:</strong> Combines multiple models for accuracy</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-yellow-800 mb-2">🎯 How to Interpret Charts</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-yellow-700">
+                    <div>
+                      <h5 className="font-medium mb-1">Trend Patterns:</h5>
+                      <ul className="space-y-1">
+                        <li>• <strong>Upward slope:</strong> Increasing crime trend</li>
+                        <li>• <strong>Downward slope:</strong> Decreasing crime trend</li>
+                        <li>• <strong>Flat line:</strong> Stable crime levels</li>
+                        <li>• <strong>Zigzag pattern:</strong> Volatile/unpredictable</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1">Confidence Indicators:</h5>
+                      <ul className="space-y-1">
+                        <li>• <strong>Narrow bands:</strong> High prediction confidence</li>
+                        <li>• <strong>Wide bands:</strong> High uncertainty</li>
+                        <li>• <strong>Growing bands:</strong> Uncertainty increases over time</li>
+                        <li>• <strong>R² Score:</strong> Model accuracy (closer to 1.0 = better)</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-purple-800 mb-2">🛠️ Interactive Features</h4>
+                  <ul className="text-purple-700 space-y-1">
+                    <li>• <strong>Zoom & Pan:</strong> Focus on specific time periods</li>
+                    <li>• <strong>Toggle Lines:</strong> Show/hide historical vs forecast data</li>
+                    <li>• <strong>Hover Details:</strong> Get exact values for any point</li>
+                    <li>• <strong>Export Chart:</strong> Download as image or data file</li>
+                    <li>• <strong>Filter by:</strong> Precinct, crime type, confidence level</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  💡 <strong>Pro Tip:</strong> Look for seasonal patterns (crime spikes during certain months) and use confidence bands to assess prediction reliability. Wide bands suggest more uncertainty.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trend Analysis Info Modal */}
+      {showInfoModals.trends && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">📊</span>
+                  Trend Analysis - Pattern Recognition
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('trends')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-2">📊 What is Trend Analysis?</h4>
+                  <p className="text-blue-700">Trend analysis identifies directional changes in crime patterns, helping you understand whether crime is increasing, decreasing, or remaining stable across different dimensions.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-red-800 mb-2">📈 Increasing Trends</h4>
+                    <ul className="text-red-700 space-y-1">
+                      <li>• Rising crime rates</li>
+                      <li>• Requires immediate attention</li>
+                      <li>• Higher resource allocation needed</li>
+                      <li>• Preventive measures urgent</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-yellow-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-yellow-800 mb-2">➡️ Stable Trends</h4>
+                    <ul className="text-yellow-700 space-y-1">
+                      <li>• Consistent crime levels</li>
+                      <li>• Maintain current strategies</li>
+                      <li>• Monitor for changes</li>
+                      <li>• Balanced resource distribution</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">📉 Decreasing Trends</h4>
+                    <ul className="text-green-700 space-y-1">
+                      <li>• Declining crime rates</li>
+                      <li>• Strategies working effectively</li>
+                      <li>• Resource reallocation opportunity</li>
+                      <li>• Continue successful approaches</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-purple-800 mb-2">🔬 Trend Calculation Methods</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-purple-700">
+                    <div>
+                      <h5 className="font-medium mb-1">Statistical Methods:</h5>
+                      <ul className="space-y-1">
+                        <li>• <strong>Linear Regression:</strong> Overall slope direction</li>
+                        <li>• <strong>Moving Averages:</strong> Smoothed trend lines</li>
+                        <li>• <strong>Seasonal Decomposition:</strong> Trend vs seasonal effects</li>
+                        <li>• <strong>Mann-Kendall Test:</strong> Statistical significance</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1">Confidence Metrics:</h5>
+                      <ul className="space-y-1">
+                        <li>• <strong>R-squared:</strong> How well trend explains data</li>
+                        <li>• <strong>P-value:</strong> Statistical significance</li>
+                        <li>• <strong>Confidence Interval:</strong> Range of likely values</li>
+                        <li>• <strong>Trend Strength:</strong> Rate of change per month</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-orange-800 mb-2">🎯 Actionable Insights</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-orange-700">
+                    <div>
+                      <h5 className="font-medium mb-1">For Increasing Trends:</h5>
+                      <ul className="space-y-1">
+                        <li>• Increase patrol frequency</li>
+                        <li>• Deploy additional officers</li>
+                        <li>• Implement prevention programs</li>
+                        <li>• Analyze root causes</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1">For Decreasing Trends:</h5>
+                      <ul className="space-y-1">
+                        <li>• Document successful strategies</li>
+                        <li>• Maintain current approaches</li>
+                        <li>• Consider resource reallocation</li>
+                        <li>• Share best practices</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  💡 <strong>Pro Tip:</strong> Pay special attention to precincts with increasing trends and high confidence scores - these areas need immediate intervention and increased resource allocation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Risk Heatmap Info Modal */}
+      {showInfoModals.heatmap && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">🔥</span>
+                  Risk Heatmap - Spatial Risk Visualization
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('heatmap')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-2">🔥 What is Risk Heatmap?</h4>
+                  <p className="text-blue-700">The Risk Heatmap provides a visual representation of crime risk levels across precincts and crime types, using color intensity to show areas requiring immediate attention.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-red-800 mb-2">🎨 Color Coding System</h4>
+                    <ul className="text-red-700 space-y-1">
+                      <li>• <span className="inline-block w-4 h-4 bg-red-600 rounded mr-2"></span><strong>Dark Red:</strong> Critical risk (&gt;90th percentile)</li>
+                      <li>• <span className="inline-block w-4 h-4 bg-orange-500 rounded mr-2"></span><strong>Orange:</strong> High risk (75-90th percentile)</li>
+                      <li>• <span className="inline-block w-4 h-4 bg-yellow-500 rounded mr-2"></span><strong>Yellow:</strong> Medium risk (25-75th percentile)</li>
+                      <li>• <span className="inline-block w-4 h-4 bg-green-500 rounded mr-2"></span><strong>Green:</strong> Low risk (&lt;25th percentile)</li>
+                      <li>• <span className="inline-block w-4 h-4 bg-gray-300 rounded mr-2"></span><strong>Gray:</strong> No data available</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-purple-800 mb-2">🔍 Risk Calculation Formula</h4>
+                    <ul className="text-purple-700 space-y-1">
+                      <li>• <strong>Base Risk:</strong> Predicted count / Historical average</li>
+                      <li>• <strong>Confidence Weight:</strong> Lower confidence = Higher risk</li>
+                      <li>• <strong>Trend Factor:</strong> Increasing trends boost risk</li>
+                      <li>• <strong>Seasonal Adjustment:</strong> Account for time-of-year patterns</li>
+                      <li>• <strong>Dynamic Thresholds:</strong> Percentile-based cutoffs</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-yellow-800 mb-2">📈 How to Read the Heatmap</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-yellow-700">
+                    <div>
+                      <h5 className="font-medium mb-1">Rows (Precincts):</h5>
+                      <ul className="space-y-1">
+                        <li>• Each row represents a police precinct</li>
+                        <li>• Look for rows with many red/orange cells</li>
+                        <li>• These precincts need immediate attention</li>
+                        <li>• Green rows indicate lower overall risk</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1">Columns (Crime Types):</h5>
+                      <ul className="space-y-1">
+                        <li>• Each column represents a crime type</li>
+                        <li>• Look for columns with many red/orange cells</li>
+                        <li>• These crime types are trending upward</li>
+                        <li>• Patterns reveal city-wide crime trends</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-green-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-green-800 mb-2">🎯 Strategic Applications</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-green-700">
+                    <div>
+                      <h5 className="font-medium mb-1">Resource Allocation:</h5>
+                      <ul className="space-y-1">
+                        <li>• Deploy more officers to red/orange areas</li>
+                        <li>• Reduce resources in consistently green areas</li>
+                        <li>• Plan patrol routes based on risk patterns</li>
+                        <li>• Schedule shifts during high-risk periods</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1">Prevention Programs:</h5>
+                      <ul className="space-y-1">
+                        <li>• Target community programs to hot spots</li>
+                        <li>• Focus crime prevention on specific types</li>
+                        <li>• Coordinate with other agencies</li>
+                        <li>• Monitor intervention effectiveness</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  💡 <strong>Pro Tip:</strong> Focus on the darkest red cells first - these represent the highest risk combinations of precinct and crime type that need immediate intervention.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Manpower Allocation Info Modal */}
+      {showInfoModals.manpower && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">👮</span>
+                  Manpower Allocation - Resource Optimization
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('manpower')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-2">👮 What is Manpower Allocation?</h4>
+                  <p className="text-blue-700">This section provides data-driven recommendations for optimal officer deployment based on forecast risk levels, current allocations, and historical effectiveness patterns.</p>
+                </div>
+                
+                <div className="bg-orange-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-orange-800 mb-2">📊 Risk Level Determination (Alabang Example)</h4>
+                  <div className="text-orange-700">
+                    <p className="mb-2"><strong>Why was Alabang deemed LOW risk?</strong></p>
+                    <ul className="space-y-1">
+                      <li>• <strong>Risk Distribution:</strong> 0 Critical (0%), 0 High (0%), 2 Medium (22.2%), 7 Low (77.8%)</li>
+                      <li>• <strong>Majority Rule:</strong> 77.8% of forecast periods show LOW risk</li>
+                      <li>• <strong>Forecast vs Historical:</strong> Predicted count is 172 vs historical average</li>
+                      <li>• <strong>Dynamic Thresholds:</strong> Based on 25th percentile cutoff</li>
+                      <li>• <strong>Confidence Factor:</strong> High confidence predictions carry more weight</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">📊 Current vs Recommended</h4>
+                    <ul className="text-green-700 space-y-1">
+                      <li>• <strong>Current Allocation:</strong> From live precinct data</li>
+                      <li>• <strong>Recommended:</strong> Based on risk assessment</li>
+                      <li>• <strong>Change %:</strong> Adjustment needed</li>
+                      <li>• <strong>Justification:</strong> Detailed explanation with calculations</li>
+                      <li>• <strong>Shift Analysis:</strong> Time-of-day breakdowns</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-purple-800 mb-2">🔄 Dynamic Factors</h4>
+                    <ul className="text-purple-700 space-y-1">
+                      <li>• <strong>Monthly Variations:</strong> Crime patterns by month</li>
+                      <li>• <strong>Yearly Growth:</strong> Long-term trend adjustments</li>
+                      <li>• <strong>Seasonal Patterns:</strong> Weather/holiday effects</li>
+                      <li>• <strong>Risk Multipliers:</strong> Low=0.8x, High=1.5x, Critical=2.0x</li>
+                      <li>• <strong>Confidence Weighting:</strong> Uncertainty adjustments</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-yellow-800 mb-2">🕰️ Shift-Based Analysis</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-yellow-700">
+                    <div>
+                      <h5 className="font-medium">Morning (6 AM-2 PM):</h5>
+                      <ul>
+                        <li>• Business hours crimes</li>
+                        <li>• Theft, fraud patterns</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium">Evening (2 PM-10 PM):</h5>
+                      <ul>
+                        <li>• Rush hour incidents</li>
+                        <li>• Public space crimes</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium">Night (10 PM-6 AM):</h5>
+                      <ul>
+                        <li>• Higher risk period</li>
+                        <li>• Violent crimes peak</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-red-800 mb-2">⚠️ Action Required Indicators</h4>
+                  <ul className="text-red-700 space-y-1">
+                    <li>• <strong>Red Change %:</strong> &gt;+10% increase needed immediately</li>
+                    <li>• <strong>Critical Risk:</strong> Multiple high-risk forecast periods</li>
+                    <li>• <strong>Increasing Trends:</strong> Upward crime trajectory</li>
+                    <li>• <strong>Low Coverage:</strong> Insufficient 24/7 staffing</li>
+                    <li>• <strong>High Confidence:</strong> Reliable predictions requiring action</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  💡 <strong>Pro Tip:</strong> The detailed risk calculations show why each precinct gets its risk level. Low risk (like Alabang) means most forecast periods predict stable/decreasing crime, allowing resource reallocation.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Forecast Map Info Modal */}
+      {showInfoModals.map && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">🗺️</span>
+                  Forecast Map - Geographic Risk Distribution
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('map')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-2">🗺️ What is the Forecast Map?</h4>
+                  <p className="text-blue-700">The Forecast Map visualizes predicted crime hotspots geographically, showing where crimes are most likely to occur and helping you plan patrol routes and resource deployment.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-red-800 mb-2">📍 Map Markers Explained</h4>
+                    <ul className="text-red-700 space-y-1">
+                      <li>• <strong>Red Circles:</strong> Critical risk areas (immediate attention)</li>
+                      <li>• <strong>Orange Circles:</strong> High risk zones (increased patrols)</li>
+                      <li>• <strong>Yellow Circles:</strong> Medium risk areas (regular monitoring)</li>
+                      <li>• <strong>Green Circles:</strong> Low risk zones (minimal resources)</li>
+                      <li>• <strong>Circle Size:</strong> Predicted crime volume</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">🔍 Data Reliability Filter</h4>
+                    <ul className="text-green-700 space-y-1">
+                      <li>• <strong>High Confidence:</strong> Only reliable predictions shown</li>
+                      <li>• <strong>Geographic Accuracy:</strong> Precise location mapping</li>
+                      <li>• <strong>Historical Validation:</strong> Based on past crime locations</li>
+                      <li>• <strong>Pattern Recognition:</strong> Recurring hotspot identification</li>
+                      <li>• <strong>Quality Threshold:</strong> Minimum reliability requirements</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-purple-800 mb-2">🛠️ Interactive Features</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-purple-700">
+                    <div>
+                      <h5 className="font-medium mb-1">Map Controls:</h5>
+                      <ul className="space-y-1">
+                        <li>• <strong>Zoom In/Out:</strong> Focus on specific areas</li>
+                        <li>• <strong>Pan & Drag:</strong> Navigate across the city</li>
+                        <li>• <strong>Layer Toggle:</strong> Show/hide different data</li>
+                        <li>• <strong>Marker Clustering:</strong> Group nearby predictions</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1">Click Actions:</h5>
+                      <ul className="space-y-1">
+                        <li>• <strong>Marker Details:</strong> View prediction specifics</li>
+                        <li>• <strong>Confidence Score:</strong> Reliability percentage</li>
+                        <li>• <strong>Crime Type:</strong> Specific offense predicted</li>
+                        <li>• <strong>Time Period:</strong> When crime is expected</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-yellow-800 mb-2">🎯 Strategic Applications</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-yellow-700">
+                    <div>
+                      <h5 className="font-medium mb-1">Patrol Planning:</h5>
+                      <ul className="space-y-1">
+                        <li>• Route optimization based on hotspots</li>
+                        <li>• Timing patrols during high-risk periods</li>
+                        <li>• Coordinating multi-precinct responses</li>
+                        <li>• Positioning quick response units</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1">Prevention Strategies:</h5>
+                      <ul>
+                        <li>• Community outreach in hotspots</li>
+                        <li>• Environmental crime prevention</li>
+                        <li>• Business partnership programs</li>
+                        <li>• Public awareness campaigns</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  💡 <strong>Pro Tip:</strong> Use the map to identify geographic crime clusters and plan patrol routes that efficiently cover multiple high-risk areas in a single route.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Documentation Info Modal */}
+      {showInfoModals.documentation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">📚</span>
+                  Documentation - Technical References
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('documentation')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-4 text-sm">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-blue-800 mb-2">📚 What is Documentation?</h4>
+                  <p className="text-blue-700">The Documentation tab provides comprehensive technical details about data sources, algorithms, statistical methods, and system architecture used in the forecasting process.</p>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">📊 Data & Methodology</h4>
+                    <ul className="text-green-700 space-y-1">
+                      <li>• <strong>Data Sources:</strong> Historical crime databases</li>
+                      <li>• <strong>Processing Pipeline:</strong> Cleaning and validation steps</li>
+                      <li>• <strong>Statistical Models:</strong> Algorithms and parameters</li>
+                      <li>• <strong>Validation Methods:</strong> Accuracy testing approaches</li>
+                      <li>• <strong>Confidence Calculation:</strong> Reliability metrics</li>
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-orange-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-orange-800 mb-2">🔬 Technical Details</h4>
+                    <ul className="text-orange-700 space-y-1">
+                      <li>• <strong>Model Performance:</strong> R² scores, RMSE values</li>
+                      <li>• <strong>Cross-Validation:</strong> Out-of-sample testing</li>
+                      <li>• <strong>Feature Engineering:</strong> Variable transformations</li>
+                      <li>• <strong>Hyperparameters:</strong> Model configuration details</li>
+                      <li>• <strong>API Specifications:</strong> Integration documentation</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-purple-800 mb-2">📈 Quality Metrics</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-purple-700">
+                    <div>
+                      <h5 className="font-medium mb-1">Accuracy Measures:</h5>
+                      <ul className="space-y-1">
+                        <li>• <strong>Mean Absolute Error:</strong> Average prediction error</li>
+                        <li>• <strong>Root Mean Square Error:</strong> Standard deviation of errors</li>
+                        <li>• <strong>Mean Absolute Percentage Error:</strong> Relative accuracy</li>
+                        <li>• <strong>R-squared:</strong> Variance explained by model</li>
+                      </ul>
+                    </div>
+                    <div>
+                      <h5 className="font-medium mb-1">Reliability Indicators:</h5>
+                      <ul className="space-y-1">
+                        <li>• <strong>Confidence Intervals:</strong> Prediction uncertainty</li>
+                        <li>• <strong>P-values:</strong> Statistical significance</li>
+                        <li>• <strong>Cross-validation Score:</strong> Generalization ability</li>
+                        <li>• <strong>Feature Importance:</strong> Variable contributions</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-yellow-800 mb-2">🛠️ System Architecture</h4>
+                  <ul className="text-yellow-700 space-y-1">
+                    <li>• <strong>Frontend:</strong> React/Next.js with TypeScript</li>
+                    <li>• <strong>Backend:</strong> .NET Core API with Entity Framework</li>
+                    <li>• <strong>Database:</strong> SQL Server with optimized queries</li>
+                    <li>• <strong>ML Pipeline:</strong> Python scikit-learn models</li>
+                    <li>• <strong>Visualization:</strong> Chart.js and Leaflet maps</li>
+                    <li>• <strong>Security:</strong> JWT authentication and role-based access</li>
+                  </ul>
+                </div>
+                
+                <div className="bg-red-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-red-800 mb-2">🔍 Who Should Use Documentation?</h4>
+                  <ul className="text-red-700 space-y-1">
+                    <li>• <strong>Data Scientists:</strong> Understanding model internals</li>
+                    <li>• <strong>IT Administrators:</strong> System maintenance and updates</li>
+                    <li>• <strong>Auditors:</strong> Compliance and accuracy verification</li>
+                    <li>• <strong>Researchers:</strong> Methodology validation and improvement</li>
+                    <li>• <strong>Managers:</strong> Understanding system capabilities and limitations</li>
+                  </ul>
+                </div>
+              </div>
+              
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  💡 <strong>Pro Tip:</strong> Check the Documentation tab to understand model performance metrics and validate that the system meets your accuracy requirements for operational use.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

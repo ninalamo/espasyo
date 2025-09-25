@@ -4,34 +4,64 @@
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5041/api';
 
+// Shift mapping constants
+export const SHIFT_MAPPING = {
+  'Morning': 0,
+  'Evening': 1,
+  'Night': 2
+} as const;
+
+export const REVERSE_SHIFT_MAPPING = {
+  0: 'Morning',
+  1: 'Evening', 
+  2: 'Night'
+} as const;
+
+export type ShiftName = keyof typeof SHIFT_MAPPING;
+export type ShiftNumber = typeof SHIFT_MAPPING[ShiftName];
+
 export interface ManpowerAllocation {
   id: string;
-  precinct: string;
-  precinctName: string;
-  officerCount: number;
+  precinctId: string;
+  precinct?: string; // For backward compatibility
+  precinctName?: string;
+  headCount: number; // Backend uses headCount
+  officerCount?: number; // For backward compatibility
   shift?: string;
-  allocatedCount: number;
-  mildThreshold: number;
-  moderateThreshold: number;
-  criticalThreshold: number;
-  createdAt: string;
-  updatedAt: string;
+  allocatedCount?: number; // For backward compatibility
+  lastUpdated: string;
+  createdAt?: string; // For backward compatibility
+  updatedAt?: string; // For backward compatibility
   // Calculated fields for display
   efficiency?: number;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
   trend?: 'increasing' | 'decreasing' | 'stable';
+  // Client-side fields for shift management
+  isClientShift?: boolean; // Indicates if this is a client-managed shift allocation
+  originalPrecinctName?: string; // Store original precinct name before shift modification
 }
 
 export interface CreateManpowerRequest {
-  precinct: string;
-  officerCount: number;
+  precinctId: string;
+  headCount: number;
   shift?: string;
 }
 
 export interface UpdateManpowerRequest {
-  precinct?: string;
-  officerCount?: number;
+  precinctId?: string;
+  headCount?: number;
   shift?: string;
+}
+
+export interface UpsertManpowerRequest {
+  precinctId: string;
+  shift: number; // 0 = Morning, 1 = Evening, 2 = Night
+  headCount: number;
+}
+
+export interface UpsertManpowerResponse {
+  id: string;
+  message: string;
 }
 
 class ManpowerApiService {
@@ -96,8 +126,8 @@ class ManpowerApiService {
   /**
    * Get all available precincts
    */
-  async getPrecincts(): Promise<Array<{ value: number; name: string }>> {
-    return this.fetchApi<Array<{ value: number; name: string }>>('/manpower/precincts');
+  async getPrecincts(): Promise<Array<{ id: string; name: string; code: string }>> {
+    return this.fetchApi<Array<{ id: string; name: string; code: string }>>('/manpower/precincts');
   }
 
   /**
@@ -114,6 +144,77 @@ class ManpowerApiService {
     }>;
   }> {
     return this.fetchApi(`/manpower/summary/${year}`);
+  }
+
+  /**
+   * Upsert manpower allocation using the new backend endpoint
+   * This method creates or updates based on precinct + shift combination
+   */
+  async upsertManpower(data: UpsertManpowerRequest): Promise<UpsertManpowerResponse> {
+    return this.fetchApi<UpsertManpowerResponse>('/manpower/upsert', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * Helper method to convert string shift to number for upsert
+   */
+  convertShiftToNumber(shiftName: string): number {
+    const normalizedShift = shiftName as ShiftName;
+    return SHIFT_MAPPING[normalizedShift] ?? 0; // Default to Morning if unknown
+  }
+
+  /**
+   * Helper method to convert number shift to string for display
+   */
+  convertShiftToString(shiftNumber: number): string {
+    return REVERSE_SHIFT_MAPPING[shiftNumber as ShiftNumber] ?? 'Morning';
+  }
+
+  /**
+   * Create or update manpower allocation with shift support (using new upsert endpoint)
+   */
+  async createOrUpdateManpowerWithShift(data: CreateManpowerRequest): Promise<UpsertManpowerResponse> {
+    const shiftNumber = this.convertShiftToNumber(data.shift || 'Morning');
+    
+    const upsertData: UpsertManpowerRequest = {
+      precinctId: data.precinctId,
+      shift: shiftNumber,
+      headCount: data.headCount
+    };
+    
+    return this.upsertManpower(upsertData);
+  }
+
+  /**
+   * Get all manpower allocations (now properly supports multiple shifts per precinct)
+   */
+  async getAllManpowerWithShifts(): Promise<ManpowerAllocation[]> {
+    const allocations = await this.getAllManpower();
+    
+    // Convert numeric shifts to string representation for display
+    return allocations.map(allocation => {
+      // If shift is numeric, convert to string
+      if (typeof allocation.shift === 'number') {
+        allocation.shift = this.convertShiftToString(allocation.shift);
+      }
+      return allocation;
+    });
+  }
+
+  /**
+   * Get available shifts from the API
+   */
+  async getShifts(): Promise<Array<{ id: number; name: string; description: string }>> {
+    return this.fetchApi<Array<{ id: number; name: string; description: string }>>('/manpower/shifts');
+  }
+
+  /**
+   * Get manpower allocations by precinct ID
+   */
+  async getManpowerByPrecinct(precinctId: string): Promise<ManpowerAllocation[]> {
+    return this.fetchApi<ManpowerAllocation[]>(`/manpower/precinct/${precinctId}`);
   }
 }
 
