@@ -37,9 +37,11 @@ interface Props {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
   params: ForecastParams;
+  /** The model actually used for this forecast run, set by the parent after API success/fallback. */
+  activeModelLabel?: string;
 }
 
-const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params }) => {
+const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params, activeModelLabel }) => {
   const [isContainerReady, setIsContainerReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -213,7 +215,7 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
       },
       title: {
         display: true,
-        text: `Crime Forecast Time Series (${params.model.toUpperCase()} Model)`,
+        text: `Crime Forecast Time Series — ${activeModelLabel || params.model.toUpperCase()}`,
         font: {
           size: 16,
           weight: 'bold' as const,

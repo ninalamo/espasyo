@@ -14,11 +14,22 @@ interface ForecastData {
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
 }
 
-interface Props {
-  forecastData: ForecastData[];
+interface DataQuality {
+  isValid: boolean;
+  dataPoints: number;
+  outlierCount: number;
+  outlierPercentage: number;
+  issues: string[];
+  recommendations: string[];
 }
 
-const RiskHeatmap: React.FC<Props> = ({ forecastData }) => {
+interface Props {
+  forecastData: ForecastData[];
+  /** Real data quality assessment from the backend. Null if not yet fetched. */
+  dataQuality: DataQuality | null;
+}
+
+const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
   const heatmapData = useMemo(() => {
     if (forecastData.length === 0) return null;
 
@@ -473,44 +484,66 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData }) => {
             </div>
           </div>
           
-          {/* Quality Indicators */}
+          {/* Quality Indicators — driven by the backend AssessDataQuality result */}
           <div className="bg-white p-4 rounded border">
             <h4 className="font-medium text-green-700 mb-3">Quality Indicators</h4>
-            <div className="space-y-2 text-sm text-green-800">
-              <div className="flex items-center justify-between">
-                <span>Data Integrity:</span>
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Verified</span>
+            {dataQuality === null ? (
+              <p className="text-sm text-gray-400 italic">
+                Assessment unavailable — re-generate the forecast to fetch quality metrics.
+              </p>
+            ) : (
+              <div className="space-y-2 text-sm text-green-800">
+                {/* Data Integrity: valid = no issues reported by the backend */}
+                <div className="flex items-center justify-between">
+                  <span>Data Integrity:</span>
+                  <div className="flex items-center">
+                    {dataQuality.isValid ? (
+                      <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-red-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    )}
+                    <span className="font-semibold">{dataQuality.isValid ? 'Valid' : 'Issues Found'}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Outlier Detection:</span>
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Clean</span>
+                {/* Outlier rate — green if ≤10%, warning above */}
+                <div className="flex items-center justify-between">
+                  <span>Outlier Rate:</span>
+                  <div className="flex items-center">
+                    {dataQuality.outlierPercentage <= 10 ? (
+                      <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    ) : (
+                      <svg className="w-4 h-4 text-yellow-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01" />
+                      </svg>
+                    )}
+                    <span className="font-semibold">
+                      {dataQuality.outlierPercentage.toFixed(1)}% ({dataQuality.outlierCount} pts)
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Range Validation:</span>
-                <div className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Valid</span>
+                {/* Avg confidence across all forecast points */}
+                <div className="flex justify-between">
+                  <span>Avg Confidence:</span>
+                  <span className="font-semibold">
+                    {(forecastData.reduce((sum, f) => sum + f.confidence, 0) / Math.max(1, forecastData.length) * 100).toFixed(0)}%
+                  </span>
                 </div>
+                {/* Surface any backend-reported issues */}
+                {dataQuality.issues.length > 0 && (
+                  <div className="pt-2 border-t border-green-100">
+                    {dataQuality.issues.map((issue, i) => (
+                      <p key={i} className="text-xs text-yellow-700">⚠ {issue}</p>
+                    ))}
+                  </div>
+                )}
               </div>
-              <div className="flex justify-between">
-                <span>Avg Confidence:</span>
-                <span className="font-semibold">
-                  {(forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length * 100).toFixed(0)}%
-                </span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

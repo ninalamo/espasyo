@@ -83,6 +83,17 @@ const ForecastPage = () => {
   const [selectedTab, setSelectedTab] = useState(0);
   const [analysisLoaded, setAnalysisLoaded] = useState(false);
   const [manpowerSettings, setManpowerSettings] = useState<ManpowerAllocation>(DEFAULT_MANPOWER_ALLOCATION);
+  // Tracks what model was actually used for the last forecast run (SSA via API, or a local fallback)
+  const [activeModelLabel, setActiveModelLabel] = useState<string>('');
+  // Real data quality assessment from the backend, used in the RiskHeatmap quality indicators
+  const [dataQuality, setDataQuality] = useState<{
+    isValid: boolean;
+    dataPoints: number;
+    outlierCount: number;
+    outlierPercentage: number;
+    issues: string[];
+    recommendations: string[];
+  } | null>(null);
   
   // Filtering state
   const [forecastFilters, setForecastFilters] = useState<ForecastFilterState>(initialForecastFilterState);
@@ -300,11 +311,26 @@ const ForecastPage = () => {
 
     setLoading(true);
     setForecastData([]);
+    setDataQuality(null);
 
     try {
       // Process clustering data into historical patterns
       const processedData = processClusterData(clusters);
       setHistoricalData(processedData);
+
+      // Fetch real data quality assessment from the backend
+      try {
+        const clusterGroupsForQuality = convertHistoricalDataToClusters(clusters, processedData);
+        const qualityResponse = await apiService.post('/incident/forecast/assess-data-quality', {
+          clusterData: clusterGroupsForQuality
+        }) as any;
+        if (qualityResponse && typeof qualityResponse.isValid !== 'undefined') {
+          setDataQuality(qualityResponse);
+        }
+      } catch (qualityErr) {
+        console.warn('Data quality assessment unavailable:', qualityErr);
+        // Non-critical — RiskHeatmap will show a graceful fallback
+      }
 
       // Call statistical forecasting API
       const predictions = await callStatisticalForecastingAPI(processedData, forecastParams);
@@ -362,6 +388,7 @@ const ForecastPage = () => {
       const response = await apiService.post('/incident/forecast/statistical', requestData) as any;
       
       if (response && response.series) {
+        setActiveModelLabel('SSA (ML.NET)');
         toast.success('Generated reliable statistical forecasts using ML.NET');
         return processMLNetForecastResponse(response, params);
       } else {
@@ -370,6 +397,7 @@ const ForecastPage = () => {
       
     } catch (error) {
       console.warn('ML.NET forecasting failed, using fallback:', error);
+      setActiveModelLabel(`${params.model.toUpperCase()} (local fallback)`);
       toast.warning('Using local forecasting methods as fallback');
       return generatePredictions(historicalData, params, manpowerSettings);
     }
@@ -545,7 +573,8 @@ const ForecastPage = () => {
             predictedCount = calculateSeasonalForecast(groupData, month);
             break;
           case 'arima':
-            predictedCount = calculateSimpleARIMA(groupData, monthOffset);
+            // Using SES instead of ARIMA for the fallback as it is mathematically sounder without random jitter
+            predictedCount = calculateExponentialSmoothing(groupData, monthOffset);
             break;
           default:
             predictedCount = calculateLinearTrend(groupData, monthOffset);
@@ -660,28 +689,24 @@ const ForecastPage = () => {
     return seasonalBase * recentTrend;
   };
 
-  // Simple ARIMA-like calculation
-  const calculateSimpleARIMA = (data: HistoricalData[], monthsAhead: number): number => {
-    if (data.length < 4) return calculateLinearTrend(data, monthsAhead);
+  // Simple Exponential Smoothing (SES) fallback
+  const calculateExponentialSmoothing = (data: HistoricalData[], monthsAhead: number): number => {
+    if (data.length < 2) return calculateLinearTrend(data, monthsAhead);
 
-    const recent = data.slice(-6);
-    const weights = [0.4, 0.25, 0.15, 0.1, 0.07, 0.03]; // More weight to recent data
-    
-    let weightedSum = 0;
-    let totalWeight = 0;
+    const alpha = 0.3; // Smoothing factor (between 0 and 1)
+    let smoothedValue = data[0].count; // Initial level
 
-    recent.forEach((point, index) => {
-      const weight = weights[index] || 0.01;
-      weightedSum += point.count * weight;
-      totalWeight += weight;
-    });
+    // Calculate exponentially smoothed level
+    for (let i = 1; i < data.length; i++) {
+      smoothedValue = alpha * data[i].count + (1 - alpha) * smoothedValue;
+    }
 
-    const baseValue = weightedSum / totalWeight;
+    // For simple exponential smoothing, the forecast is just the last smoothed value (flat forecast).
+    // To add a trend component (Holt's Linear Trend), we can incorporate a trend factor here, 
+    // but for fallback simplicity, we'll return the smoothed level adjusted lightly by the overall linear trend.
+    const overallTrend = calculateLinearTrend(data, 1) - calculateLinearTrend(data, 0);
     
-    // Add random walk component (simplified)
-    const randomComponent = (Math.random() - 0.5) * 0.2 * baseValue;
-    
-    return Math.max(0, baseValue + randomComponent);
+    return Math.max(0, smoothedValue + (overallTrend * monthsAhead * 0.1)); // Conservative trend application
   };
 
   // Convert historical data back to cluster format for API
@@ -1158,6 +1183,7 @@ const ForecastPage = () => {
                   historicalData={historicalData}
                   forecastData={getFilteredForecastData()}
                   params={forecastParams}
+                  activeModelLabel={activeModelLabel}
                 />
               </TabPanel>
               
@@ -1171,6 +1197,7 @@ const ForecastPage = () => {
               <TabPanel className="p-6">
                 <RiskHeatmap 
                   forecastData={getFilteredForecastData()}
+                  dataQuality={dataQuality}
                 />
               </TabPanel>
               
