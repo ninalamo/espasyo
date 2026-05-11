@@ -48,178 +48,85 @@ Espasyo is a full-stack Crime Data Analysis System. The architecture is divided 
 For detailed backend ML implementation, refer to the `nin-architecture/architecture.md` file in the `nin-architecture` repository.
 
 ---
-## Backend Refinements for `second-space` Branch
+## Phase 1 Backend Implementation (`second-space-backend` branch)
 
-The following changes are recommended for the backend (`D:\hobby\nin-architecture`, branch `second-space-backend`) to support the Phase 1 & 2 front-end enhancements. The repo uses **Clean Architecture** with **CQRS (MediatR)**, **ML.NET SSA forecasting**, and a **dual SQLite/SQL Server** database.
+All changes live in `D:\hobby\nin-architecture`, branch `second-space-backend` (4 commits, pushed).
 
-### Current Backend State
-- **Forecasting**: `MachineLearningService.cs` (1125 lines) — SSA via `ForecastBySsa`, plus linear/seasonal fallbacks. No forecast persistence (computed on-the-fly).
-- **Data Quality Assessment**: Exists at `POST /forecast/assess-data-quality` — IQR outlier detection, temporal coverage checks, returns `DataQualityAssessment`.
-- **Forecast Validation**: Exists at `POST /forecast/validate` — hold-out validation with MAPE, requires 24+ months.
-- **K-Means Clustering**: `PUT /grouped-clusters` — enriched output with precinct/crime-type/month metadata.
-- **Manpower ML**: 3-model pipeline (complexity → workload → optimization) in `MLManpowerAllocationService.cs`.
-- **Precinct Boundaries**: GeoJSON files exist in `espasyo_console/JsonFiles/` (Alabang, Ayala_Alabang, Bayanan, Buli, Cupang, Poblacion, Putatan, Sucat, Tunasan).
-- **Branch**: `second-space-backend` already exists, identical to `master`.
+### B4 — Precinct Street Lists ✅
 
-### B1 — Persist Forecast Runs (Domain + Application + Infrastructure)
+**Note**: `espasyo_console/JsonFiles/` contain street name lists, not polygon GeoJSON. The endpoint serves street data.
 
-**Why**: Currently forecasts are computed on-the-fly and never stored. DB persistence enables history comparison, accuracy tracking (B2), and retrieval.
+| File | Purpose |
+|------|---------|
+| `espasyo.WebAPI/Controllers/PrecinctsController.cs` | `GET /api/precincts/streets` — all 9 precincts with street names |
+| | `GET /api/precincts/{code}/streets` — single precinct (e.g., `ALB`, `AAL`, `SUC`) |
+| `espasyo.WebAPI/Data/Streets/*.json` | 9 street list JSON files copied from `espasyo_console/JsonFiles/` |
+| `espasyo.WebAPI/espasyo.WebAPI.csproj` | Content items marked `CopyToOutputDirectory: PreserveNewest` |
 
-**New Domain Entity** (`espasyo.Domain/Entities/`):
+### B1 — ForecastRun + ForecastResult Persistence ✅
+
+| Layer | Files |
+|-------|-------|
+| **Domain** | `Entities/ForecastRun.cs`, `Entities/ForecastResult.cs` |
+| **Domain** | `Enums/ForecastModelTypeEnum.cs` (SSA, Linear, Seasonal, Ensemble) |
+| **Domain** | `Enums/ForecastStatusEnum.cs` (Draft, Completed, Failed, Archived) |
+| **Infrastructure** | `Data/Configurations/ForecastRunConfiguration.cs` (FK→Precinct) |
+| **Infrastructure** | `Data/Configurations/ForecastResultConfiguration.cs` (FK→ForecastRun, cascade) |
+| **Infrastructure** | `Data/Repositories/ForecastRepository.cs` (SQL Server) |
+| **Infrastructure** | `Data/Repositories/Sqlite/SqliteForecastRepository.cs` (SQLite) |
+| **Infrastructure** | `Data/ApplicationDbContext.cs` — added `DbSet<ForecastRun>`, `DbSet<ForecastResult>` |
+| **Infrastructure** | `Data/SqliteApplicationDbContext.cs` — same + DateTimeOffset conversion for `RunAt` |
+| **Infrastructure** | `InfrastructureDependencyInjection.cs` — registered `IForecastRepository` |
+| **Infrastructure** | `SqliteInfrastructureDependencyInjection.cs` — registered `SqliteForecastRepository` |
+| **Application** | `Interfaces/IForecastRepository.cs` — `SaveForecastRunAsync`, `GetForecastRunsAsync`, etc. |
+| **Application** | `UseCase/ForecastRuns/Commands/SaveForecastRun/SaveForecastRunCommand.cs` — runs forecast via `IMachineLearningService` + persists run + results |
+| **Application** | `UseCase/ForecastRuns/Queries/GetForecastRuns/GetForecastRunsQuery.cs` — paginated list |
+| **Application** | `UseCase/ForecastRuns/Queries/GetForecastResults/GetForecastResultsQuery.cs` — results for a run |
+| **WebAPI** | `Controllers/ForecastRunController.cs` |
+| **Endpoints** | `POST /api/forecastrun` — run + save forecast |
+| | `GET /api/forecastrun` — list past runs |
+| | `GET /api/forecastrun/{id}/results` — get results |
+
+### B2 — Forecast Evaluation (Actual vs Predicted) ✅
+
+| File | Purpose |
+|------|---------|
+| `UseCase/ForecastRuns/Queries/EvaluateForecastRun/EvaluateForecastRunQuery.cs` | Compares `ForecastResult` values against actual `Incident` counts from DB |
+| `ForecastRunController.cs` (extended) | `GET /api/forecastrun/{id}/evaluate` |
+
+**Output**: MAE, RMSE, MAPE, per-comparison details, warnings for unreliable comparisons (>25% error) and sparse data.
+
+### B3 — Backend Ensemble Model ✅
+
+| File | Change |
+|------|--------|
+| `MachineLearningService.cs` | Added `GenerateEnsembleForecast()` — runs SSA, seasonal, linear, averages forecasts per month |
+| | Added `"ensemble"` case to `GenerateForecastForSeries` switch |
+| | Uses min lower bound / max upper bound across models |
+| | Dominant trend + risk level by majority vote |
+| | Falls back to linear if all models fail |
+
+### B7 — User Forecast Preferences ✅
+
+| File | Purpose |
+|------|---------|
+| `Domain/Entities/UserForecastPreference.cs` | Entity with `UserId`, `DefaultHorizon`, `DefaultModelType`, `ShowEnsembleView`, `ShowHotspotTimeline`, `EnabledTimeAnimation`, `PreferredTopN` |
+| `Data/Configurations/UserForecastPreferenceConfiguration.cs` | Unique index on `UserId`, default values |
+| Both `DbContext` files | Added `DbSet<UserForecastPreference>` |
+| `Controllers/ForecastPreferencesController.cs` | `GET /api/forecast/preferences/{userId}`, `PUT /api/forecast/preferences/{userId}` |
+
+### Pending (lower priority, documented for reference)
+
+- **B5** — Anomaly detection in forecast response (use existing IQR logic in `AssessDataQuality`)
+- **B6** — Scheduled forecast generation via `IHostedService`
+
+### Migration Commands (run when .NET SDK is available)
+
+```powershell
+# SQLite
+cd D:\hobby\nin-architecture
+dotnet ef migrations add AddForecastPersistence --project espasyo.Infrastructure --startup-project espasyo.WebAPI --context SqliteApplicationDbContext --output-dir Data/Migrations/Sqlite
+
+# SQL Server
+dotnet ef migrations add AddForecastPersistence --project espasyo.Infrastructure --startup-project espasyo.WebAPI --context ApplicationDbContext
 ```
-ForecastRun: BaseEntity
-├── Id: Guid
-├── GeneratedAt: DateTimeOffset
-├── Horizon: int (months ahead)
-├── ModelType: string ("SSA" | "Linear" | "Seasonal" | "Ensemble")
-├── ConfidenceLevel: double
-├── Status: string ("Completed" | "Failed")
-├── TotalPredictions: int
-├── ParametersJson: string? (serialized parameters for reproducibility)
-└── Results: ICollection<ForecastResult>
-
-ForecastResult: BaseEntity
-├── Id: Guid
-├── ForecastRunId: Guid (FK → ForecastRun)
-├── PrecinctId: Guid (FK → Precinct)
-├── CrimeType: CrimeTypeEnum
-├── Month: int
-├── Year: int
-├── PredictedCount: int
-├── Confidence: double
-├── Trend: string
-├── RiskLevel: string
-├── ActualCount: int? (nullable, filled when real data arrives)
-└── ModelName: string (which model generated this)
-```
-
-**New Use Cases** (`espasyo.Application/UseCase/ForecastRun/`):
-| Command/Query | Handler |
-|---|---|
-| `CreateForecastRunCommand` | Calls existing `GenerateStatisticalForecast`, saves results to DB |
-| `GetForecastRunHistoryQuery` | Returns paginated list of past runs |
-| `GetForecastRunByIdQuery` | Returns single run with all results |
-| `UpdateForecastActualsCommand` | Submits actual counts for comparison |
-
-**New Controller or extend** `IncidentController`:
-```
-GET    /api/incident/forecast/runs       → GetForecastRunHistoryQuery
-GET    /api/incident/forecast/runs/{id}  → GetForecastRunByIdQuery
-POST   /api/incident/forecast/run        → CreateForecastRunCommand
-POST   /api/incident/forecast/runs/{id}/actuals → UpdateForecastActualsCommand
-```
-
-### B2 — Forecast Evaluation (Leverages Existing Validation)
-
-**Why**: Front-end Accuracy Tracker needs "last forecast was X% accurate". Backend already has `POST /forecast/validate` with hold-out MAPE.
-
-**Extend** `GetForecastRunByIdQuery` response to include:
-```csharp
-public class ForecastRunEvaluation {
-    double? Mape;
-    double? Rmse;
-    double? Mae;
-    int ActualsAvailable;     // count of results with ActualCount filled
-    int TotalPredictions;
-    Dictionary<string, double> PerPrecinctMape;   // breakdown
-    Dictionary<string, double> PerCrimeTypeMape;
-}
-```
-Computed by comparing `ForecastResult.PredictedCount` vs `ForecastResult.ActualCount` for entries where `ActualCount != null`.
-
-### B3 — Backend Ensemble Model (MachineLearningService Enhancement)
-
-**Current**: SSA only. Front-end already runs 4 local models for the ensemble heat grid.
-
-**Proposed**: Add an `Ensemble` model type to `GenerateStatisticalForecast`:
-- Run SSA, Linear, Seasonal simultaneously
-- Return all three prediction sets + ensemble average + agreement score
-- New response field: `AlternativeModelRuns: [{ ModelName, Series: [...] }]`
-- Agreement score: percentage of models agreeing on trend direction per month
-
-**Changes needed**:
-- `MachineLearningService.cs`: Add `GenerateEnsembleForecast()` method that calls `GenerateForecastForSeries` with each model type, then aggregates
-- `StatisticalForecastRequest`: Add `GenerateEnsemble: bool` flag
-- `ForecastResponse`: Add `AlternativeModelRuns` list + `EnsembleAgreement` score
-
-### B4 — Geospatial Precinct Boundaries
-
-**Current**: Front-end uses hardcoded centroids in `forecastEnhancements.ts:226`. Backend has GeoJSON files in `espasyo_console/JsonFiles/`.
-
-**Proposed**: Serve boundary GeoJSON through the API:
-```
-GET /api/precincts/geojson → FeatureCollection of precinct polygons
-```
-- Load the 9 existing GeoJSON files from `espasyo_console/JsonFiles/`
-- Embed as embedded resources or serve from a static endpoint
-- Precinct ID matches the `Precinct.Id` in the DB (use the same GUIDs from seed data)
-
-**Why**: Accurate polygon rendering on the Leaflet map instead of approximate circle markers improves:
-- Hotspot boundary clarity in Forecast Map
-- Area-based risk coloring instead of point clustering
-- Better visual communication to Muntinlupa LGU stakeholders
-
-### B5 — Anomaly Detection in Forecast Response
-
-**Current**: `MachineLearningService.cs` already has IQR-based outlier detection in `AssessDataQuality`.
-
-**Extend** `GenerateStatisticalForecast` to flag anomalous predictions in the response:
-```
-ForecastResponse.Anomalies: List<ForecastAnomaly>
-├── PrecinctId
-├── CrimeType
-├── Month/Year
-├── PredictedCount
-├── DeviationScore (how many std deviations from historical mean)
-└── Explanation
-```
-
-**Why**: Front-end Ensemble View can highlight anomalies as "model disagreement points" where predictions deviate significantly from historical patterns.
-
-### B6 — Scheduled Forecast Generation (Background Job)
-
-**Infrastructure pattern**: Use `IHostedService` or `Quartz.NET` in the WebAPI project.
-
-**Trigger**: Configurable cron schedule (e.g., nightly at 2 AM, or on new incident ingest).
-
-**Process**:
-1. Query recent incidents (last 24+ months)
-2. Run clustering → grouped-clusters
-3. Run statistical forecast
-4. Save as `ForecastRun` via B1 use case
-5. Optional: Notify via polling endpoint `GET /api/forecast/latest-run` — front-end checks and shows badge
-
-### B7 — User Forecast Preferences
-
-**New Entity**:
-```
-UserForecastPreference
-├── Id: Guid
-├── UserId: string (ASP.NET Identity User ID)
-├── ForecastPeriod: int = 6
-├── ConfidenceLevel: double = 0.95
-├── ModelType: string = "ssa"
-├── RiskThresholdLow: double = 0.8
-├── RiskThresholdMedium: double = 1.2
-├── RiskThresholdHigh: double = 1.5
-├── IncludeSeasonality: bool = true
-├── WeightRecentData: bool = true
-├── BaseManpower: int = 25
-└── UpdatedAt: DateTimeOffset
-```
-
-**Endpoints**:
-```
-GET  /api/user/forecast-preferences → UserForecastPreference (or defaults)
-PUT  /api/user/forecast-preferences → Update preferences
-```
-
-### Implementation Order
-
-| Phase | Items | Depends On |
-|---|---|---|
-| Phase A | B4 (GeoJSON endpoint) | None — standalone, high impact for map |
-| Phase B | B1 (ForecastRun persistence) | New entity + migration |
-| Phase C | B2 (Evaluation) + B7 (Preferences) | B1 |
-| Phase D | B3 (Ensemble) | B1 |
-| Phase E | B5 (Anomaly flags) + B6 (Scheduled) | B1, B3 |
