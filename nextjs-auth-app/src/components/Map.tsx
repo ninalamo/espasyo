@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
@@ -16,18 +16,22 @@ interface MapProps {
   clusterColorsMapping: Record<number, string>;
 }
 
+type ViewMode = 'points' | 'heatmap' | 'both';
+
 const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const heatLayersRef = useRef<L.LayerGroup | null>(null);
   const envelopeLayersRef = useRef<L.LayerGroup | null>(null);
+  const precinctLayerRef = useRef<L.GeoJSON | null>(null);
 
   const crimeTypeEnum = CrimeTypesDictionary;
 
-  const [showPoints, setShowPoints] = useState(true);
-  const [showHeat, setShowHeat] = useState(true);
+  const [viewMode, setViewMode] = useState<ViewMode>('both');
   const [showEnvelope, setShowEnvelope] = useState(true);
+  const [showPrecincts, setShowPrecincts] = useState(false);
+
   const [stepwise, setStepwise] = useState(false);
   const [play, setPlay] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
@@ -40,6 +44,10 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     clusterId: number;
     items: Cluster['clusterItems'];
   } | null>(null);
+
+  const [compareMode, setCompareMode] = useState(false);
+  const [periodAYears, setPeriodAYears] = useState<number[]>([]);
+  const [periodBYears, setPeriodBYears] = useState<number[]>([]);
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -60,7 +68,15 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   useEffect(() => {
     let filtered = clusters;
 
-    if (stepwise && uniqueSteps.length > 0) {
+    if (compareMode) {
+      filtered = filtered.map(c => ({
+        ...c,
+        clusterItems: c.clusterItems.filter(i =>
+          (periodAYears.length === 0 && periodBYears.length === 0) ||
+          periodAYears.includes(i.year) || periodBYears.includes(i.year)
+        )
+      })).filter(c => c.clusterItems.length > 0);
+    } else if (stepwise && uniqueSteps.length > 0) {
       const [y, m] = uniqueSteps[currentStep].split('-').map(Number);
       filtered = filtered.map(c => ({
         ...c,
@@ -81,7 +97,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     }
 
     setFilteredClusters(filtered);
-  }, [clusters, stepwise, currentStep, selectedMonths, selectedYears, selectedCrimeTypes]);
+  }, [clusters, stepwise, currentStep, selectedMonths, selectedYears, selectedCrimeTypes, compareMode, periodAYears, periodBYears]);
 
   useEffect(() => {
     if (play && stepwise && uniqueSteps.length > 0) {
@@ -94,10 +110,42 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     return () => clearInterval(intervalRef.current!);
   }, [play, stepwise]);
 
+  const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    if (!mapReady || !leafletMap.current) return;
+    fetch('/data/precincts.geojson')
+      .then(res => res.json())
+      .then(data => {
+        precinctLayerRef.current = L.geoJSON(data, {
+          style: () => ({
+            color: '#2c3e50',
+            weight: 1.5,
+            fillColor: '#3498db',
+            fillOpacity: 0.08
+          }),
+          onEachFeature: (feature, layer) => {
+            layer.bindTooltip(feature.properties.name, { sticky: true });
+          }
+        });
+      })
+      .catch(() => {
+      });
+  }, [mapReady]);
+
+  useEffect(() => {
+    if (!precinctLayerRef.current || !leafletMap.current) return;
+    if (showPrecincts) {
+      leafletMap.current.addLayer(precinctLayerRef.current);
+    } else {
+      leafletMap.current.removeLayer(precinctLayerRef.current);
+    }
+  }, [showPrecincts, mapReady]);
+
   useEffect(() => {
     if (!mapRef.current) return;
 
-    if (!mapRef.current || !leafletMap.current) {
+    if (!leafletMap.current) {
       leafletMap.current = L.map(mapRef.current).setView(center, zoom);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors"
@@ -105,11 +153,15 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       markersLayerRef.current = L.layerGroup().addTo(leafletMap.current);
       heatLayersRef.current = L.layerGroup().addTo(leafletMap.current);
       envelopeLayersRef.current = L.layerGroup().addTo(leafletMap.current);
+      setMapReady(true);
     }
 
     markersLayerRef.current?.clearLayers();
     heatLayersRef.current?.clearLayers();
     envelopeLayersRef.current?.clearLayers();
+
+    const showPointsLayer = viewMode === 'points' || viewMode === 'both';
+    const showHeatLayer = viewMode === 'heatmap' || viewMode === 'both';
 
     filteredClusters.forEach(cluster => {
       const clusterColor = clusterColorsMapping[cluster.clusterId] || "#D3D3D3";
@@ -124,7 +176,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         L.polygon(latLngs, { stroke: false, fillColor: clusterColor, fillOpacity: 0.3 }).addTo(envelopeLayersRef.current!);
       }
 
-      if (showHeat && cluster.clusterItems.length > 3) {
+      if (showHeatLayer && cluster.clusterItems.length > 3) {
         const heatData = cluster.clusterItems.map(i => [i.latitude, i.longitude, 1]);
         const heatLayer = (L as any).heatLayer(heatData, {
           radius: 25, blur: 20, maxZoom: zoom,
@@ -136,26 +188,51 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         heatLayersRef.current!.addLayer(heatLayer);
       }
 
-      if (showPoints) {
+      if (showPointsLayer) {
         const markerMap: Record<string, L.CircleMarker> = {};
         cluster.clusterItems.forEach(item => {
           const key = `${item.latitude.toFixed(6)}_${item.longitude.toFixed(6)}`;
           if (!markerMap[key]) {
+            const isPeriodB = compareMode && periodBYears.includes(item.year);
+            const markerColor = isPeriodB ? '#E74C3C' : clusterColor;
             const marker = L.circleMarker([item.latitude, item.longitude], {
-              color: "#AAA",
+              color: isPeriodB ? '#C0392B' : "#AAA",
               weight: 1,
-              fillColor: clusterColor,
+              fillColor: markerColor,
               fillOpacity: 0.8,
-              radius: 5
+              radius: isPeriodB ? 6 : 5
             }).addTo(markersLayerRef.current!);
 
-            // Attach click handler to open modal with all items at that point
+            const allItems = cluster.clusterItems.filter(
+              i =>
+                i.latitude.toFixed(6) === item.latitude.toFixed(6) &&
+                i.longitude.toFixed(6) === item.longitude.toFixed(6)
+            );
+
+            const crimeBreakdown = allItems.reduce<Record<string, number>>((acc, i) => {
+              const label = crimeTypeEnum[i.crimeType] || `Type ${i.crimeType}`;
+              acc[label] = (acc[label] || 0) + 1;
+              return acc;
+            }, {});
+
+            const popupLines = [
+              `<b>${allItems.length} incident${allItems.length > 1 ? 's' : ''} at this location</b>`,
+              ...Object.entries(crimeBreakdown)
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 5)
+                .map(([label, count]) => `${label}: ${count}`),
+              allItems.length > 1
+                ? `<span style="font-size:0.85em;color:#666">Earliest: ${Math.min(...allItems.map(i => i.year))}-${Math.min(...allItems.map(i => i.month)).toString().padStart(2, '0')}</span>`
+                : '',
+              allItems.length > 1
+                ? `<span style="font-size:0.85em;color:#666">Latest: ${Math.max(...allItems.map(i => i.year))}-${Math.max(...allItems.map(i => i.month)).toString().padStart(2, '0')}</span>`
+                : '',
+              '<span style="font-size:0.85em;color:#3498db">Click for details</span>'
+            ].filter(s => s !== '').join('<br>');
+
+            marker.bindPopup(popupLines);
+
             marker.on('click', () => {
-              const allItems = cluster.clusterItems.filter(
-                i =>
-                  i.latitude.toFixed(6) === item.latitude.toFixed(6) &&
-                  i.longitude.toFixed(6) === item.longitude.toFixed(6)
-              );
               setModalCases({
                 lat: item.latitude,
                 lng: item.longitude,
@@ -166,37 +243,66 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
             markerMap[key] = marker;
           }
-
-
         });
       }
     });
-  }, [filteredClusters, center, zoom, showPoints, showHeat, showEnvelope]);
+  }, [filteredClusters, center, zoom, viewMode, showEnvelope, compareMode, periodBYears]);
+
+  const handleCompareToggle = useCallback(() => {
+    if (!compareMode) {
+      const sortedYears = [...uniqueYears];
+      const mid = Math.floor(sortedYears.length / 2);
+      setPeriodAYears(sortedYears.slice(0, mid));
+      setPeriodBYears(sortedYears.slice(mid));
+    } else {
+      setPeriodAYears([]);
+      setPeriodBYears([]);
+    }
+    setCompareMode(!compareMode);
+  }, [compareMode, uniqueYears]);
 
   return (
     <div className="space-y-4">
       {clusters && clusters.length > 0 ? (
         <>
-          {/* Layer Controls Row */}
           <div className="flex flex-wrap items-center gap-4 border border-gray-200 p-3 rounded bg-white shadow-sm">
-            {[
-              { label: "Show Points", state: showPoints, setState: setShowPoints },
-              { label: "Show Heatmap", state: showHeat, setState: setShowHeat },
-              { label: "Show Envelope", state: showEnvelope, setState: setShowEnvelope }
-            ].map(({ label, state, setState }) => (
-              <label key={label} className="flex items-center gap-2 text-sm">
+            <span className="text-sm font-semibold text-gray-700">View:</span>
+            {(['points', 'heatmap', 'both'] as ViewMode[]).map(mode => (
+              <label key={mode} className="flex items-center gap-1 text-sm cursor-pointer">
                 <input
-                  type="checkbox"
-                  checked={state}
-                  onChange={e => setState(e.target.checked)}
+                  type="radio"
+                  name="viewMode"
+                  checked={viewMode === mode}
+                  onChange={() => setViewMode(mode)}
                   className="accent-blue-600"
                 />
-                {label}
+                {mode === 'points' ? 'Points' : mode === 'heatmap' ? 'Heatmap' : 'Both'}
               </label>
             ))}
 
-            {/* Float to right */}
-            <div className="ml-auto">
+            <div className="w-px h-5 bg-gray-300" />
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={showEnvelope}
+                onChange={e => setShowEnvelope(e.target.checked)}
+                className="accent-blue-600"
+              />
+              Envelope
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={showPrecincts}
+                onChange={e => setShowPrecincts(e.target.checked)}
+                className="accent-blue-600"
+              />
+              Precincts
+            </label>
+
+            <div className="ml-auto flex items-center gap-3">
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -207,13 +313,65 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                   }}
                   className="accent-blue-600"
                 />
-                Toggle Heat Map Trends
+                Trends
+              </label>
+
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={compareMode}
+                  onChange={handleCompareToggle}
+                  className="accent-purple-600"
+                />
+                Compare
               </label>
             </div>
           </div>
 
+          {compareMode && (
+            <fieldset className="border p-3 rounded shadow-sm bg-white space-y-2">
+              <legend className="text-sm font-semibold mb-1">Compare Periods</legend>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <span className="text-xs font-medium text-blue-700">Period A (Blue)</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {uniqueYears.map(y => (
+                      <button
+                        key={y}
+                        onClick={() =>
+                          setPeriodAYears(prev =>
+                            prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]
+                          )
+                        }
+                        className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-blue-600 text-white' : ''}`}
+                      >
+                        {y}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <span className="text-xs font-medium text-red-700">Period B (Red)</span>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {uniqueYears.map(y => (
+                      <button
+                        key={y}
+                        onClick={() =>
+                          setPeriodBYears(prev =>
+                            prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]
+                          )
+                        }
+                        className={`px-2 py-0.5 border rounded text-xs ${periodBYears.includes(y) ? 'bg-red-600 text-white' : ''}`}
+                      >
+                        {y}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </fieldset>
+          )}
 
-          {/* Step-wise Controls */}
           {stepwise && (
             <fieldset className="border p-3 rounded shadow-sm bg-white space-y-2">
               <legend className="text-sm font-semibold mb-2">Trends Playback</legend>
@@ -239,7 +397,6 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                   </button>
                 </div>
 
-                {/* Format current step as "Month: MMM-yyyy" */}
                 <div className="ml-auto flex items-center gap-2">
                   <span className="text-sm text-gray-600 font-medium">Month:</span>
                   <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold shadow-sm">
@@ -257,9 +414,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             </fieldset>
           )}
 
-
-          {/* Month and Year Filters */}
-          {!stepwise && (
+          {!stepwise && !compareMode && (
             <fieldset className="border px-3 pt-0 pb-3 rounded shadow-sm bg-white space-y-4">
               <legend className="text-sm font-semibold mb-1">Filter by Month and Year</legend>
               <p className="text-xs text-gray-500 italic">
@@ -310,7 +465,6 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             </fieldset>
           )}
 
-          {/* Crime Type Filter */}
           <fieldset className="border p-3 rounded shadow-sm bg-white">
             <legend className="text-sm font-semibold mb-2">Filter by Crime Type</legend>
             <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">
@@ -335,24 +489,22 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             </div>
           </fieldset>
 
-          {/* Reset Button */}
-          { !stepwise && (
-          <div className="flex justify-end">
-            <button
-              onClick={() => {
-                setSelectedMonths([]);
-                setSelectedYears([]);
-                setSelectedCrimeTypes([]);
-              }}
-              title="Reset filters to show all results without filtering"
-              className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-sm rounded shadow"
-            >
-              🔄 Reset
-            </button>
-          </div>
+          {!stepwise && !compareMode && (
+            <div className="flex justify-end">
+              <button
+                onClick={() => {
+                  setSelectedMonths([]);
+                  setSelectedYears([]);
+                  setSelectedCrimeTypes([]);
+                }}
+                title="Reset filters to show all results without filtering"
+                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-sm rounded shadow"
+              >
+                Reset
+              </button>
+            </div>
           )}
 
-          {/* Map */}
           <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} />
           {modalCases && (
             <MapModal
