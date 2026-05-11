@@ -34,6 +34,16 @@ import SimpleForecastMap from '../../components/SimpleForecastMap';
 import ManpowerAllocationComponent from './ManpowerAllocation';
 import ForecastDocumentation from './ForecastDocumentation';
 import ForecastFilters, { ForecastFilterState, initialForecastFilterState } from './ForecastFilters';
+import EnsembleView from './EnsembleView';
+import HotspotTimeline from './HotspotTimeline';
+import {
+  SingleModelRun,
+  EnsembleSummary,
+  EnsembleMonth,
+  MODEL_LABELS,
+  MODEL_COLORS
+} from '../../types/forecast/EnsembleTypes';
+import { runAllModels, computeConsensus } from '../../utils/forecastEnsemble';
 
 // TypeScript interfaces
 interface HistoricalData {
@@ -95,6 +105,10 @@ const ForecastPage = () => {
     recommendations: string[];
   } | null>(null);
   
+  // Ensemble forecast state
+  const [modelRuns, setModelRuns] = useState<SingleModelRun[]>([]);
+  const [ensembleSummary, setEnsembleSummary] = useState<EnsembleSummary | null>(null);
+  
   // Filtering state
   const [forecastFilters, setForecastFilters] = useState<ForecastFilterState>(initialForecastFilterState);
   const [filteredForecastData, setFilteredForecastData] = useState<ForecastData[]>([]);
@@ -107,6 +121,8 @@ const ForecastPage = () => {
     timeseries: false,
     trends: false,
     heatmap: false,
+    ensemble: false,
+    hotspots: false,
     manpower: false,
     map: false,
     documentation: false
@@ -317,6 +333,21 @@ const ForecastPage = () => {
       // Process clustering data into historical patterns
       const processedData = processClusterData(clusters);
       setHistoricalData(processedData);
+
+      // Run all 4 local models for ensemble view
+      const ensembleModelRuns = runAllModels(
+        processedData,
+        { forecastPeriod: forecastParams.forecastPeriod, includeSeasonality: true, weightRecentData: true },
+        manpowerSettings
+      );
+      setModelRuns(ensembleModelRuns);
+      const consensus = computeConsensus(ensembleModelRuns);
+      setEnsembleSummary(consensus);
+      console.log('🔀 Ensemble consensus computed:', {
+        models: ensembleModelRuns.length,
+        months: consensus.totalMonths,
+        overallAgreement: (consensus.overallAgreement * 100).toFixed(1) + '%'
+      });
 
       // Fetch real data quality assessment from the backend
       try {
@@ -1127,6 +1158,8 @@ const ForecastPage = () => {
                 { key: 'timeseries', label: 'Time Series', icon: '📈' },
                 { key: 'trends', label: 'Trend Analysis', icon: '📊' },
                 { key: 'heatmap', label: 'Risk Heatmap', icon: '🔥' },
+                { key: 'ensemble', label: 'Ensemble', icon: '🔀' },
+                { key: 'hotspots', label: 'Hotspots', icon: '🔥' },
                 { key: 'manpower', label: 'Manpower Allocation', icon: '👮' },
                 { key: 'map', label: 'Forecast Map', icon: '🗺️' },
                 { key: 'documentation', label: 'Documentation', icon: '📚' }
@@ -1198,6 +1231,19 @@ const ForecastPage = () => {
                 <RiskHeatmap 
                   forecastData={getFilteredForecastData()}
                   dataQuality={dataQuality}
+                />
+              </TabPanel>
+              
+              <TabPanel className="p-6">
+                <EnsembleView
+                  modelRuns={modelRuns}
+                  ensembleSummary={ensembleSummary ?? { totalMonths: 0, modelAgreementRates: {} as any, overallAgreement: 0, months: [], modelRunLabels: {} as any }}
+                />
+              </TabPanel>
+              
+              <TabPanel className="p-6">
+                <HotspotTimeline
+                  modelRuns={modelRuns}
                 />
               </TabPanel>
               
@@ -1618,6 +1664,112 @@ const ForecastPage = () => {
                 <p className="text-xs text-gray-600">
                   💡 <strong>Pro Tip:</strong> Focus on the darkest red cells first - these represent the highest risk combinations of precinct and crime type that need immediate intervention.
                 </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Ensemble Info Modal */}
+      {showInfoModals.ensemble && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">🔀</span>
+                  Ensemble Forecast - Multi-Model Consensus
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('ensemble')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-4 text-sm">
+                <div className="bg-indigo-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-indigo-800 mb-2">🔀 What is the Ensemble View?</h4>
+                  <p className="text-indigo-700">The Ensemble tab runs all 4 forecasting models simultaneously and shows how their predictions compare. This helps identify when models agree (high confidence) vs disagree (high uncertainty).</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">📊 The 4 Models</h4>
+                    <ul className="text-green-700 space-y-1">
+                      <li>• <strong>Linear (OLS):</strong> Straight-line trend extrapolation</li>
+                      <li>• <strong>Polynomial:</strong> Quadratic curve (acceleration/deceleration)</li>
+                      <li>• <strong>Seasonal:</strong> Historical monthly averages adjusted for recent trend</li>
+                      <li>• <strong>SES:</strong> Exponentially weighted recent observations</li>
+                    </ul>
+                  </div>
+                  <div className="bg-purple-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-purple-800 mb-2">📈 How to Interpret</h4>
+                    <ul className="text-purple-700 space-y-1">
+                      <li>• <strong>Green cells:</strong> Model near ensemble average</li>
+                      <li>• <strong>Orange/red cells:</strong> Model deviates significantly</li>
+                      <li>• <strong>Agreement %:</strong> Models agreeing on trend direction</li>
+                      <li>• <strong>Range column:</strong> Spread between lowest/highest predictions</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">💡 <strong>Pro Tip:</strong> When agreement is above 75%, the forecast is more reliable. When below 50%, consider the range of possibilities rather than relying on a single number.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hotspot Timeline Info Modal */}
+      {showInfoModals.hotspots && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <span className="mr-2">🔥</span>
+                  Hotspot Timeline - Rank Evolution
+                </h3>
+                <button 
+                  onClick={() => toggleInfoModal('hotspots')}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <div className="space-y-4 text-sm">
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="font-semibold text-purple-800 mb-2">🔥 What is the Hotspot Timeline?</h4>
+                  <p className="text-purple-700">This bump chart shows how precinct/crime-type hotspots change rank over the forecast period. Lines moving upward (lower rank number) indicate growing hotspots; lines moving downward indicate relative improvement.</p>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-red-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-red-800 mb-2">📈 Reading the Chart</h4>
+                    <ul className="text-red-700 space-y-1">
+                      <li>• <strong>Y-axis:</strong> Rank (1 = highest predicted count)</li>
+                      <li>• <strong>X-axis:</strong> Forecast months</li>
+                      <li>• <strong>Lines:</strong> Each precinct × crime type combination</li>
+                      <li>• <strong>Hover:</strong> See exact rank and predicted count</li>
+                    </ul>
+                  </div>
+                  <div className="bg-green-50 p-4 rounded-lg">
+                    <h4 className="font-semibold text-green-800 mb-2">🎯 Practical Use</h4>
+                    <ul className="text-green-700 space-y-1">
+                      <li>• Identify emerging hotspots before they become critical</li>
+                      <li>• Track if interventions are working (hotspot falling in rank)</li>
+                      <li>• Prioritize resources based on which areas are rising fastest</li>
+                      <li>• Communicate priorities visually to decision-makers</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-6 p-4 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">💡 <strong>Pro Tip:</strong> Rising hotspots (rank 10→3) need immediate attention. Focus on lines trending upward at the rightmost side of the chart.</p>
               </div>
             </div>
           </div>

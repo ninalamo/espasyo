@@ -588,7 +588,7 @@ const ManpowerAllocation: React.FC<Props> = ({
               <div className="text-yellow-700 space-y-1">
                 <p><strong>✅ What Changes with Filters:</strong></p>
                 <ul className="list-disc list-inside ml-2 space-y-0.5">
-                  <li><strong>Recommended Manpower:</strong> Recalculated based on filtered forecast data (e.g., "burglar only")</li>
+                  <li><strong>Recommended Manpower:</strong> Recalculated based on filtered forecast data (e.g., &quot;burglar only&quot;)</li>
                   <li><strong>Risk Assessments:</strong> Updated to reflect only the filtered crime types/periods</li>
                   <li><strong>Dynamic Thresholds:</strong> Adjusted based on filtered data distribution</li>
                   <li><strong>Justifications:</strong> Show reasoning based only on filtered forecasts</li>
@@ -596,7 +596,7 @@ const ManpowerAllocation: React.FC<Props> = ({
                 <p className="mt-2"><strong>🔒 What Stays the Same:</strong></p>
                 <ul className="list-disc list-inside ml-2 space-y-0.5">
                   <li><strong>Current Manpower:</strong> Real deployment data from API - not affected by analysis filters</li>
-                  <li><strong>Actual Officer Counts:</strong> Shows what's actually deployed regardless of which crimes you're analyzing</li>
+                  <li><strong>Actual Officer Counts:</strong> Shows what&apos;s actually deployed regardless of which crimes you&apos;re analyzing</li>
                 </ul>
                 <p className="mt-2 text-yellow-600 font-medium">💡 This design lets you see how different crime patterns would affect staffing needs while keeping real-world context.</p>
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
 import { CrimeTypesDictionary, GetPrecinctsDictionary } from '../../constants/consts';
@@ -21,6 +21,10 @@ interface ForecastMapProps {
   loading: boolean;
 }
 
+interface InterpolatedPoint extends ForecastMapPoint {
+  _isInterpolated?: boolean;
+}
+
 const ForecastMap: React.FC<ForecastMapProps> = ({ 
   center, 
   zoom, 
@@ -31,6 +35,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   const leafletMap = useRef<any>(null);
   const markersLayerRef = useRef<any>(null);
   const heatLayerRef = useRef<any>(null);
+  const animFrameRef = useRef<number | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [L, setL] = useState<any>(null);
 
@@ -39,14 +44,81 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   const [showPoints, setShowPoints] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [colorBy, setColorBy] = useState<'risk' | 'reliability' | 'timeOfDay'>('risk');
-  const [selectedTimeOfDay, setSelectedTimeOfDay] = useState<string[]>(['morning', 'afternoon', 'evening', 'night']);
   
   // Modal state for showing forecast details
   const [selectedPoint, setSelectedPoint] = useState<ForecastMapPoint | null>(null);
 
+  // Animation state
+  const [sliderValue, setSliderValue] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showAnimSlider, setShowAnimSlider] = useState(false);
+
+  // Compute sorted periods from forecast points
+  const sortedPeriods = useMemo(() => {
+    const periods = Array.from(new Set(forecastPoints.map(p => p.forecastPeriod)));
+    return periods.sort();
+  }, [forecastPoints]);
+
+  // Group points by period for interpolation
+  const pointsByPeriod = useMemo(() => {
+    const grouped: Record<string, ForecastMapPoint[]> = {};
+    forecastPoints.forEach(p => {
+      if (!grouped[p.forecastPeriod]) grouped[p.forecastPeriod] = [];
+      grouped[p.forecastPeriod].push(p);
+    });
+    return grouped;
+  }, [forecastPoints]);
+
+  // Compute interpolated points based on slider value
+  const interpolatedPoints = useMemo((): InterpolatedPoint[] => {
+    if (sortedPeriods.length === 0 || sliderValue < 0) return forecastPoints;
+    
+    const intPart = Math.floor(sliderValue);
+    const frac = sliderValue - intPart;
+    
+    if (intPart >= sortedPeriods.length - 1) {
+      return pointsByPeriod[sortedPeriods[sortedPeriods.length - 1]] || forecastPoints;
+    }
+    
+    if (frac === 0) {
+      return pointsByPeriod[sortedPeriods[intPart]] || forecastPoints;
+    }
+
+    const currentPeriod = sortedPeriods[intPart];
+    const nextPeriod = sortedPeriods[intPart + 1];
+    const currentPoints = pointsByPeriod[currentPeriod] || [];
+    const nextPoints = pointsByPeriod[nextPeriod] || [];
+
+    const nextMap = new Map(nextPoints.map(p => [`${p.precinct}-${p.crimeType}`, p]));
+
+    return currentPoints.map(point => {
+      const key = `${point.precinct}-${point.crimeType}`;
+      const nextPoint = nextMap.get(key);
+      
+      if (!nextPoint) return { ...point, _isInterpolated: true };
+
+      return {
+        ...point,
+        latitude: point.latitude + (nextPoint.latitude - point.latitude) * frac,
+        longitude: point.longitude + (nextPoint.longitude - point.longitude) * frac,
+        predictedCount: Math.round(point.predictedCount + (nextPoint.predictedCount - point.predictedCount) * frac),
+        forecastPeriod: `${currentPeriod}→${nextPeriod}`,
+        _isInterpolated: true,
+      };
+    });
+  }, [forecastPoints, sortedPeriods, pointsByPeriod, sliderValue]);
+
+  // Determine which points to display (normal or interpolated)
+  const displayPoints = useMemo(() => {
+    if (showAnimSlider && sortedPeriods.length > 0) {
+      return interpolatedPoints;
+    }
+    return forecastPoints;
+  }, [forecastPoints, interpolatedPoints, showAnimSlider, sortedPeriods]);
+
   // Filter forecast points based on current filters
   const filteredPoints = useMemo(() => {
-    return forecastPoints.filter(point => {
+    return displayPoints.filter(point => {
       // Reliability filter
       if (point.reliability < filters.minReliability || point.reliability > filters.maxReliability) {
         return false;
@@ -84,7 +156,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
       
       return true;
     });
-  }, [forecastPoints, filters]);
+  }, [displayPoints, filters]);
 
   // Calculate summary statistics
   const summary: MapForecastSummary = useMemo(() => {
@@ -129,7 +201,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   }, [filteredPoints]);
 
   // Get color for a point based on current color scheme
-  const getPointColor = (point: ForecastMapPoint): string => {
+  const getPointColor = useCallback((point: ForecastMapPoint): string => {
     switch (colorBy) {
       case 'risk':
         return RISK_LEVEL_COLORS[point.risk];
@@ -143,14 +215,14 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
       default:
         return RISK_LEVEL_COLORS[point.risk];
     }
-  };
+  }, [colorBy]);
 
   // Get radius for a point based on predicted count
-  const getPointRadius = (point: ForecastMapPoint): number => {
+  const getPointRadius = useCallback((point: ForecastMapPoint): number => {
     const baseRadius = 6;
     const scaleFactor = Math.log(Math.max(1, point.predictedCount)) * 2;
     return Math.min(baseRadius + scaleFactor, 20);
-  };
+  }, []);
 
   // Handle client-side mounting and dynamic import
   useEffect(() => {
@@ -264,12 +336,36 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
         markersLayerRef.current!.addLayer(marker);
       });
     }
-  }, [isClient, L, filteredPoints, showPoints, showHeatmap, colorBy, loading, getPointColor, zoom]);
+  }, [isClient, L, filteredPoints, showPoints, showHeatmap, colorBy, loading, getPointColor, getPointRadius, zoom]);
+
+  // Animation loop
+  useEffect(() => {
+    if (!isPlaying || sortedPeriods.length <= 1) return;
+
+    const animate = () => {
+      setSliderValue(prev => {
+        const next = prev + 0.02;
+        if (next >= sortedPeriods.length - 1) {
+          return 0;
+        }
+        return next;
+      });
+      animFrameRef.current = requestAnimationFrame(animate);
+    };
+
+    animFrameRef.current = requestAnimationFrame(animate);
+
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+    };
+  }, [isPlaying, sortedPeriods]);
 
   // Reset filters
   const resetFilters = () => {
     setFilters(DEFAULT_FORECAST_FILTERS);
-    setSelectedTimeOfDay(['morning', 'afternoon', 'evening', 'night']);
   };
 
   // Update filter function
@@ -505,6 +601,83 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Time Animation Slider */}
+      {sortedPeriods.length > 1 && (
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => {
+                  if (!showAnimSlider) {
+                    setShowAnimSlider(true);
+                    setSliderValue(0);
+                  }
+                  setIsPlaying(!isPlaying);
+                }}
+                className={`flex items-center px-3 py-1.5 rounded text-sm font-medium transition ${
+                  isPlaying 
+                    ? 'bg-red-100 text-red-700 border border-red-300' 
+                    : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
+                }`}
+                title={isPlaying ? 'Pause animation' : showAnimSlider ? 'Resume animation' : 'Start time animation'}
+              >
+                {isPlaying ? (
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6" />
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  </svg>
+                )}
+                {isPlaying ? 'Pause' : 'Play'}
+              </button>
+              <label className="flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={showAnimSlider}
+                  onChange={(e) => {
+                    setShowAnimSlider(e.target.checked);
+                    if (!e.target.checked) {
+                      setIsPlaying(false);
+                    } else {
+                      setSliderValue(0);
+                    }
+                  }}
+                  className="mr-2"
+                />
+                <span className="text-sm font-medium text-gray-700">Time Animation</span>
+              </label>
+            </div>
+            {showAnimSlider && (
+              <div className="text-sm font-medium text-gray-600">
+                {sortedPeriods[Math.floor(sliderValue)] || sortedPeriods[sortedPeriods.length - 1]}
+                {sliderValue % 1 > 0 && ` (interpolating to ${sortedPeriods[Math.min(Math.ceil(sliderValue), sortedPeriods.length - 1)] || ''})`}
+              </div>
+            )}
+          </div>
+          
+          {showAnimSlider && (
+            <div className="flex items-center space-x-3">
+              <span className="text-xs text-gray-500 w-16 text-right flex-shrink-0">{sortedPeriods[0]}</span>
+              <input
+                type="range"
+                min={0}
+                max={sortedPeriods.length - 1}
+                step={0.05}
+                value={sliderValue}
+                onChange={(e) => {
+                  setSliderValue(parseFloat(e.target.value));
+                  setIsPlaying(false);
+                }}
+                className="w-full"
+              />
+              <span className="text-xs text-gray-500 w-16 flex-shrink-0">{sortedPeriods[sortedPeriods.length - 1]}</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Map */}
       <div id="forecast-map" ref={mapRef} style={{ height: '500px', width: '100%' }} />
