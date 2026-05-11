@@ -10,7 +10,7 @@ interface CustomUser extends User {
 // Determine the API URL based on environment variables:
 // Always use NEXT_PUBLIC_API_URL if provided; otherwise fallback to local API.
 // Remove fallback to NEXTAUTH_URL to avoid misrouting to the frontend.
-const API_URL = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5041/api").replace(/\/$/, "")}/user`;
+const API_URL = `${(process.env.NEXT_PUBLIC_API_URL ?? "https://localhost:7007/api").replace(/\/$/, "")}/user`;
 
 
 

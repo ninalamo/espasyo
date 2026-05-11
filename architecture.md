@@ -319,5 +319,51 @@ dotnet ef migrations add <Name> --project espasyo.Infrastructure --startup-proje
 
 ---
 
+## Related Documents
+- `espasyo-review-plan.md` — Comprehensive review, gap analysis, and phased remediation plan
+- `nin-architecture/architecture.md` — Backend-specific architecture (mirrors this document)
+
+---
+
+## Known Gaps & Remediation Roadmap
+
+A full review was conducted on 2026-05-11 (`espasyo-review-plan.md`). Key findings:
+
+### Critical Gaps (P0 — must fix)
+
+1. **Disconnected Pipeline:** Analysis → Forecast → Manpower is manually chained via `localStorage`, not backend-orchestrated. No single endpoint connects all three stages.
+2. **Manpower ML Training Data Broken:** `MLManpowerAllocationService.GetHistoricalManpowerData` hardcodes `Barangay.Alabang` with zero-variance data, rendering the regression models untrustworthy.
+3. **Forecast Output Not Consumed by Manpower:** No code path feeds SSA forecast predictions into the manpower optimization service.
+4. **Dashboard Shows Raw Counts Without Context:** No baseline comparisons, trend indicators, or anomaly flags — data is not meaningful at face value.
+
+### High-Priority Gaps (P1)
+
+5. **Clustering Results Not Persisted:** Stored only in browser `localStorage`; no `AnalysisRun` entity or API endpoint.
+6. **Manpower Recommendations Not Persisted:** No `ManpowerRecommendation` entity — history lost on page refresh.
+7. **K-Means Underutilized:** No auto K-selection, no silhouette validation, cluster assignments not used by forecasting engine.
+8. **No Hotspot Prediction:** Forecast predicts counts, not locations. No predicted hotspot map exists.
+9. **No Anomaly Detection:** B5 documented but unimplemented.
+
+### Medium-Priority Gaps (P2)
+
+10. No background scheduled jobs (B6 — `IHostedService`)
+11. Redundant/misleading visualizations (`SimpleForecastMap.tsx`, `ScatterPlot.tsx`)
+12. Missing critical visualizations (precinct radar, seasonal decomposition, resource gap chart)
+13. No PDF report generation
+14. No role-based access control enforcement (types exist, not enforced)
+
+### Phase Plan
+
+| Phase | Focus | Timeline (est.) |
+|---|---|---|
+| P1: Data Infrastructure | Persist analysis runs, fix manpower training data, create entities | 10 days |
+| P2: Pipeline Integration | Pipeline orchestrator, connect forecast→manpower, fix K-Means | 15 days |
+| P3: Analytics & Visualization | Baseline comparisons, anomaly detection, dashboard redesign, hotspot maps | 20 days |
+| P4: Production Readiness | Background jobs, monitoring, testing, performance, RBAC | 15 days |
+
+**Full details:** `espasyo-review-plan.md`
+
+---
+
 ## Savepoint: 2026-05-11
-Last comprehensive review of both frontend (nextjs-auth-app) and backend (nin-architecture `second-space-backend` branch). All routes, components, controllers, and integration points documented above reflect the current state of both repositories.
+Last comprehensive review of both frontend (nextjs-auth-app) and backend (nin-architecture `second-space-backend` branch). All routes, components, controllers, and integration points documented above reflect the current state of both repositories. See `espasyo-review-plan.md` for full gap analysis and remediation roadmap.

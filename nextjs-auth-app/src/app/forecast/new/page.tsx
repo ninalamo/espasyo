@@ -13,6 +13,7 @@ import { DEFAULT_MANPOWER_ALLOCATION } from '../../../types/forecast/ExtendedFor
 import { format } from 'date-fns';
 import { apiService } from '../../api/utils/apiService';
 import { forecastApi, saveForecastToLocal } from '../../api/utils/forecastApi';
+import { getSession } from 'next-auth/react';
 import {
   processClusterData,
   convertHistoricalDataToClusters,
@@ -178,11 +179,14 @@ export default withAuth(function NewForecastPage() {
     const name = forecastName.trim() || `Forecast ${format(new Date(), 'yyyy-MM-dd HHmm')}`;
     setSaveLoading(true);
     try {
+      const session = await getSession();
       const snapshot = {
         name,
         forecastPeriod: forecastParams.forecastPeriod,
         params: forecastParams,
         predictions: forecastData,
+        clusterData: convertHistoricalDataToClusters(clusters, historicalData),
+        generatedById: session?.user?.id,
         historicalData,
         metadata: {
           totalClusters: clusters.length,

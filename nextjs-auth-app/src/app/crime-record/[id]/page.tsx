@@ -17,8 +17,17 @@ const CrimeDetailsPage = () => {
   useEffect(() => {
     if (id) {
       apiService
-        .get<CrimeDetailDto>(`/crimes/${id}`)
-        .then(setCrimeRecord)
+        .get<any>(`/incident/${id}`)
+        .then((data: any) => setCrimeRecord({
+          id: data.id,
+          caseId: data.caseId || '',
+          crimeType: data.crimeTypeText || '',
+          address: data.address || '',
+          severity: data.severityText || '',
+          dateTime: data.timeStamp ? new Date(data.timeStamp).toLocaleString() : '',
+          motive: data.motiveText || '',
+          status: '',
+        }))
         .catch(() => setError("Failed to load crime record"))
         .finally(() => setLoading(false));
     }
@@ -66,7 +75,7 @@ const CrimeDetailsPage = () => {
           <strong>Severity:</strong> {crimeRecord.severity}
         </p>
         <p className="text-lg">
-          <strong>Date & Time:</strong> {crimeRecord.datetime}
+          <strong>Date & Time:</strong> {crimeRecord.dateTime}
         </p>
         <p className="text-lg">
           <strong>Motive:</strong> {crimeRecord.motive}

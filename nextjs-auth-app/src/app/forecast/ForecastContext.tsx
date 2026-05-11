@@ -24,6 +24,7 @@ import {
 } from '../../utils/forecastEnhancements';
 import type { Cluster } from '../../types/analysis/ClusterDto';
 import { toast } from 'react-toastify';
+import { getSession } from 'next-auth/react';
 
 interface ForecastContextValue {
   loading: boolean;
@@ -222,11 +223,14 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
   const saveCurrentForecast = useCallback(async (name: string): Promise<string | null> => {
     try {
+      const session = await getSession();
       const snapshot = {
         name,
         forecastPeriod: forecastData.length > 0 ? new Date(Math.max(...forecastData.map(f => new Date(f.year, f.month).getTime()))).getMonth() - new Date().getMonth() + 1 : 6,
         params: { forecastPeriod: 6, model: 'polynomial' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true },
         predictions: forecastData,
+        clusterData: convertHistoricalDataToClusters(clusters, historicalData),
+        generatedById: session?.user?.id,
         metadata: {
           totalClusters: clusters.length,
           totalPredictions: forecastData.length,

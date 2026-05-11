@@ -2,7 +2,7 @@
  * API service for manpower operations
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5041/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7007/api';
 
 // Shift mapping constants
 export const SHIFT_MAPPING = {

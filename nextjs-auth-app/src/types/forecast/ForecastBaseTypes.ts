@@ -93,12 +93,32 @@ export interface ForecastMetadata {
   crimeTypes: number[];
 }
 
+export interface ForecastClusterItem {
+  caseId: string;
+  latitude: number;
+  longitude: number;
+  month: number;
+  year: number;
+  timeOfDay: string;
+  precinct: number;
+  crimeType: number;
+}
+
+export interface ForecastClusterGroup {
+  clusterId: number;
+  clusterItems: ForecastClusterItem[];
+  clusterCount: number;
+}
+
 export interface CreateForecastRequest {
   name: string;
   forecastPeriod: number;
   clusterSourceId?: string;
   params: ForecastParams;
   predictions: ForecastData[];
+  historicalData?: HistoricalData[];
+  clusterData?: ForecastClusterGroup[];
+  generatedById?: string;
   metadata: ForecastSnapshot['metadata'];
 }
 
