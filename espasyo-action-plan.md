@@ -39,8 +39,8 @@
 - **Source:** `espasyo-review-plan.md` §10.1 Task 2.1-2.2, Gap G2
 - **Effort:** 5 days
 
-- [ ] **P0-2a** Create `PipelineOrchestratorService`
-  - _File:_ `nin-architecture/espasyo.Application/Services/PipelineOrchestratorService.cs`
+- [x] **P0-2a** Create `PipelineOrchestratorService`
+  - _File:_ `nin-architecture/espasyo.Application/Services/PipelineOrchestratorService.cs` (new)
   - _AC:_ Service has a single `RunFullPipeline(PipelineRequest)` method that:
     1. Fetches incidents by date range
     2. Runs K-Means clustering
@@ -50,14 +50,18 @@
     6. Runs manpower optimization per precinct
     7. Persists `ManpowerRecommendations`
     8. Returns `PipelineResult` with all IDs
+  - _Prerequisites created:_ `AnalysisRun` entity + config + repository (SQL Server + SQLite), `ManpowerRecommendation` entity + config + repository, `IPrecinctRepository` + repository
+  - _Commit:_ `nin-architecture@c8ffd57`
 
-- [ ] **P0-2b** Create `POST /api/pipeline/run` endpoint
+- [x] **P0-2b** Create `POST /api/pipeline/run` endpoint
   - _File:_ `nin-architecture/espasyo.WebAPI/Controllers/PipelineController.cs` (new)
   - _AC:_ Accepts `PipelineRequest` body, returns `PipelineResult` with status 200
+  - _Commit:_ `nin-architecture@c8ffd57`
 
-- [ ] **P0-2c** Create `GET /api/pipeline/status/{runId}` endpoint
+- [~] **P0-2c** Create `GET /api/pipeline/status/{runId}` endpoint
   - _File:_ `PipelineController.cs`
   - _AC:_ Returns current stage, progress %, and any errors for async execution
+  - _Status:_ Deferred — requires async execution pattern. Pipeline currently runs synchronously; will add async polling in P2-11a.
 
 ### P0-3: Wire Forecast Output to Manpower Input
 - **Source:** `espasyo-review-plan.md` §10.3 Task 2.6, Gap G3
