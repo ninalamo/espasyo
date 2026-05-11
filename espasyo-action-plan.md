@@ -133,16 +133,19 @@
 - **Source:** `espasyo-review-plan.md` §10.2 Task 2.4, Gap G7
 - **Effort:** 4 days
 
-- [ ] **P1-3a** Add `ClusterId` to forecast grouping dimensions
-  - _File:_ `nin-architecture/espasyo.Infrastructure/MachineLearning/MachineLearningService.cs` (GenerateStatisticalForecast method)
-  - _AC:_ Forecast series are grouped by `(Precinct, CrimeType, ClusterId)` instead of `(Precinct, CrimeType)`
+- [x] **P1-3a** Add `ClusterId` to forecast grouping dimensions
+  - _File:_ `nin-architecture/espasyo.Infrastructure/MachineLearning/MachineLearningService.cs`
+  - _AC:_ Forecast series grouped by `(Precinct, CrimeType, ClusterId)`; `GroupClusterDataForForecasting` key changed from `(int,int)` to `(int,int,uint)`
+  - _Commit:_ `nin-architecture@0047d2d`
 
-- [ ] **P1-3b** Update `ForecastSeries` model to include `ClusterId`
-  - _AC:_ Response DTO includes cluster information per forecast series
+- [x] **P1-3b** Update `ForecastSeries` and `ForecastResult` models to include `ClusterId`
+  - _AC:_ `ForecastSeries.ClusterId`, `ForecastResult.ClusterId`, `ForecastResultDto.ClusterId`, `ClusterItem.ClusterId` all added; EF Core migration generated for both providers
+  - _Commit:_ `nin-architecture@0047d2d`
 
 - [ ] **P1-3c** Update frontend forecast components to handle cluster-dimensioned data
   - _File:_ `nextjs-auth-app/src/app/forecast/[id]/**/*.tsx`
   - _AC:_ All sub-pages (summary, timeseries, map, ensemble) handle the new `ClusterId` dimension without breaking
+  - _Status:_ Backend complete. Frontend depends on forecast UI being fully refactored in P2/P3.
 
 ### P1-4: Hotspot Prediction
 - **Source:** `espasyo-review-plan.md` §10.2 Task 2.5, Gap G8
