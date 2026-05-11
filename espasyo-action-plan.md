@@ -151,17 +151,23 @@
 - **Source:** `espasyo-review-plan.md` §10.2 Task 2.5, Gap G8
 - **Effort:** 5 days
 
-- [ ] **P1-4a** Create `POST /api/forecast/hotspots` endpoint
-  - _File:_ `nin-architecture/espasyo.WebAPI/Controllers/ForecastController.cs` (or existing IncidentController)
-  - _AC:_ Uses cluster centroids + temporal forecast to predict future hotspot areas, returns GeoJSON FeatureCollection
+- [x] **P1-4a** Create `POST /api/incident/forecast/hotspots` endpoint
+  - _File:_ `nin-architecture/espasyo.WebAPI/Controllers/IncidentController.cs`
+  - _File:_ `nin-architecture/espasyo.Application/UseCase/Incidents/Commands/PredictHotspots/PredictHotspotsCommand.cs`
+  - _File:_ `nin-architecture/espasyo.Application/UseCase/Incidents/Commands/PredictHotspots/PredictHotspotsCommandHandler.cs`
+  - _AC:_ Accepts `PredictHotspotsCommand` body, returns GeoJSON FeatureCollection with hotspot polygon features
+  - _Commit:_ `nin-architecture@0ab4e03`
 
-- [ ] **P1-4b** Implement hotspot polygon generation
-  - _File:_ `nin-architecture/espasyo.Infrastructure/MachineLearning/MachineLearningService.cs` (new method)
-  - _AC:_ Generates convex hull or buffer polygons around predicted high-activity clusters with confidence levels
+- [x] **P1-4b** Implement hotspot polygon generation
+  - _File:_ `nin-architecture/espasyo.Infrastructure/MachineLearning/MachineLearningService.cs`
+  - _File:_ `nin-architecture/espasyo.Application/Common/Models/ML/GeoJsonModels.cs` (new)
+  - _AC:_ `PredictHotspotsAsync` method computes convex hull (Graham scan) around cluster incident points, expands by buffer, assigns severity/confidence per forecast series; returns GeoJSON FeatureCollection
+  - _Commit:_ `nin-architecture@0ab4e03`
 
 - [ ] **P1-4c** Frontend: render predicted hotspots on forecast map
   - _File:_ `nextjs-auth-app/src/components/ForecastMap.tsx`
   - _AC:_ Map shows predicted hotspot polygons (not historical points), color-coded by confidence + severity
+  - _Status:_ Backend complete. Frontend implementation deferred to P2-8 (Forecast Map Rework) which replaces historical points with predicted polygons.
 
 ### P1-5: Enable K-Means Auto K-Selection + Validation Metrics
 - **Source:** `espasyo-review-plan.md` §5 (K-Means gaps)
