@@ -1,22 +1,12 @@
 import { addMonths } from 'date-fns';
+import type { ForecastData, HistoricalData } from '../types/forecast/ForecastBaseTypes';
 import {
-  ForecastData,
   ModelName,
   SingleModelRun,
   EnsembleMonth,
   EnsembleSummary,
   MODEL_LABELS
 } from '../types/forecast/EnsembleTypes';
-
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-  clusterId?: number;
-}
 
 interface EnsembleParams {
   forecastPeriod: number;

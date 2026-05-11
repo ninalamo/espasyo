@@ -210,7 +210,7 @@ export default function PrecinctsPage() {
   };
 
   const getUniquePrecincts = () => {
-    const precincts = new Set(manpowerAllocations.map(a => a.precinctName || a.precinct));
+    const precincts = new Set(manpowerAllocations.map(a => a.precinctName || a.precinctId));
     return precincts.size;
   };
 
@@ -230,7 +230,7 @@ export default function PrecinctsPage() {
     
     manpowerAllocations.forEach(allocation => {
       const precinctKey = allocation.precinctId;
-      const precinctName = allocation.precinctName || allocation.precinct || 'Unknown';
+      const precinctName = allocation.precinctName || 'Unknown';
       
       if (groupedByPrecinct.has(precinctKey)) {
         const existing = groupedByPrecinct.get(precinctKey)!;
@@ -486,7 +486,7 @@ export default function PrecinctsPage() {
                         ) : (
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {allocation.precinctName || allocation.precinct || 'Unknown Precinct'}
+                              {allocation.precinctName || 'Unknown Precinct'}
                             </div>
                             {allocation.precinctId && (
                               <div className="text-sm text-gray-500">

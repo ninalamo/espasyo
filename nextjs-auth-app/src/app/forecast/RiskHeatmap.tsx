@@ -2,17 +2,7 @@
 
 import { useMemo } from 'react';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
+import type { ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
 interface DataQuality {
   isValid: boolean;
@@ -25,7 +15,6 @@ interface DataQuality {
 
 interface Props {
   forecastData: ForecastData[];
-  /** Real data quality assessment from the backend. Null if not yet fetched. */
   dataQuality: DataQuality | null;
 }
 

@@ -4,26 +4,7 @@ import { useMemo, useState } from 'react';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import InfoBadge from '../../components/InfoBadge';
 import TrendAnalysisMethodologyModal from './modals/TrendAnalysisMethodologyModal';
-
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-}
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
+import type { HistoricalData, ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
 interface Props {
   historicalData: HistoricalData[];

@@ -1,6 +1,7 @@
 // Enhanced forecast processing utilities
 
 import { Cluster } from '../types/analysis/ClusterDto';
+import type { ForecastData, HistoricalData } from '../types/forecast/ForecastBaseTypes';
 import { 
   ExtendedForecastData, 
   ForecastMapPoint, 
@@ -8,28 +9,6 @@ import {
   TimeOfDayBreakdown,
   categorizeTimeOfDay
 } from '../types/forecast/ExtendedForecastTypes';
-
-// Basic forecast data interface (existing)
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
-
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-  clusterId?: number;
-}
 
 /**
  * Calculate reliability metrics for a forecast based on historical data quality

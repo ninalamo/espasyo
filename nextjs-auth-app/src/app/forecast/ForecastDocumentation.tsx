@@ -2,26 +2,7 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-}
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
+import type { HistoricalData, ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
 interface Props {
   historicalData: HistoricalData[];

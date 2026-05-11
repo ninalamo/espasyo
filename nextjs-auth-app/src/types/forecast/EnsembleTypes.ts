@@ -1,3 +1,5 @@
+import type { ForecastData } from './ForecastBaseTypes';
+
 export type ModelName = 'linear' | 'polynomial' | 'seasonal' | 'ses';
 
 export interface SingleModelRun {
@@ -30,23 +32,6 @@ export interface EnsembleSummary {
   overallAgreement: number;
   months: EnsembleMonth[];
   modelRunLabels: Record<ModelName, string>;
-}
-
-export interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  shiftBreakdown?: {
-    Morning: { predicted: number; percentage: number; riskLevel: string };
-    Afternoon: { predicted: number; percentage: number; riskLevel: string };
-    Night: { predicted: number; percentage: number; riskLevel: string };
-  };
-  dominantShift?: string;
 }
 
 export const MODEL_LABELS: Record<ModelName, string> = {

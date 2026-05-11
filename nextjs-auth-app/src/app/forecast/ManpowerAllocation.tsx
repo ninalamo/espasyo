@@ -8,15 +8,7 @@ import type {
 } from '../../types/forecast/ExtendedForecastTypes';
 import { DEFAULT_MANPOWER_ALLOCATION } from '../../types/forecast/ExtendedForecastTypes';
 import { manpowerApi, ManpowerAllocation as ManpowerApiType } from '../../utils/manpowerApi';
-
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-}
+import type { HistoricalData, ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
 interface ShiftAnalysis {
   shift: string;
@@ -33,17 +25,6 @@ interface PrecinctShiftData {
   shifts: ShiftAnalysis[];
   dominantShift: string;
   coverage24h: boolean;
-}
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
 }
 
 interface Props {
@@ -741,14 +722,14 @@ const ManpowerAllocation: React.FC<Props> = ({
                 
                 actualManpowerData.forEach(allocation => {
                   const precinctKey = allocation.precinctId;
-                  const precinctName = allocation.precinctName || allocation.precinct || 'Unknown Precinct';
+                  const precinctName = allocation.precinctName || 'Unknown Precinct';
                   const shiftName = allocation.shift || 'Not Specified';
                    const headCount = allocation.headCount || 0;
                   
                   if (!precinctMap.has(precinctKey)) {
                     precinctMap.set(precinctKey, {
                       precinctName,
-                      precinctId: allocation.precinctId || allocation.precinct,
+                      precinctId: allocation.precinctId,
                       shifts: [],
                       totalHeadCount: 0
                     });
@@ -886,7 +867,7 @@ const ManpowerAllocation: React.FC<Props> = ({
                 This may be due to precinct name differences between the forecast and manpower data.
               </p>
               <p className="text-blue-600 text-xs mt-2">
-                🔍 Available allocations: {actualManpowerData.map(a => a.precinct || a.precinctName || 'Unknown').join(', ')}
+                🔍 Available allocations: {actualManpowerData.map(a => a.precinctName || a.precinctId || 'Unknown').join(', ')}
               </p>
             </div>
           </div>

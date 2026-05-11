@@ -5,39 +5,14 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import { Line } from 'react-chartjs-2';
 import { format, startOfMonth } from 'date-fns';
 
-// Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-}
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
-
-interface ForecastParams {
-  model: string;
-  forecastPeriod: number;
-}
+import type { HistoricalData, ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
 interface Props {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
-  params: ForecastParams;
-  /** The model actually used for this forecast run, set by the parent after API success/fallback. */
+  params: { model: string; forecastPeriod: number };
   activeModelLabel?: string;
 }
 

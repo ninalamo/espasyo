@@ -3,47 +3,11 @@
 import { useState, useCallback } from 'react';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import StaticMultiSelectDropdown from '../../components/StaticMultiSelectDropdown';
+import type { ForecastData, ForecastFilterState } from '../../types/forecast/ForecastBaseTypes';
+import { initialForecastFilterState } from '../../types/forecast/ForecastBaseTypes';
 
-export interface ForecastFilterState {
-  selectedPrecincts: number[];
-  selectedCrimeTypes: number[];
-  selectedRiskLevels: ('low' | 'medium' | 'high' | 'critical')[];
-  selectedTrends: ('increasing' | 'decreasing' | 'stable')[];
-  minConfidence: number;
-  maxConfidence: number;
-  minPredictedCount: number;
-  maxPredictedCount: number;
-  dateFrom: string; // '2024-01' format
-  dateTo: string; // '2024-12' format
-  showOnlyHighRisk: boolean;
-  groupBy: 'precinct' | 'crimeType' | 'month' | 'risk';
-}
-
-export const initialForecastFilterState: ForecastFilterState = {
-  selectedPrecincts: [],
-  selectedCrimeTypes: [],
-  selectedRiskLevels: ['low', 'medium', 'high', 'critical'],
-  selectedTrends: ['increasing', 'decreasing', 'stable'],
-  minConfidence: 0.0,
-  maxConfidence: 1.0,
-  minPredictedCount: 0,
-  maxPredictedCount: 1000,
-  dateFrom: '',
-  dateTo: '',
-  showOnlyHighRisk: false,
-  groupBy: 'precinct'
-};
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
+export type { ForecastFilterState };
+export { initialForecastFilterState };
 
 interface ForecastFiltersProps {
   forecastData: ForecastData[];

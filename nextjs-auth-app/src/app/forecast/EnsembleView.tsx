@@ -2,13 +2,13 @@
 
 import { useMemo } from 'react';
 import { format } from 'date-fns';
+import type { ForecastData } from '../../types/forecast/ForecastBaseTypes';
 import {
   SingleModelRun,
   EnsembleSummary,
   ModelName,
   MODEL_LABELS,
-  MODEL_COLORS,
-  ForecastData
+  MODEL_COLORS
 } from '../../types/forecast/EnsembleTypes';
 
 interface EnsembleViewProps {

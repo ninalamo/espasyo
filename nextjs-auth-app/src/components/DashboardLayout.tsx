@@ -9,6 +9,7 @@ import {
   BarChart3, 
   TrendingUp, 
   MapPin,
+  Users,
   User, 
   ChevronDown,
   Menu,
@@ -85,6 +86,15 @@ const navigationGroups: NavigationGroup[] = [
       href: '/forecast',
       icon: TrendingUp,
       description: 'Predictive forecasting'
+    }
+  },
+  {
+    type: 'single',
+    item: {
+      name: 'Manpower',
+      href: '/manpower',
+      icon: Users,
+      description: 'Officer allocation & shifts'
     }
   }
 ];

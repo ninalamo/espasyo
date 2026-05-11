@@ -6,47 +6,8 @@ import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/co
 import InfoBadge from '../../components/InfoBadge';
 import DataQualityModal from './modals/DataQualityModal';
 import CalculationMethodologyModal from './modals/CalculationMethodologyModal';
-
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-}
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
-
-interface ForecastParams {
-  model: string;
-  forecastPeriod: number;
-  confidence: number;
-}
-
-interface ManpowerAllocation {
-  baseManpowerPerYear: number;
-  riskMultipliers: {
-    low: number;
-    medium: number;
-    high: number;
-    critical: number;
-  };
-  riskThresholds: {
-    lowMax: number;
-    mediumMax: number;
-    highMax: number;
-  };
-}
+import type { HistoricalData, ForecastData, ForecastParams } from '../../types/forecast/ForecastBaseTypes';
+import type { ManpowerAllocation } from '../../types/forecast/ExtendedForecastTypes';
 
 interface Props {
   historicalData: HistoricalData[];

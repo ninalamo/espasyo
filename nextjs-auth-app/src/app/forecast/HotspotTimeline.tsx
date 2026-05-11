@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
-import { ForecastData, SingleModelRun, MODEL_COLORS } from '../../types/forecast/EnsembleTypes';
+import type { ForecastData } from '../../types/forecast/ForecastBaseTypes';
+import { SingleModelRun, MODEL_COLORS } from '../../types/forecast/EnsembleTypes';
 
 interface HotspotTimelineProps {
   modelRuns: SingleModelRun[];

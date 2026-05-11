@@ -76,9 +76,7 @@ src/
 ### Page-Specific Components
 **Analysis Page** (`/analysis`):
 - `AnalysisTabs.tsx`: Tabbed view (map, table, charts)
-- `FeatureSelect.tsx`: Demographic feature picker
-- `FilterSection.tsx`: Date range + cluster parameters
-- `QueryBar.tsx`: Run query trigger
+- `QueryBar.tsx`: Date range, feature selection, cluster parameters
 
 **Forecast Page** (`/forecast`):
 - `TimeSeriesChart.tsx`: Primary forecast line chart
@@ -158,7 +156,7 @@ localStorage-backed caching layer wrapping `apiService.get()`.
 | `PrecinctsController` | `GET /api/precincts/streets`, `GET /api/precincts/{code}/streets` | Precincts page |
 | `StreetController` | `GET /api/street` | Crime record add form (address lookup) |
 | `ManpowerController` | `GET/POST /api/manpower`, `PUT /api/manpower/{id}`, `GET /api/manpower/precincts`, `GET /api/manpower/summary/{year}`, `POST /api/manpower/upsert`, `GET /api/manpower/shifts`, `GET /api/manpower/precinct/{precinctId}` | ManpowerAllocation, Precincts page |
-| `ForecastRunController` | `POST /api/forecastrun`, `GET /api/forecastrun`, `GET /api/forecastrun/{id}/results`, `GET /api/forecastrun/{id}/evaluate` | Forecast page (persistence layer) |
+| `ForecastRunController` | `POST /api/ForecastRun`, `GET /api/ForecastRun`, `GET /api/ForecastRun/{id}/results`, `GET /api/ForecastRun/{id}/evaluate` | Forecast page (persistence layer) |
 | `ForecastPreferencesController` | `GET /api/forecast/preferences/{userId}`, `PUT /api/forecast/preferences/{userId}` | Forecast page (user settings) |
 
 ---

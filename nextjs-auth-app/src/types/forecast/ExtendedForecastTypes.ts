@@ -1,5 +1,7 @@
 // Extended forecast data types for map visualization and enhanced analysis
 
+import type { ForecastData } from './ForecastBaseTypes';
+
 export interface TimeOfDayBreakdown {
   morning: number;    // 6 AM - 12 PM
   afternoon: number;  // 12 PM - 6 PM
@@ -16,27 +18,12 @@ export interface ReliabilityMetrics {
   seasonalPattern: boolean;   // Whether seasonal patterns were detected
 }
 
-export interface ExtendedForecastData {
-  // Basic forecast data
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  
-  // Extended spatial data
+export interface ExtendedForecastData extends ForecastData {
   latitude: number;
   longitude: number;
   clusterId?: number;
-  
-  // Time-of-day analysis
   timeOfDayBreakdown: TimeOfDayBreakdown;
   primaryTimeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
-  
-  // Reliability metrics
   reliability: ReliabilityMetrics;
 }
 
