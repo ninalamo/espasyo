@@ -248,10 +248,15 @@ export const uploadIncidents = async (incidents: AddIncidentDto[]): Promise<Bulk
     // Process each batch
     for (const batch of batches) {
       try {
-        const response = await apiService.post('/incident/bulk', batch);
+        const response = await apiService.post<{
+          results: Array<{
+            success: boolean;
+            incident?: { caseId?: string };
+            errors?: string[];
+          }>;
+        }>('/incident/bulk', batch);
         
-        if (response && response.results) {
-          // Process the response from bulk API
+        if (response?.results) {
           for (const result of response.results) {
             if (result.success) {
               totalSuccessCount++;
