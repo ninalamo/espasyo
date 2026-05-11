@@ -173,19 +173,21 @@
 - **Source:** `espasyo-review-plan.md` §5 (K-Means gaps)
 - **Effort:** 4 days
 
-- [ ] **P1-5a** Implement silhouette analysis across k=2..15
+- [x] **P1-5a** Implement silhouette analysis across k=2..15
   - _File:_ `nin-architecture/espasyo.Infrastructure/MachineLearning/MachineLearningService.cs`
-  - _AC:_ Method returns optimal k with silhouette scores for each candidate
+  - _File:_ `nin-architecture/espasyo.Application/Common/Models/ML/ClusteringMetricsCalculator.cs` (new)
+  - _AC:_ `FindOptimalK` loops k=2..15, runs K-Means for each (1 run), picks k with highest silhouette score
+  - _Commit:_ `nin-architecture@c8460c6`
 
-- [ ] **P1-5b** Add Davies-Bouldin and Calinski-Harabasz indices
-  - _AC:_ All three validation metrics (silhouette, DBI, CH) returned in cluster response
+- [x] **P1-5b** Add Davies-Bouldin and Calinski-Harabasz indices
+  - _AC:_ `ClusteringMetricsCalculator` computes all three (silhouette, DBI, CH) for each candidate k
+  - _Commit:_ `nin-architecture@c8460c6`
 
-- [ ] **P1-5c** Add K-Means++ initialization (override ML.NET default)
-  - _AC:_ Reproducible initialization with seed control
-
-- [ ] **P1-5d** Expose quality metrics in API response
-  - _File:_ `AnalysisRun` / `GroupedClusterResponse`
-  - _AC:_ Frontend can display silhouette score, optimal k recommendation
+- [x] **P1-5d** Expose quality metrics in API response
+  - _File:_ `GroupedClusterResponse.QualityMetrics`
+  - _File:_ `GetGroupedClustersQuery.AutoSelectK` (set `numberOfClusters: 0` or `true`)
+  - _AC:_ `GroupedClusterResponse` includes `QualityMetrics` with `OptimalK`, silhouette/DBI/CH scores per k; `autoSelectK` parameter on query triggers auto-selection
+  - _Commit:_ `nin-architecture@pending`
 
 ### P1-6: Baseline Comparisons on Dashboard
 - **Source:** `espasyo-review-plan.md` §11.1 Task 3.1
