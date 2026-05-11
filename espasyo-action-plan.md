@@ -67,17 +67,20 @@
 - **Source:** `espasyo-review-plan.md` §10.3 Task 2.6, Gap G3
 - **Effort:** 3 days
 
-- [ ] **P0-3a** Map `ForecastSeries` → `Dictionary<CrimeTypeEnum, int>` per precinct
-  - _File:_ `PipelineOrchestratorService.cs` (step 6 implementation)
+- [x] **P0-3a** Map `ForecastSeries` → `Dictionary<CrimeTypeEnum, int>` per precinct
+  - _File:_ `PipelineOrchestratorService.cs:195-197` (group by precinct), `:207-213` (extract counts)
   - _AC:_ For each precinct in forecast, extract predicted count per crime type for the target period
+  - _Note:_ Done as part of P0-2 pipeline orchestrator stage 6
 
-- [ ] **P0-3b** Feed mapped forecasts into `CalculateOptimalManpowerAsync`
-  - _File:_ `PipelineOrchestratorService.cs`
+- [x] **P0-3b** Feed mapped forecasts into `CalculateOptimalManpowerAsync`
+  - _File:_ `PipelineOrchestratorService.cs:228-229`
   - _AC:_ `MLManpowerAllocationService` receives real `predictedCrimeCounts` from SSA forecast (not empty or default values)
+  - _Note:_ Done as part of P0-2 pipeline orchestrator stage 6
 
-- [ ] **P0-3c** Return per-precinct, per-shift recommendations from pipeline
-  - _File:_ `PipelineController.cs`
+- [x] **P0-3c** Return per-precinct, per-shift recommendations from pipeline
+  - _File:_ `PipelineController.cs` (`POST /api/pipeline/run`) + `GET /api/pipeline/recommendations/{forecastRunId}`
   - _AC:_ Response includes `{ precinctId, shift, recommendedHeadCount, confidence, justification }` for every precinct
+  - _Commit:_ `nin-architecture@c8ffd57` (orchestrator) + `nin-architecture@pending` (controller endpoint)
 
 ---
 
