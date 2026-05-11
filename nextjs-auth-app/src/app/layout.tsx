@@ -15,7 +15,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   const isLoginPage = pathname === '/login';
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body className="bg-gray-100 text-gray-900">
         <SessionProvider>
           {isLoginPage ? (

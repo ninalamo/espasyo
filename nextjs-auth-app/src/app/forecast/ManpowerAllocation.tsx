@@ -115,8 +115,7 @@ const ManpowerAllocation: React.FC<Props> = ({
     
     // Sum all head counts for this precinct (in case of multiple entries/shifts)
     return precinctAllocations.reduce((total, allocation) => {
-      const headCount = allocation.headCount || allocation.officerCount || allocation.allocatedCount || 0;
-      return total + headCount;
+      return total + (allocation.headCount || 0);
     }, 0);
   }, [actualManpowerData]);
   // Helper function to get season from month
@@ -744,7 +743,7 @@ const ManpowerAllocation: React.FC<Props> = ({
                   const precinctKey = allocation.precinctId;
                   const precinctName = allocation.precinctName || allocation.precinct || 'Unknown Precinct';
                   const shiftName = allocation.shift || 'Not Specified';
-                  const headCount = allocation.headCount || allocation.officerCount || allocation.allocatedCount || 0;
+                   const headCount = allocation.headCount || 0;
                   
                   if (!precinctMap.has(precinctKey)) {
                     precinctMap.set(precinctKey, {
