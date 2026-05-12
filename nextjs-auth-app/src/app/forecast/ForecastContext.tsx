@@ -131,6 +131,17 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       if (data.params) {
         setManpowerSettings(DEFAULT_MANPOWER_ALLOCATION);
       }
+      if (data.historicalData && data.historicalData.length > 0) {
+        const params = data.params || { forecastPeriod: 6, model: 'polynomial' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true };
+        const thresholds = DEFAULT_MANPOWER_ALLOCATION.riskThresholds;
+        const ensembleRuns = runAllModels(data.historicalData, {
+          forecastPeriod: params.forecastPeriod,
+          includeSeasonality: params.includeSeasonality ?? true,
+          weightRecentData: params.weightRecentData ?? true,
+        }, { riskThresholds: thresholds });
+        setModelRuns(ensembleRuns);
+        setEnsembleSummary(computeConsensus(ensembleRuns));
+      }
       toast.success(`Loaded forecast: ${data.name}`);
     } catch {
       const local = loadForecastFromLocal();
@@ -140,6 +151,17 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         setHistoricalData(local.historicalData || []);
         setForecastData(local.predictions || []);
         setFilteredForecastData(local.predictions || []);
+        if (local.historicalData && local.historicalData.length > 0) {
+          const params = local.params || { forecastPeriod: 6, model: 'polynomial' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true };
+          const thresholds = DEFAULT_MANPOWER_ALLOCATION.riskThresholds;
+          const ensembleRuns = runAllModels(local.historicalData, {
+            forecastPeriod: params.forecastPeriod,
+            includeSeasonality: params.includeSeasonality ?? true,
+            weightRecentData: params.weightRecentData ?? true,
+          }, { riskThresholds: thresholds });
+          setModelRuns(ensembleRuns);
+          setEnsembleSummary(computeConsensus(ensembleRuns));
+        }
         toast.info('Loaded forecast from local storage');
       }
     } finally {
