@@ -249,11 +249,11 @@ All documented in detail in the Phase 1 section below. Features are implemented 
 ### B2 — Forecast Evaluation (Actual vs Predicted) ✅
 ### B3 — Backend Ensemble Model ✅
 ### B4 — Precinct Street Lists ✅
+### B5 — Anomaly Detection ✅ (IQR/Z-score/moving average via `MachineLearningService.DetectAnomaliesAsync`)
 ### B7 — User Forecast Preferences ✅
 
 ### Pending (documented for reference)
-- **B5** — Anomaly detection in forecast response
-- **B6** — Scheduled forecast generation via IHostedService
+- ~~**B6** — Scheduled forecast generation via IHostedService~~ ✅ Implemented in `ScheduledForecastService`
 
 ---
 
@@ -327,43 +327,52 @@ dotnet ef migrations add <Name> --project espasyo.Infrastructure --startup-proje
 
 ## Known Gaps & Remediation Roadmap
 
-A full review was conducted on 2026-05-11 (`espasyo-review-plan.md`). Key findings:
+A full review was conducted on 2026-05-11 (`espasyo-review-plan.md`). Validated on 2026-05-12 — status updated below.
 
-### Critical Gaps (P0 — must fix)
+### Critical Gaps (P0)
 
-1. **Disconnected Pipeline:** Analysis → Forecast → Manpower is manually chained via `localStorage`, not backend-orchestrated. No single endpoint connects all three stages.
-2. **Manpower ML Training Data Broken:** `MLManpowerAllocationService.GetHistoricalManpowerData` hardcodes `Barangay.Alabang` with zero-variance data, rendering the regression models untrustworthy.
-3. **Forecast Output Not Consumed by Manpower:** No code path feeds SSA forecast predictions into the manpower optimization service.
-4. **Dashboard Shows Raw Counts Without Context:** No baseline comparisons, trend indicators, or anomaly flags — data is not meaningful at face value.
+1. **Disconnected Pipeline** — ✅ **RESOLVED (backend)**: `PipelineOrchestratorService` + `PipelineController` (`POST /api/pipeline/run`) connects all 7 stages.
+2. **Manpower ML Training Data Broken** — ✅ **RESOLVED (backend)**: `MLManpowerAllocationService` now reads from `_manpowerRepository.GetAllManpowerAsync()`, no hardcoded `Barangay.Alabang`.
+3. **Forecast Output Not Consumed by Manpower** — ✅ **RESOLVED (backend)**: Wired in `PipelineOrchestratorService.cs:191-258`.
+4. **Dashboard Shows Raw Counts Without Context** — ✅ **RESOLVED**: `src/app/page.tsx` now shows trend arrows (↑↓→), percentage change from previous period, baseline labels ("vs yesterday", "vs last week", "vs last month"), and anomaly flags for spikes >50%.
 
 ### High-Priority Gaps (P1)
 
-5. **Clustering Results Not Persisted:** Stored only in browser `localStorage`; no `AnalysisRun` entity or API endpoint.
-6. **Manpower Recommendations Not Persisted:** No `ManpowerRecommendation` entity — history lost on page refresh.
-7. **K-Means Underutilized:** No auto K-selection, no silhouette validation, cluster assignments not used by forecasting engine.
-8. **No Hotspot Prediction:** Forecast predicts counts, not locations. No predicted hotspot map exists.
-9. **No Anomaly Detection:** B5 documented but unimplemented.
+5. **Clustering Results Not Persisted** — ✅ **RESOLVED (backend)**: `AnalysisRun` entity, `AnalysisRunController` CRUD, persisted in pipeline.
+6. **Manpower Recommendations Not Persisted** — ✅ **RESOLVED (backend)**: `ManpowerRecommendation` entity + repository + DbSet.
+7. **K-Means Underutilized** — ✅ **RESOLVED (backend)**: `FindOptimalK()` with silhouette scoring, `ClusterId` as forecasting dimension.
+8. **No Hotspot Prediction** — ✅ **RESOLVED (backend)**: `PredictHotspotsAsync()` + `POST /api/Incident/forecast/hotspots` with GeoJSON output.
+9. **No Anomaly Detection** — ✅ **RESOLVED (backend)**: `DetectAnomaliesAsync()` + `POST /api/Incident/anomalies` (IQR/Z-score/moving average).
+10. **Sync wrappers bypassing async** — ⚠️ **PARTIAL (backend)**: `IsComplexCrimeType`/`GetGeographicComplexityFactor` at `MLManpowerAllocationService.cs:584-601` still sync.
 
 ### Medium-Priority Gaps (P2)
 
-10. No background scheduled jobs (B6 — `IHostedService`)
-11. Redundant/misleading visualizations (`SimpleForecastMap.tsx`, `ScatterPlot.tsx`)
-12. Missing critical visualizations (precinct radar, seasonal decomposition, resource gap chart)
-13. No PDF report generation
-14. No role-based access control enforcement (types exist, not enforced)
+11. **No background scheduled jobs (B6)** — ✅ **RESOLVED**: `ScheduledForecastService` at `nin-architecture/Infrastructure/Services/ScheduledForecastService.cs`, registered via `AddHostedService`, configurable through `appsettings.json:ScheduledForecast` (default: disabled, 7-day interval, SSA model).
+12. **No model retraining scheduler** — ❌ **NOT DONE**: No periodic retraining mechanism.
+13. **Forecast endpoints on IncidentController** — ❌ **NOT DONE**: `IncidentController.cs:111-218` — extract to dedicated `ForecastController`.
+14. **No API versioning** — ❌ **NOT DONE**: No `v1` prefix or `[ApiVersion]` attributes on any controller.
+15. **No structured error responses** — ❌ **NOT DONE**: `MyExceptionFilter` returns anonymous JSON, not RFC 7807 `ProblemDetails`.
+16. **No custom health checks for ML** — ❌ **NOT DONE**: Only default Aspire `"self"` check — no ML model status probes.
 
-### Phase Plan
+### Frontend-Specific Gaps
 
-| Phase | Focus | Timeline (est.) |
-|---|---|---|
-| P1: Data Infrastructure | Persist analysis runs, fix manpower training data, create entities | 10 days |
-| P2: Pipeline Integration | Pipeline orchestrator, connect forecast→manpower, fix K-Means | 15 days |
-| P3: Analytics & Visualization | Baseline comparisons, anomaly detection, dashboard redesign, hotspot maps | 20 days |
-| P4: Production Readiness | Background jobs, monitoring, testing, performance, RBAC | 15 days |
+17. **Redundant/misleading visualizations** — ⚠️ **PARTIAL**: `SimpleForecastMap.tsx` and `ScatterPlot.tsx` exist but are orphaned (zero active imports, only referenced in dead `page-old.tsx`).
+18. **Missing critical visualizations** — ❌ **NOT DONE**: No precinct radar chart, seasonal decomposition chart, or resource gap chart.
+19. **No PDF report generation** — ❌ **NOT DONE**: No PDF libraries in `package.json`, no export/print features.
+20. **No role-based access control enforcement** — ⚠️ **PARTIAL**: `withAuth.tsx` checks authentication but does not inspect `user.role` — no admin/user separation or feature-level authorization.
+
+### Updated Phase Plan
+
+| Phase | Focus | Status | Remaining |
+|---|---|---|---|
+| P1: Data Infrastructure | Persist analysis runs, fix manpower training data, entities | ✅ **DONE** | — |
+| P2: Pipeline Integration | Pipeline orchestrator, forecast→manpower, K-Means, hotspots, anomalies | ✅ **DONE** | G10 sync wrappers (minor) |
+| P3: Analytics & Visualization | Dashboard baseline comparisons, anomaly detection, scheduled forecast, PDF reports, missing visualizations | 🚧 **IN PROGRESS** | Gaps 18 (visualizations), 19 (PDF reports) |
+| P4: Production Readiness | Background jobs (B6 now done), monitoring, API versioning, error handling, RBAC | ❌ **NOT STARTED** | Gaps 12-16, 20 |
 
 **Full details:** `espasyo-review-plan.md`
 
 ---
 
-## Savepoint: 2026-05-11
-Last comprehensive review of both frontend (nextjs-auth-app) and backend (nin-architecture `second-space-backend` branch). All routes, components, controllers, and integration points documented above reflect the current state of both repositories. See `espasyo-review-plan.md` for full gap analysis and remediation roadmap.
+## Savepoint: 2026-05-12
+Validated all gaps against actual codebase state. Backend P0 and P1 items fully resolved (except G10 sync wrappers minor). Frontend P0 gap #4 (Dashboard context) and all P2 items remain. See `espasyo-review-plan.md` for full gap analysis and remediation roadmap.
