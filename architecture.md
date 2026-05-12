@@ -3,7 +3,7 @@
 ## Overview
 Espasyo is a full-stack Crime Data Analysis System. The architecture is divided into two repositories:
 1. **Frontend**: Next.js 15.3 App Router (`nextjs-auth-app` in this repo)
-2. **Backend**: ASP.NET Core 8 Web API (Clean Architecture) at `D:\hobby\nin-architecture`
+2. **Backend**: ASP.NET Core 10 Web API (Clean Architecture) at `D:\hobby\nin-architecture`
 3. **Database**: SQL Server via Docker container
 
 ---
@@ -98,7 +98,7 @@ src/
 
 ---
 
-## Backend Architecture (ASP.NET Core 8 Clean Architecture)
+## Backend Architecture (ASP.NET Core 10 Clean Architecture)
 
 Full document: `D:\hobby\nin-architecture\architecture.md`
 
@@ -261,7 +261,7 @@ All documented in detail in the Phase 1 section below. Features are implemented 
 
 ### Prerequisites
 - Node.js 18+
-- .NET 8 SDK
+- .NET 10 SDK
 - Docker Desktop (SQL Server)
 - Git
 

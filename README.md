@@ -5,7 +5,7 @@ A full-stack crime data analysis application with ASP.NET Core Web API backend a
 ## Prerequisites
 
 - **Node.js** (version 18 or higher)
-- **.NET 8 SDK** or higher
+- **.NET 10 SDK** or higher
 - **Docker Desktop** (for SQL Server)
 - **Git**
 
