@@ -7,16 +7,14 @@ import InfoBadge from '../../components/InfoBadge';
 import DataQualityModal from './modals/DataQualityModal';
 import CalculationMethodologyModal from './modals/CalculationMethodologyModal';
 import type { HistoricalData, ForecastData, ForecastParams } from '../../types/forecast/ForecastBaseTypes';
-import type { ManpowerAllocation } from '../../types/forecast/ExtendedForecastTypes';
 
 interface Props {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
   params: ForecastParams;
-  manpowerSettings?: ManpowerAllocation;
 }
 
-const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, manpowerSettings }) => {
+const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params }) => {
   const [isDataQualityModalOpen, setIsDataQualityModalOpen] = useState(false);
   const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState(false);
   
@@ -120,7 +118,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
       monthlyForecast,
       changeFromHistorical: ((totalPredicted / params.forecastPeriod) - historicalAvgMonthly) / historicalAvgMonthly * 100
     };
-  }, [forecastData, historicalData, params, manpowerSettings]);
+  }, [forecastData, historicalData, params]);
 
   if (!summary) {
     return (
@@ -400,7 +398,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="text-sm text-blue-800">
               <strong>Risk Level Determination:</strong> Each prediction is compared to the historical average 
               for that specific precinct and crime type. The risk level is automatically assigned based on 
-              the configured thresholds (which can be adjusted in the Manpower Allocation tab).
+              the configured thresholds.
             </div>
           </div>
         </div>
@@ -422,10 +420,10 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="text-sm text-amber-800">
               <strong>Risk Level Determination:</strong> Each forecast period is classified based on how much it exceeds historical averages.
               <div className="mt-2 space-y-1">
-                <div>• <strong className="text-red-700">Critical:</strong> Forecasts &gt;{((manpowerSettings?.riskThresholds.highMax || 1.5) * 100).toFixed(0)}% of historical average</div>
-                <div>• <strong className="text-orange-700">High:</strong> Forecasts {((manpowerSettings?.riskThresholds.mediumMax || 1.2) * 100).toFixed(0)}-{((manpowerSettings?.riskThresholds.highMax || 1.5) * 100).toFixed(0)}% of historical average</div>
-                <div>• <strong className="text-yellow-700">Medium:</strong> Forecasts {((manpowerSettings?.riskThresholds.lowMax || 0.8) * 100).toFixed(0)}-{((manpowerSettings?.riskThresholds.mediumMax || 1.2) * 100).toFixed(0)}% of historical average</div>
-                <div>• <strong className="text-green-700">Low:</strong> Forecasts ≤{((manpowerSettings?.riskThresholds.lowMax || 0.8) * 100).toFixed(0)}% of historical average</div>
+                <div>• <strong className="text-red-700">Critical:</strong> Forecasts &gt;150% of historical average</div>
+                <div>• <strong className="text-orange-700">High:</strong> Forecasts 120-150% of historical average</div>
+                <div>• <strong className="text-yellow-700">Medium:</strong> Forecasts 80-120% of historical average</div>
+                <div>• <strong className="text-green-700">Low:</strong> Forecasts ≤80% of historical average</div>
               </div>
             </div>
           </div>
@@ -652,7 +650,6 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         isOpen={isMethodologyModalOpen}
         onClose={() => setIsMethodologyModalOpen(false)}
         historicalDataLength={historicalData.length}
-        manpowerSettings={manpowerSettings}
       />
     </div>
   );

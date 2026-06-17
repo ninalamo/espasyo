@@ -79,6 +79,33 @@ The catch block in `forecast/new/page.tsx` that silently substituted `generatePr
 
 `page-old.tsx` (2193 lines of dead code) deleted. It was the only consumer of `SimpleForecastMap`, `ScatterPlot`, and the deleted util files.
 
+### ✅ 9. [FRONTEND] Cleaned up dead forecast module code
+
+**Deleted files:**
+- `EnsembleView.tsx`, `HotspotTimeline.tsx`, `[id]/ensemble/page.tsx` — all always showed "No data" because context never populated `modelRuns`/`ensembleSummary` (no backend endpoint existed)
+- `types/forecast/EnsembleTypes.ts` — only imported by the three files above
+
+**Removed dead state from** `ForecastContext.tsx`:
+- `modelRuns`, `ensembleSummary`, `manpowerSettings`, `setManpowerSettings` — all removed from interface, state, and context value
+
+**Removed** `manpowerSettings` **prop from components:**
+- `ForecastSummary.tsx` — no longer imports `ManpowerAllocation` type; risk thresholds hardcoded as constants
+- `CalculationMethodologyModal.tsx` — `manpowerSettings` prop removed; thresholds hardcoded
+- `summary/page.tsx` — no longer destructures `manpowerSettings` from context
+
+**Removed dead types from** `ExtendedForecastTypes.ts`:
+- `ManpowerAllocation` interface, `ManpowerRecommendation` interface, `DEFAULT_MANPOWER_ALLOCATION` constant
+- `SeasonalMultipliers`, `MonthlyMultipliers`, `YearlyAdjustments` — only referenced by removed `ManpowerAllocation`
+
+**Removed orphaned nav tabs** from `[id]/layout.tsx`:
+- `timeseries` — had no corresponding page file (clicking it 404'd)
+- `ensemble` — route deleted
+
+**Renamed:**
+- `ManpowerAllocation.tsx` → `ForecastSummaryReport.tsx` (component was always a forecast report wrapper)
+
+**Build status:** Passes clean (0 errors).
+
 ---
 
 ## What Still Needs to Change
@@ -122,7 +149,7 @@ Since the backend ML pipeline is removed, this component has been replaced with 
 - Predicted crime types breakdown
 - Confidence levels from the SSA model
 
-The `ManpowerAllocation` type and `DEFAULT_MANPOWER_ALLOCATION` constant still exist in `ExtendedForecastTypes.ts` (referenced by `ForecastContext`'s state and `ForecastSummary`'s optional prop) but are no longer used for active computation.
+The `ManpowerAllocation` type and `DEFAULT_MANPOWER_ALLOCATION` constant have been removed from `ExtendedForecastTypes.ts`. Risk thresholds are now hardcoded constants instead of being passed as props.
 
 ---
 
@@ -164,3 +191,4 @@ This scope is defensible. The panel gets to see real ML.NET K-Means with silhoue
 | 6 | Delete orphaned components | Frontend | Low | Low — cleanup | ✅ Done |
 | 7 | Code quality (strict, tests, logs, CSV, GUIDs) | Frontend | Medium | Medium — panel impression | ⏳ Pending |
 | 8 | Performance | Frontend | Low | Low | ⏳ Pending |
+| 9 | Clean up dead forecast module code | Frontend | Medium | Medium — removes dead ensemble/manpower state, orphaned tabs, stale types | ✅ Done |

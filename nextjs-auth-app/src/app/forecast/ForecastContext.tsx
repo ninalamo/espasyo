@@ -10,9 +10,7 @@ import type {
   ForecastParams,
 } from '../../types/forecast/ForecastBaseTypes';
 import { initialForecastFilterState } from '../../types/forecast/ForecastBaseTypes';
-import type { ExtendedForecastData, ForecastMapPoint, ManpowerAllocation } from '../../types/forecast/ExtendedForecastTypes';
-import { DEFAULT_MANPOWER_ALLOCATION } from '../../types/forecast/ExtendedForecastTypes';
-import type { SingleModelRun, EnsembleSummary } from '../../types/forecast/EnsembleTypes';
+import type { ExtendedForecastData, ForecastMapPoint } from '../../types/forecast/ExtendedForecastTypes';
 import { forecastApi, saveForecastToLocal, loadForecastFromLocal } from '../api/utils/forecastApi';
 import { apiService } from '../api/utils/apiService';
 import type { Cluster } from '../../types/analysis/ClusterDto';
@@ -28,11 +26,8 @@ interface ForecastContextValue {
   forecastData: ForecastData[];
   extendedForecastData: ExtendedForecastData[];
   forecastMapPoints: ForecastMapPoint[];
-  modelRuns: SingleModelRun[];
-  ensembleSummary: EnsembleSummary | null;
   activeModelLabel: string;
   dataQuality: any;
-  manpowerSettings: ManpowerAllocation;
   filters: ForecastFilterState;
   filteredForecastData: ForecastData[];
   filteredForecastMapPoints: ForecastMapPoint[];
@@ -41,7 +36,6 @@ interface ForecastContextValue {
 
   setFilters: (f: ForecastFilterState) => void;
   setFilteredForecastData: (d: ForecastData[]) => void;
-  setManpowerSettings: (s: ManpowerAllocation) => void;
   generateForecast: (clustersData: Cluster[], params: ForecastParams) => Promise<ForecastData[]>;
   saveCurrentForecast: (name: string) => Promise<string | null>;
   loadForecast: (id: string) => Promise<void>;
@@ -61,11 +55,8 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [extendedForecastData, setExtendedForecastData] = useState<ExtendedForecastData[]>([]);
   const [forecastMapPoints, setForecastMapPoints] = useState<ForecastMapPoint[]>([]);
-  const [modelRuns, setModelRuns] = useState<SingleModelRun[]>([]);
-  const [ensembleSummary, setEnsembleSummary] = useState<EnsembleSummary | null>(null);
   const [activeModelLabel, setActiveModelLabel] = useState('');
   const [dataQuality, setDataQuality] = useState<any>(null);
-  const [manpowerSettings, setManpowerSettings] = useState<ManpowerAllocation>(DEFAULT_MANPOWER_ALLOCATION);
   const [filters, setFilters] = useState<ForecastFilterState>(initialForecastFilterState);
   const [filteredForecastData, setFilteredForecastData] = useState<ForecastData[]>([]);
   const [filteredForecastMapPoints, setFilteredForecastMapPoints] = useState<ForecastMapPoint[]>([]);
@@ -119,9 +110,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setHistoricalData(data.historicalData || []);
       setForecastData(data.predictions || []);
       setFilteredForecastData(data.predictions || []);
-      if (data.params) {
-        setManpowerSettings(DEFAULT_MANPOWER_ALLOCATION);
-      }
       toast.success(`Loaded forecast: ${data.name}`);
     } catch {
       const local = loadForecastFromLocal();
@@ -272,8 +260,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     setForecastData([]);
     setExtendedForecastData([]);
     setForecastMapPoints([]);
-    setModelRuns([]);
-    setEnsembleSummary(null);
     setActiveModelLabel('');
     setDataQuality(null);
     setFilteredForecastData([]);
@@ -283,16 +269,16 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const value = useMemo(() => ({
     loading, forecastId, forecast, clusters, historicalData,
     forecastData, extendedForecastData, forecastMapPoints,
-    modelRuns, ensembleSummary, activeModelLabel, dataQuality,
-    manpowerSettings, filters, filteredForecastData, filteredForecastMapPoints,
+    activeModelLabel, dataQuality,
+    filters, filteredForecastData, filteredForecastMapPoints,
     analysisLoaded, forecastParams,
-    setFilters, setFilteredForecastData, setManpowerSettings,
+    setFilters, setFilteredForecastData,
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   }), [
     loading, forecastId, forecast, clusters, historicalData,
     forecastData, extendedForecastData, forecastMapPoints,
-    modelRuns, ensembleSummary, activeModelLabel, dataQuality,
-    manpowerSettings, filters, filteredForecastData, filteredForecastMapPoints,
+    activeModelLabel, dataQuality,
+    filters, filteredForecastData, filteredForecastMapPoints,
     analysisLoaded, forecastParams,
   ]);
 

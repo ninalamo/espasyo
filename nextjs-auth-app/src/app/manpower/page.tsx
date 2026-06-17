@@ -5,7 +5,7 @@ import withAuth from '../hoc/withAuth';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import type { HistoricalData, ForecastData } from '../../types/forecast/ForecastBaseTypes';
-import ForecastSummaryReport from '../forecast/ManpowerAllocation';
+import ForecastSummaryReport from '../forecast/ForecastSummaryReport';
 import { loadForecastFromLocal } from '../api/utils/forecastApi';
 
 function ManpowerPage() {
