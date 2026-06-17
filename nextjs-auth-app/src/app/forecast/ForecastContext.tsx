@@ -180,6 +180,8 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
           crimeType: series.crimeType,
           predictedCount: Math.max(0, Math.round(f.forecast)),
           confidence: f.confidence ?? 0,
+          lowerBound: f.lowerBound != null ? f.lowerBound : undefined,
+          upperBound: f.upperBound != null ? f.upperBound : undefined,
           trend: f.trend || 'stable',
           riskLevel: f.riskLevel || 'medium',
         }))

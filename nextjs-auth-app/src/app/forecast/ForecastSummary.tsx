@@ -26,6 +26,14 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
     // Overall statistics
     const totalPredicted = forecastData.reduce((sum, f) => sum + f.predictedCount, 0);
     const avgConfidence = forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length;
+    const withBounds = forecastData.filter(f => f.lowerBound != null && f.upperBound != null);
+    const hasPredictionIntervals = withBounds.length > 0;
+    const avgIntervalWidth = hasPredictionIntervals
+      ? withBounds.reduce((sum, f) => sum + (f.upperBound! - f.lowerBound!), 0) / withBounds.length
+      : 0;
+    const intervalWidthPct = avgConfidence > 0
+      ? ((avgIntervalWidth / totalPredicted * forecastData.length) * 100).toFixed(1)
+      : 'N/A';
     
     // Historical baseline
     const historicalTotal = historicalData.reduce((sum, h) => sum + h.count, 0);
@@ -101,6 +109,9 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
     return {
       totalPredicted,
       avgConfidence,
+      hasPredictionIntervals,
+      avgIntervalWidth,
+      intervalWidthPct,
       historicalAvgMonthly,
       trends,
       riskLevels,
@@ -168,6 +179,11 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="ml-4">
               <p className="text-sm font-medium text-green-800">Avg Confidence</p>
               <p className="text-2xl font-bold text-green-900">{(summary.avgConfidence * 100).toFixed(1)}%</p>
+              {summary.hasPredictionIntervals && (
+                <p className="text-xs text-green-600 mt-1">
+                  Avg prediction interval: ±{summary.intervalWidthPct}%
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -590,7 +606,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm font-medium text-gray-700">
-              Forecast generated using {params.model.toUpperCase()} model with {(params.confidence * 100).toFixed(0)}% confidence level
+              Forecast generated using SSA (Singular Spectrum Analysis) via ML.NET backend
             </span>
           </div>
           <span className="text-xs text-gray-500">
@@ -603,18 +619,18 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
           <h4 className="font-medium text-gray-800 mb-2">Calculation Methodology</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
             <div>
-              <strong>Baseline Calculation:</strong>
+              <strong>SSA Forecast:</strong>
               <ul className="mt-1 ml-4 space-y-1">
-                <li>• 6-month rolling average for recent trends</li>
-                <li>• Historical variance analysis for stability</li>
-                <li>• Seasonal pattern identification</li>
+                <li>• Singular Spectrum Analysis for time series decomposition</li>
+                <li>• Prediction intervals from SSA eigenvalue reconstruction</li>
+                <li>• Holdout validation with MAE/RMSE/MAPE metrics</li>
               </ul>
             </div>
             <div>
               <strong>Risk Assessment:</strong>
               <ul className="mt-1 ml-4 space-y-1">
                 <li>• Comparative analysis vs. historical averages</li>
-                <li>• Confidence interval weighting</li>
+                <li>• Prediction interval weighting</li>
                 <li>• Geographic and temporal clustering</li>
               </ul>
             </div>

@@ -205,13 +205,13 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData }
 
                 {/* Confidence Calculation */}
                 <div>
-                  <h4 className="text-lg font-medium text-gray-700 mb-4">3. Confidence Interval Calculation</h4>
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">3. Prediction Intervals</h4>
                   <div className="bg-white p-6 rounded border">
                     <div className="space-y-3 text-sm text-gray-600">
-                      <div><strong>Initial Confidence:</strong> Set based on model configuration (default: 95%)</div>
-                      <div><strong>Time Decay:</strong> Confidence decreases by 5% per month forecasted</div>
-                      <div><strong>Data Quality Adjustment:</strong> Modified based on sample size and historical variance</div>
-                      <div><strong>Final Formula:</strong> <code className="bg-gray-100 px-2 py-1 rounded">confidence = max(0.5, base_confidence - (months_ahead × 0.05))</code></div>
+                      <div><strong>Source:</strong> Prediction intervals come from the ML.NET SSA model, which decomposes the time series into trend, seasonal, and residual components.</div>
+                      <div><strong>Interval width:</strong> Determined by the eigenvalue reconstruction step — wider intervals indicate higher uncertainty.</div>
+                      <div><strong>Confidence level:</strong> Set at request time (default 95%). The SSA model generates lower/upper bounds at this level.</div>
+                      <div><strong>Note:</strong> These are model-internal intervals, not a substitute for proper uncertainty quantification with cross-validation on real data.</div>
                     </div>
                   </div>
                 </div>

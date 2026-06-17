@@ -70,13 +70,14 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
     const forecastByMonth = forecastData.reduce((acc, item) => {
       const key = `${item.year}-${String(item.month).padStart(2, '0')}`;
       if (!acc[key]) {
-        acc[key] = { total: 0, confidence: 0, count: 0 };
+        acc[key] = { total: 0, lowerSum: 0, upperSum: 0, count: 0 };
       }
       acc[key].total += item.predictedCount;
-      acc[key].confidence += item.confidence;
+      acc[key].lowerSum += item.lowerBound ?? 0;
+      acc[key].upperSum += item.upperBound ?? 0;
       acc[key].count += 1;
       return acc;
-    }, {} as Record<string, { total: number; confidence: number; count: number }>);
+    }, {} as Record<string, { total: number; lowerSum: number; upperSum: number; count: number }>);
 
     // Create combined timeline
     const allDates = new Set([
@@ -102,13 +103,20 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
         confidenceUpper.push(null);
         confidenceLower.push(null);
       } else if (forecast !== undefined) {
-        const avgConfidence = forecast.confidence / forecast.count;
-        const margin = forecast.total * (1 - avgConfidence) * 0.5;
-        
         historicalValues.push(null);
         forecastValues.push(forecast.total);
-        confidenceUpper.push(forecast.total + margin);
-        confidenceLower.push(forecast.total - margin);
+        // Use real SSA lower/upper bounds when available, otherwise compute from confidence
+        if (forecast.lowerSum > 0 || forecast.upperSum > 0) {
+          const avgLower = forecast.lowerSum / forecast.count;
+          const avgUpper = forecast.upperSum / forecast.count;
+          confidenceUpper.push(Math.max(0, Math.round(avgUpper)));
+          confidenceLower.push(Math.max(0, Math.round(avgLower)));
+        } else {
+          const avgConfidence = 0.95;
+          const margin = forecast.total * (1 - avgConfidence) * 0.5;
+          confidenceUpper.push(forecast.total + margin);
+          confidenceLower.push(Math.max(0, forecast.total - margin));
+        }
       } else {
         historicalValues.push(null);
         forecastValues.push(null);

@@ -5,6 +5,8 @@ export interface ForecastData {
   crimeType: number;
   predictedCount: number;
   confidence: number;
+  lowerBound?: number;
+  upperBound?: number;
   trend: 'increasing' | 'decreasing' | 'stable';
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
   shiftBreakdown?: ShiftBreakdown;
