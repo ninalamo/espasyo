@@ -99,7 +99,7 @@ const TrendAnalysisMethodologyModal: React.FC<TrendAnalysisMethodologyModalProps
               <h5 className="font-medium text-green-700 mb-2">Calculation Method</h5>
               <ul className="space-y-1 text-green-800">
                 <li>• 6-month rolling average baseline</li>
-                <li>• Polynomial trend modeling</li>
+                <li>• SSA trend analysis</li>
                 <li>• Seasonal adjustment factors</li>
                 <li>• Confidence interval weighting</li>
               </ul>

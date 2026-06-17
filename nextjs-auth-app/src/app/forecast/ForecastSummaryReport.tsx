@@ -19,7 +19,7 @@ const ForecastSummaryReport: React.FC<Props> = ({ historicalData, forecastData }
         <ForecastSummary
           historicalData={historicalData}
           forecastData={forecastData}
-          params={{ forecastPeriod: 6, model: 'polynomial', confidence: 0.95, includeSeasonality: true, weightRecentData: true }}
+          params={{ forecastPeriod: 6, model: 'ssa', confidence: 0.95, includeSeasonality: true, weightRecentData: true }}
         />
       </div>
     </div>

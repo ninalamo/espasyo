@@ -93,7 +93,7 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
             <div className="space-y-2 text-sm text-green-800">
               <div className="flex justify-between">
                 <span>Model Type:</span>
-                <span className="font-semibold">{params.model.toUpperCase()}</span>
+                <span className="font-semibold">SSA</span>
               </div>
               <div className="flex justify-between">
                 <span>Forecast Horizon:</span>
@@ -115,44 +115,28 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
             </div>
           </div>
           
-          {/* Validation Checks */}
+          {/* Coverage Metrics */}
           <div className="bg-white p-4 rounded-lg border">
-            <h4 className="font-medium text-green-700 mb-3">Validation Status</h4>
+            <h4 className="font-medium text-green-700 mb-3">Coverage Summary</h4>
             <div className="space-y-2 text-sm text-green-800">
-              <div className="flex items-center justify-between">
-                <span>Data Integrity:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Passed</span>
+              <div className="flex justify-between">
+                <span>Precincts Covered:</span>
+                <span className="font-semibold">{new Set(forecastData.map(f => f.precinct)).size}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Crime Types Analyzed:</span>
+                <span className="font-semibold">{new Set(forecastData.map(f => f.crimeType)).size}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Data Completeness:</span>
+                <span className="font-semibold">
+                  {((forecastData.filter(f => f.predictedCount > 0).length / forecastData.length) * 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span>Range Validation:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Passed</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Outlier Detection:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Clean</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Cross-Validation:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Valid</span>
+              <div className="flex justify-between">
+                <span>Positive Predictions:</span>
+                <span className="font-semibold">
+                  {forecastData.filter(f => f.predictedCount > 0).length} of {forecastData.length}
                 </span>
               </div>
             </div>

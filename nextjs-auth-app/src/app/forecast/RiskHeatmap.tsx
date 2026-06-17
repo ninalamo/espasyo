@@ -550,7 +550,7 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
           <div>
             <h4 className="font-medium text-yellow-700 mb-3">Risk Calculation Process</h4>
             <div className="bg-white p-4 rounded border space-y-2 text-sm text-yellow-800">
-              <div><strong>Step 1:</strong> Individual crime type predictions are generated using polynomial modeling</div>
+              <div><strong>Step 1:</strong> Individual crime type predictions are generated using SSA (Singular Spectrum Analysis)</div>
               <div><strong>Step 2:</strong> Each prediction receives a risk score (1-4) based on deviation from historical averages</div>
               <div><strong>Step 3:</strong> Risk scores are aggregated by precinct and time period</div>
               <div><strong>Step 4:</strong> Final risk levels assigned using statistical thresholds</div>

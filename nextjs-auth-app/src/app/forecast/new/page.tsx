@@ -38,7 +38,7 @@ export default withAuth(function NewForecastPage() {
 
   const [forecastParams, setForecastParams] = useState<ForecastParams>({
     forecastPeriod: 6,
-    model: 'polynomial',
+    model: 'ssa',
     confidence: 0.95,
     includeSeasonality: true,
     weightRecentData: true,
@@ -349,7 +349,7 @@ export default withAuth(function NewForecastPage() {
                 onChange={e => setForecastParams({ ...forecastParams, model: e.target.value as any })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               >
-                <option value="polynomial">Polynomial (default)</option>
+                <option value="ssa">SSA (default)</option>
                 <option value="linear">Linear</option>
                 <option value="seasonal">Seasonal</option>
                 <option value="arima">SES (Exponential Smoothing)</option>

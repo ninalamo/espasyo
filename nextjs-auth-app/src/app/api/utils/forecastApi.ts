@@ -40,6 +40,13 @@ interface GetForecastRunsResponse {
   totalCount: number;
 }
 
+interface SaveForecastSnapshotResponse {
+  id: string;
+  name: string;
+  createdAt: string;
+  totalPredictions: number;
+}
+
 interface ForecastResultDto {
   id: string;
   precinct: string;
@@ -122,7 +129,7 @@ class ForecastApiService {
         })),
         params: {
           forecastPeriod: 6,
-          model: 'polynomial',
+          model: 'ssa',
           confidence: 0.95,
           includeSeasonality: true,
           weightRecentData: true,
@@ -142,6 +149,50 @@ class ForecastApiService {
   }
 
   async save(data: CreateForecastRequest): Promise<ForecastSnapshot> {
+    if (data.predictions?.length) {
+      try {
+        const response = await this.fetchApi<SaveForecastSnapshotResponse>('/ForecastRun/snapshot', {
+          method: 'POST',
+          body: JSON.stringify({
+            name: data.name,
+            forecastPeriod: data.forecastPeriod,
+            confidenceLevel: data.params.confidence,
+            predictions: data.predictions.map(p => ({
+              precinct: p.precinct,
+              crimeType: p.crimeType,
+              month: p.month,
+              year: p.year,
+              predictedValue: p.predictedCount,
+              lowerBound: p.lowerBound ?? p.predictedCount * 0.9,
+              upperBound: p.upperBound ?? p.predictedCount * 1.1,
+              confidence: p.confidence,
+              riskLevel: p.riskLevel,
+              trend: p.trend,
+            })),
+            generatedById: data.generatedById ?? '',
+          }),
+        });
+
+        return {
+          id: response.id,
+          name: response.name,
+          createdAt: response.createdAt,
+          forecastPeriod: data.forecastPeriod,
+          predictions: data.predictions,
+          params: data.params,
+          metadata: {
+            ...data.metadata,
+            totalPredictions: response.totalPredictions,
+            precincts: [...new Set(data.predictions.map(f => f.precinct))],
+            crimeTypes: [...new Set(data.predictions.map(f => f.crimeType))],
+          },
+          historicalData: data.historicalData,
+        };
+      } catch {
+        /* fall through to existing ML endpoint or local fallback */
+      }
+    }
+
     if (data.clusterData?.length) {
       try {
         const precincts = await this.fetchApi<Array<{ id: string; name: string; code: string }>>('/manpower/precincts');
@@ -150,7 +201,7 @@ class ForecastApiService {
         const matched = precincts.find(p => p.name === precinctName);
         const precinctId = matched?.id ?? '00000000-0000-0000-0000-000000000000';
 
-        const response = await this.fetchApi<{ id: string }>('/ForecastRun', {
+        const mlResponse = await this.fetchApi<{ id: string }>('/ForecastRun', {
           method: 'POST',
           body: JSON.stringify({
             clusterData: data.clusterData,
@@ -164,7 +215,7 @@ class ForecastApiService {
           }),
         });
 
-        const results = await this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${response.id}/results`);
+        const results = await this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${mlResponse.id}/results`);
 
         const predictions: ForecastData[] = results.map(r => ({
           year: r.year,
@@ -178,7 +229,7 @@ class ForecastApiService {
         }));
 
         return {
-          id: response.id,
+          id: mlResponse.id,
           name: data.name,
           createdAt: new Date().toISOString(),
           forecastPeriod: data.forecastPeriod,
@@ -224,6 +275,7 @@ export const HISTORICAL_DATA_CACHE_KEY = 'historicalDataCache';
 export function saveForecastToLocal(forecast: ForecastSnapshot): void {
   try {
     localStorage.setItem(FORECAST_STORAGE_KEY, JSON.stringify(forecast));
+    saveForecastSnapshotToCache(forecast);
 
     if (forecast.historicalData?.length) {
       saveHistoricalDataToCache(forecast.id, forecast.historicalData);
@@ -249,6 +301,34 @@ export function saveForecastToLocal(forecast: ForecastSnapshot): void {
     }
     localStorage.setItem(FORECAST_LIST_KEY, JSON.stringify(list.slice(0, 20)));
   } catch {}
+}
+
+const FORECAST_SNAPSHOT_CACHE_KEY = 'forecastSnapshotCache';
+
+function saveForecastSnapshotToCache(forecast: ForecastSnapshot): void {
+  try {
+    const cache = JSON.parse(localStorage.getItem(FORECAST_SNAPSHOT_CACHE_KEY) || '{}') as Record<string, ForecastSnapshot>;
+    cache[forecast.id] = forecast;
+    const keys = Object.keys(cache);
+    if (keys.length > MAX_CACHE_ENTRIES) {
+      const toRemove = keys.slice(0, keys.length - MAX_CACHE_ENTRIES);
+      toRemove.forEach(k => delete cache[k]);
+    }
+    localStorage.setItem(FORECAST_SNAPSHOT_CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      localStorage.removeItem(FORECAST_SNAPSHOT_CACHE_KEY);
+    }
+  }
+}
+
+export function loadForecastByIdFromLocal(id: string): ForecastSnapshot | null {
+  try {
+    const cache = JSON.parse(localStorage.getItem(FORECAST_SNAPSHOT_CACHE_KEY) || '{}') as Record<string, ForecastSnapshot>;
+    return cache[id] || null;
+  } catch {
+    return null;
+  }
 }
 
 export function loadForecastFromLocal(): ForecastSnapshot | null {

@@ -64,7 +64,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const analysisLoaded = clusters.length > 0;
   const forecastParams: ForecastParams = forecast?.params || {
     forecastPeriod: 6,
-    model: 'polynomial',
+    model: 'ssa',
     confidence: 0.95,
     includeSeasonality: true,
     weightRecentData: true,
@@ -215,7 +215,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       const snapshot = {
         name,
         forecastPeriod: forecastData.length > 0 ? new Date(Math.max(...forecastData.map(f => new Date(f.year, f.month).getTime()))).getMonth() - new Date().getMonth() + 1 : 6,
-        params: { forecastPeriod: 6, model: 'polynomial' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true },
+        params: { forecastPeriod: 6, model: 'ssa' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true },
         predictions: forecastData,
         clusterData: clusters.map(c => ({
           clusterId: c.clusterId,
