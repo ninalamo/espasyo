@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import type { Cluster } from '../../../types/analysis/ClusterDto';
-import type { ForecastData, ForecastParams } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastData, ForecastMetrics, ForecastParams } from '../../../types/forecast/ForecastBaseTypes';
 import { format } from 'date-fns';
 import { apiService } from '../../api/utils/apiService';
 import { forecastApi, saveForecastToLocal } from '../../api/utils/forecastApi';
@@ -45,6 +45,7 @@ export default withAuth(function NewForecastPage() {
   });
 
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
+  const [forecastMetrics, setForecastMetrics] = useState<ForecastMetrics | null>(null);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [activeModelLabel, setActiveModelLabel] = useState('');
   const [forecastName, setForecastName] = useState('');
@@ -145,6 +146,8 @@ export default withAuth(function NewForecastPage() {
       if (!response?.series) throw new Error('Invalid API response');
 
       setActiveModelLabel('SSA (ML.NET)');
+      const metrics = response.metrics as ForecastMetrics | undefined;
+      setForecastMetrics(metrics ?? null);
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
         (series.forecasts || []).map((f: any) => ({
           year: new Date(f.timestamp).getFullYear(),
@@ -180,6 +183,7 @@ export default withAuth(function NewForecastPage() {
         forecastPeriod: forecastParams.forecastPeriod,
         params: forecastParams,
         predictions: forecastData,
+        metrics: forecastMetrics,
         clusterData: clusters.map(c => ({
           clusterId: c.clusterId,
           clusterItems: c.clusterItems.map(i => ({

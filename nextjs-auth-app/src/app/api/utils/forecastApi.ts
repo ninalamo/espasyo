@@ -1,4 +1,4 @@
-import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, HistoricalData } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, HistoricalData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
 
 /* Mapping: Barangay enum int → name (matches backend seed data) */
 const BARANGAY_INT_TO_NAME: Record<number, string> = {
@@ -179,6 +179,7 @@ class ForecastApiService {
           createdAt: response.createdAt,
           forecastPeriod: data.forecastPeriod,
           predictions: data.predictions,
+          metrics: data.metrics,
           params: data.params,
           metadata: {
             ...data.metadata,
@@ -234,6 +235,7 @@ class ForecastApiService {
           createdAt: new Date().toISOString(),
           forecastPeriod: data.forecastPeriod,
           predictions,
+          metrics: data.metrics,
           params: data.params,
           metadata: {
             ...data.metadata,
@@ -254,6 +256,7 @@ class ForecastApiService {
       createdAt: new Date().toISOString(),
       forecastPeriod: data.forecastPeriod,
       predictions: data.predictions,
+      metrics: data.metrics,
       params: data.params,
       metadata: data.metadata,
       historicalData: data.historicalData,
@@ -263,6 +266,10 @@ class ForecastApiService {
 
   async delete(id: string): Promise<void> {
     return;
+  }
+
+  async evaluate(id: string): Promise<ForecastEvaluationResult> {
+    return this.fetchApi<ForecastEvaluationResult>(`/ForecastRun/${id}/evaluate`);
   }
 }
 

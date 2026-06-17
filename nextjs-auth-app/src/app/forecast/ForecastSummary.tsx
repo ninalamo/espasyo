@@ -6,15 +6,17 @@ import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/co
 import InfoBadge from '../../components/InfoBadge';
 import DataQualityModal from './modals/DataQualityModal';
 import CalculationMethodologyModal from './modals/CalculationMethodologyModal';
-import type { HistoricalData, ForecastData, ForecastParams } from '../../types/forecast/ForecastBaseTypes';
+import type { HistoricalData, ForecastData, ForecastParams, ForecastMetrics, ForecastEvaluationResult } from '../../types/forecast/ForecastBaseTypes';
 
 interface Props {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
   params: ForecastParams;
+  metrics?: ForecastMetrics | null;
+  evaluation?: ForecastEvaluationResult | null;
 }
 
-const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params }) => {
+const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, metrics, evaluation }) => {
   const [isDataQualityModalOpen, setIsDataQualityModalOpen] = useState(false);
   const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState(false);
   
@@ -222,6 +224,56 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
               }`}>
                 {summary.changeFromHistorical > 0 ? '+' : ''}{summary.changeFromHistorical.toFixed(1)}%
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Accuracy Metrics */}
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-amber-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-amber-600 rounded-lg">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-amber-800">Model Accuracy</p>
+              {evaluation ? (
+                <>
+                  <p className={`text-2xl font-bold ${
+                    evaluation.isReliable ? 'text-green-900' : 'text-red-900'
+                  }`}>
+                    {evaluation.meanAbsolutePercentageError < 100
+                      ? `${(100 - evaluation.meanAbsolutePercentageError).toFixed(0)}%`
+                      : 'N/A'}
+                  </p>
+                  <p className={`text-xs mt-1 flex items-center ${
+                    evaluation.isReliable ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                      evaluation.isReliable ? 'bg-green-500' : 'bg-red-500'
+                    }`} />
+                    {evaluation.isReliable ? 'Reliable' : 'Low reliability'}
+                    <span className="text-gray-400 ml-2">
+                      MAPE: {evaluation.meanAbsolutePercentageError.toFixed(1)}%
+                    </span>
+                  </p>
+                </>
+              ) : metrics && metrics.meanAbsolutePercentageError > 0 ? (
+                <>
+                  <p className="text-2xl font-bold text-amber-900">
+                    {(metrics.modelAccuracy * 100).toFixed(0)}%
+                  </p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    MAPE: {metrics.meanAbsolutePercentageError.toFixed(1)}% | MAE: {metrics.meanAbsoluteError.toFixed(1)}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-gray-400">--</p>
+                  <p className="text-xs text-gray-500 mt-1">Validate with historical data</p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -596,6 +648,25 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         </div>
       </div>
 
+      {/* Evaluation Warnings */}
+      {evaluation?.warnings && evaluation.warnings.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div>
+              <h4 className="font-medium text-yellow-800">Validation Warnings</h4>
+              <ul className="mt-1 space-y-1">
+                {evaluation.warnings.map((w, i) => (
+                  <li key={i} className="text-sm text-yellow-700">{w}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Model Information */}
       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
         <div className="flex items-center justify-between">
@@ -644,6 +715,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         forecastData={forecastData}
         params={params}
         summary={summary}
+        evaluation={evaluation}
       />
       
       <CalculationMethodologyModal

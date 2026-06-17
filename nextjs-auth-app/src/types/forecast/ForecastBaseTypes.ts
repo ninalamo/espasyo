@@ -73,6 +73,13 @@ export const initialForecastFilterState: ForecastFilterState = {
   groupBy: 'precinct'
 };
 
+export interface ForecastMetrics {
+  meanAbsoluteError: number;
+  rootMeanSquareError: number;
+  meanAbsolutePercentageError: number;
+  modelAccuracy: number;
+}
+
 export interface ForecastSnapshot {
   id: string;
   name: string;
@@ -84,6 +91,7 @@ export interface ForecastSnapshot {
   dataQuality?: any;
   historicalData?: HistoricalData[];
   metadata: ForecastMetadata;
+  metrics?: ForecastMetrics | null;
 }
 
 export interface ForecastMetadata {
@@ -121,6 +129,7 @@ export interface CreateForecastRequest {
   historicalData?: HistoricalData[];
   clusterData?: ForecastClusterGroup[];
   generatedById?: string;
+  metrics?: ForecastMetrics | null;
   metadata: ForecastSnapshot['metadata'];
 }
 
@@ -133,4 +142,26 @@ export interface ForecastSummaryCard {
   activeModel: string;
   precinctCount: number;
   crimeTypeCount: number;
+}
+
+export interface ForecastComparisonDetail {
+  precinct: string;
+  crimeType: string;
+  month: number;
+  year: number;
+  predictedValue: number;
+  actualValue: number;
+  absoluteError: number;
+  percentageError: number;
+}
+
+export interface ForecastEvaluationResult {
+  forecastRunId: string;
+  totalComparisons: number;
+  meanAbsoluteError: number;
+  rootMeanSquareError: number;
+  meanAbsolutePercentageError: number;
+  isReliable: boolean;
+  details: ForecastComparisonDetail[];
+  warnings: string[];
 }

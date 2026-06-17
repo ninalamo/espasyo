@@ -8,6 +8,7 @@ import type {
   HistoricalData,
   ForecastSnapshot,
   ForecastParams,
+  ForecastMetrics,
 } from '../../types/forecast/ForecastBaseTypes';
 import { initialForecastFilterState } from '../../types/forecast/ForecastBaseTypes';
 import type { ExtendedForecastData, ForecastMapPoint } from '../../types/forecast/ExtendedForecastTypes';
@@ -24,6 +25,7 @@ interface ForecastContextValue {
   clusters: Cluster[];
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
+  forecastMetrics: ForecastMetrics | null;
   extendedForecastData: ExtendedForecastData[];
   forecastMapPoints: ForecastMapPoint[];
   activeModelLabel: string;
@@ -53,6 +55,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
+  const [forecastMetrics, setForecastMetrics] = useState<ForecastMetrics | null>(null);
   const [extendedForecastData, setExtendedForecastData] = useState<ExtendedForecastData[]>([]);
   const [forecastMapPoints, setForecastMapPoints] = useState<ForecastMapPoint[]>([]);
   const [activeModelLabel, setActiveModelLabel] = useState('');
@@ -81,6 +84,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         setClusters([]);
         setHistoricalData(local.historicalData || []);
         setForecastData(local.predictions || []);
+        setForecastMetrics(local.metrics ?? null);
         setFilteredForecastData(local.predictions || []);
       }
     }
@@ -106,6 +110,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setForecastId(data.id);
       setHistoricalData(data.historicalData || []);
       setForecastData(data.predictions || []);
+      setForecastMetrics(data.metrics ?? null);
       setFilteredForecastData(data.predictions || []);
       toast.success(`Loaded forecast: ${data.name}`);
     } catch {
@@ -115,6 +120,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         setForecastId(local.id);
         setHistoricalData(local.historicalData || []);
         setForecastData(local.predictions || []);
+        setForecastMetrics(local.metrics ?? null);
         setFilteredForecastData(local.predictions || []);
         toast.info('Loaded forecast from local storage');
       }
@@ -157,6 +163,8 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       if (!response?.series) throw new Error('Invalid API response');
 
       setActiveModelLabel('SSA (ML.NET)');
+      const metrics = response.metrics as ForecastMetrics | undefined;
+      setForecastMetrics(metrics ?? null);
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
         (series.forecasts || []).map((f: any) => ({
           year: new Date(f.timestamp).getFullYear(),
@@ -217,6 +225,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         forecastPeriod: forecastData.length > 0 ? new Date(Math.max(...forecastData.map(f => new Date(f.year, f.month).getTime()))).getMonth() - new Date().getMonth() + 1 : 6,
         params: { forecastPeriod: 6, model: 'ssa' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true },
         predictions: forecastData,
+        metrics: forecastMetrics,
         clusterData: clusters.map(c => ({
           clusterId: c.clusterId,
           clusterItems: c.clusterItems.map(i => ({
@@ -255,6 +264,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     setClusters([]);
     setHistoricalData([]);
     setForecastData([]);
+    setForecastMetrics(null);
     setExtendedForecastData([]);
     setForecastMapPoints([]);
     setActiveModelLabel('');
@@ -265,7 +275,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
   const value = useMemo(() => ({
     loading, forecastId, forecast, clusters, historicalData,
-    forecastData, extendedForecastData, forecastMapPoints,
+    forecastData, forecastMetrics, extendedForecastData, forecastMapPoints,
     activeModelLabel, dataQuality,
     filters, filteredForecastData, filteredForecastMapPoints,
     analysisLoaded, forecastParams,
@@ -273,7 +283,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   }), [
     loading, forecastId, forecast, clusters, historicalData,
-    forecastData, extendedForecastData, forecastMapPoints,
+    forecastData, forecastMetrics, extendedForecastData, forecastMapPoints,
     activeModelLabel, dataQuality,
     filters, filteredForecastData, filteredForecastMapPoints,
     analysisLoaded, forecastParams,

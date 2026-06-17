@@ -7,6 +7,7 @@ interface DataQualityModalProps {
   forecastData: any[];
   params: any;
   summary: any;
+  evaluation?: any;
 }
 
 const DataQualityModal: React.FC<DataQualityModalProps> = ({
@@ -15,7 +16,8 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
   historicalData,
   forecastData,
   params,
-  summary
+  summary,
+  evaluation
 }) => {
   return (
     <InfoModal
@@ -115,7 +117,7 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
             </div>
           </div>
           
-          {/* Coverage Metrics */}
+          {/* Coverage Summary */}
           <div className="bg-white p-4 rounded-lg border">
             <h4 className="font-medium text-green-700 mb-3">Coverage Summary</h4>
             <div className="space-y-2 text-sm text-green-800">
@@ -203,9 +205,46 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
               <p className="font-medium text-red-800 mb-1">Important Disclaimer</p>
               <p className="text-red-700">These are predictive models based on historical data patterns. Actual crime incidents may vary due to unforeseen circumstances, policy changes, or external factors not captured in historical data. Use these forecasts as guidance tools alongside professional judgment and situational awareness.</p>
             </div>
+            </div>
           </div>
+
+          {evaluation && (
+            <div className="bg-white p-4 rounded-lg border">
+              <h4 className="font-medium text-green-700 mb-3">Holdout Validation</h4>
+              <div className="space-y-2 text-sm text-green-800">
+                <div className="flex justify-between">
+                  <span>Status:</span>
+                  <span className={`font-semibold ${evaluation.isReliable ? 'text-green-600' : 'text-red-600'}`}>
+                    {evaluation.isReliable ? '✅ Reliable' : '⚠️ Low Reliability'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>MAPE:</span>
+                  <span className="font-semibold">{evaluation.meanAbsolutePercentageError.toFixed(2)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>MAE:</span>
+                  <span className="font-semibold">{evaluation.meanAbsoluteError.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>RMSE:</span>
+                  <span className="font-semibold">{evaluation.rootMeanSquareError.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Comparisons:</span>
+                  <span className="font-semibold">{evaluation.totalComparisons}</span>
+                </div>
+                {evaluation.warnings?.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    {evaluation.warnings.map((w: string, i: number) => (
+                      <p key={i} className="text-yellow-700 text-xs mt-1">{w}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
     </InfoModal>
   );
 };

@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import { format } from 'date-fns';
-import type { HistoricalData, ForecastData } from '../../types/forecast/ForecastBaseTypes';
+import type { HistoricalData, ForecastData, ForecastMetrics } from '../../types/forecast/ForecastBaseTypes';
 
 interface Props {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
+  metrics?: ForecastMetrics | null;
 }
 
-const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData }) => {
+const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, metrics: realMetrics }) => {
   const [activeSection, setActiveSection] = useState('overview');
 
   const sections = [
@@ -20,54 +21,14 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData }
     { id: 'interpretation', title: 'How to Use', icon: '📖' },
   ];
 
-  const calculateAccuracyMetrics = () => {
-    if (forecastData.length === 0) return null;
-    
-    const avgConfidence = forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length;
-    const dataQualityScore = (() => {
-      let score = 0;
-      // Sample size (30 points)
-      if (historicalData.length > 1000) score += 30;
-      else if (historicalData.length > 500) score += 25;
-      else if (historicalData.length > 250) score += 20;
-      else score += 15;
-      
-      // Confidence (25 points)
-      if (avgConfidence > 0.9) score += 25;
-      else if (avgConfidence > 0.8) score += 20;
-      else if (avgConfidence > 0.7) score += 15;
-      else score += 10;
-      
-      // Time span (25 points)
-      const timeSpan = historicalData.length > 0 ? 
-        Math.max(...historicalData.map(d => d.year)) - Math.min(...historicalData.map(d => d.year)) + 1 : 0;
-      if (timeSpan >= 5) score += 25;
-      else if (timeSpan >= 3) score += 20;
-      else if (timeSpan >= 2) score += 15;
-      else score += 10;
-      
-      // Completeness (20 points)
-      const completeness = forecastData.filter(f => f.predictedCount >= 0).length / forecastData.length;
-      if (completeness > 0.95) score += 20;
-      else if (completeness > 0.9) score += 15;
-      else if (completeness > 0.8) score += 10;
-      else score += 5;
-      
-      return Math.min(100, score);
-    })();
-    
-    return {
-      avgConfidence,
-      dataQualityScore,
-      sampleSize: historicalData.length,
-      forecastCount: forecastData.length,
-      timeSpan: historicalData.length > 0 ? 
-        Math.max(...historicalData.map(d => d.year)) - Math.min(...historicalData.map(d => d.year)) + 1 : 0,
-      highConfidencePercent: (forecastData.filter(f => f.confidence > 0.8).length / forecastData.length) * 100
-    };
-  };
-
-  const metrics = calculateAccuracyMetrics();
+  const sampleSize = historicalData.length;
+  const forecastCount = forecastData.length;
+  const timeSpan = historicalData.length > 0
+    ? Math.max(...historicalData.map(d => d.year)) - Math.min(...historicalData.map(d => d.year)) + 1
+    : 0;
+  const avgConfidence = forecastData.length > 0
+    ? forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length
+    : 0;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -96,23 +57,23 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData }
                 
                 <div>
                   <h4 className="font-medium text-blue-800 mb-3">Current Dataset</h4>
-                  {metrics && (
+                  {(
                     <div className="space-y-2 text-sm text-blue-700">
                       <div className="flex justify-between">
                         <span>Historical Records:</span>
-                        <span className="font-semibold">{metrics.sampleSize.toLocaleString()}</span>
+                        <span className="font-semibold">{sampleSize.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Forecast Points:</span>
-                        <span className="font-semibold">{metrics.forecastCount.toLocaleString()}</span>
+                        <span className="font-semibold">{forecastCount.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Time Coverage:</span>
-                        <span className="font-semibold">{metrics.timeSpan} years</span>
+                        <span className="font-semibold">{timeSpan} years</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Data Quality Score:</span>
-                        <span className="font-semibold">{metrics.dataQualityScore}/100</span>
+                        <span>Model Accuracy:</span>
+                        <span className="font-semibold">{realMetrics ? `${(realMetrics.modelAccuracy * 100).toFixed(1)}%` : 'Pending validation'}</span>
                       </div>
                     </div>
                   )}
@@ -124,19 +85,19 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData }
               <h3 className="text-lg font-semibold text-green-800 mb-4">Forecast Summary</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                 <div>
-                  <div className="text-2xl font-bold text-green-800">{metrics?.sampleSize.toLocaleString() || 0}</div>
+                  <div className="text-2xl font-bold text-green-800">{sampleSize.toLocaleString() || 0}</div>
                   <div className="text-sm text-green-700">Historical Records</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-green-800">{metrics?.timeSpan || 0}</div>
+                  <div className="text-2xl font-bold text-green-800">{timeSpan || 0}</div>
                   <div className="text-sm text-green-700">Years Covered</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-green-800">{metrics?.forecastCount.toLocaleString() || 0}</div>
+                  <div className="text-2xl font-bold text-green-800">{forecastCount.toLocaleString() || 0}</div>
                   <div className="text-sm text-green-700">Forecast Data Points</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-green-800">{(metrics?.avgConfidence || 0) >= 0.8 ? 'Good' : (metrics?.avgConfidence || 0) >= 0.6 ? 'Fair' : 'Low'}</div>
+                  <div className="text-2xl font-bold text-green-800">{avgConfidence >= 0.8 ? 'Good' : avgConfidence >= 0.6 ? 'Fair' : 'Low'}</div>
                   <div className="text-sm text-green-700">Overall Confidence</div>
                 </div>
               </div>
@@ -230,110 +191,135 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData }
             <div className="bg-green-50 p-6 rounded-lg border border-green-200">
               <h3 className="text-xl font-semibold text-green-800 mb-4">Model Validation & Accuracy Assessment</h3>
               
-              {metrics && (
-                <div className="space-y-6">
-                  {/* Accuracy Metrics */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white p-4 rounded border text-center">
-                      <div className="text-2xl font-bold text-green-800">{(metrics.avgConfidence * 100).toFixed(1)}%</div>
-                      <div className="text-sm text-green-600">Average Confidence</div>
-                    </div>
-                    <div className="bg-white p-4 rounded border text-center">
-                      <div className="text-2xl font-bold text-green-800">{metrics.dataQualityScore}</div>
-                      <div className="text-sm text-green-600">Data Quality Score</div>
-                    </div>
-                    <div className="bg-white p-4 rounded border text-center">
-                      <div className="text-2xl font-bold text-green-800">{metrics.highConfidencePercent.toFixed(0)}%</div>
-                      <div className="text-sm text-green-600">High Confidence Predictions</div>
-                    </div>
-                    <div className="bg-white p-4 rounded border text-center">
-                      <div className="text-2xl font-bold text-green-800">
-                        {metrics.sampleSize > 1000 ? 'A+' : 
-                         metrics.sampleSize > 500 ? 'A' : 
-                         metrics.sampleSize > 250 ? 'B+' : 'B'}
+              <div className="space-y-6">
+                {/* Accuracy Metrics */}
+                {realMetrics ? (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-white p-4 rounded border text-center">
+                        <div className="text-2xl font-bold text-green-800">{realMetrics.meanAbsoluteError.toFixed(2)}</div>
+                        <div className="text-sm text-green-600">MAE (Mean Absolute Error)</div>
+                        <div className="text-xs text-gray-500 mt-1">Average prediction error in crime counts</div>
                       </div>
-                      <div className="text-sm text-green-600">Reliability Grade</div>
-                    </div>
-                  </div>
-
-                  {/* Validation Methods */}
-                  <div className="bg-white p-6 rounded border">
-                    <h4 className="text-lg font-medium text-gray-700 mb-4">Validation Methods</h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div>
-                        <h5 className="font-medium text-gray-800 mb-3">Holdout Validation</h5>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span><strong>Train/Test Split:</strong> 80% of data for training, 20% withheld for testing</span>
-                          </div>
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span><strong>Out-of-Sample:</strong> Predictions checked against data the model has never seen</span>
-                          </div>
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span><strong>Error Metrics:</strong> MAE, RMSE, and MAPE computed on test data</span>
-                          </div>
+                      <div className="bg-white p-4 rounded border text-center">
+                        <div className="text-2xl font-bold text-green-800">{realMetrics.rootMeanSquareError.toFixed(2)}</div>
+                        <div className="text-sm text-green-600">RMSE</div>
+                        <div className="text-xs text-gray-500 mt-1">Root Mean Square Error</div>
+                      </div>
+                      <div className="bg-white p-4 rounded border text-center">
+                        <div className={`text-2xl font-bold ${
+                          realMetrics.meanAbsolutePercentageError < 15 ? 'text-green-800' :
+                          realMetrics.meanAbsolutePercentageError < 25 ? 'text-yellow-600' :
+                          'text-red-600'
+                        }`}>
+                          {realMetrics.meanAbsolutePercentageError.toFixed(1)}%
                         </div>
+                        <div className="text-sm text-green-600">MAPE</div>
+                        <div className="text-xs text-gray-500 mt-1">Mean Absolute Percentage Error</div>
                       </div>
-                      
-                      <div>
-                        <h5 className="font-medium text-gray-800 mb-3">Model Diagnostics</h5>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span><strong>Residual Analysis:</strong> Checks if forecast errors follow expected patterns</span>
-                          </div>
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span><strong>Seasonal Decomposition:</strong> Confirms recurring patterns are correctly captured</span>
-                          </div>
-                          <div className="flex items-center">
-                            <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                            <span><strong>Confidence Calibration:</strong> Verifies that predicted ranges match actual outcome spread</span>
-                          </div>
+                      <div className="bg-white p-4 rounded border text-center">
+                        <div className={`text-2xl font-bold ${
+                          realMetrics.modelAccuracy >= 0.85 ? 'text-green-800' :
+                          realMetrics.modelAccuracy >= 0.75 ? 'text-yellow-600' :
+                          'text-red-600'
+                        }`}>
+                          {(realMetrics.modelAccuracy * 100).toFixed(0)}%
                         </div>
+                        <div className="text-sm text-green-600">Model Accuracy</div>
+                        <div className="text-xs text-gray-500 mt-1">{1 - realMetrics.meanAbsolutePercentageError / 100 > 0 ? 'max(0, 1 - MAPE/100)' : 'N/A'}</div>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Error Metrics */}
-                  <div className="bg-white p-6 rounded border">
-                    <h4 className="text-lg font-medium text-gray-700 mb-4">Expected Accuracy Ranges</h4>
-                    <div className="space-y-3">
-                      <div className="flex items-center justify-between p-3 bg-green-50 rounded">
-                        <span className="font-medium">1-3 Month Forecasts:</span>
-                        <span className="text-green-700 font-semibold">±15-25% typical error range</span>
+                    {realMetrics.meanAbsoluteError === 0 && realMetrics.rootMeanSquareError === 0 && (
+                      <div className="bg-yellow-50 p-4 rounded border border-yellow-200 text-sm text-yellow-800">
+                        Metrics are zero — insufficient historical data for holdout validation. At least 9 months of data per series are needed.
                       </div>
-                      <div className="flex items-center justify-between p-3 bg-yellow-50 rounded">
-                        <span className="font-medium">4-6 Month Forecasts:</span>
-                        <span className="text-yellow-700 font-semibold">±25-35% typical error range</span>
-                      </div>
-                      <div className="flex items-center justify-between p-3 bg-orange-50 rounded">
-                        <span className="font-medium">7-12 Month Forecasts:</span>
-                        <span className="text-orange-700 font-semibold">±35-50% typical error range</span>
-                      </div>
-                    </div>
-                    <p className="text-sm text-gray-600 mt-4">
-                      <strong>Note:</strong> Error ranges are estimates based on historical model performance. 
-                      Actual accuracy may vary depending on data quality, external factors, and local conditions.
+                    )}
+                  </>
+                ) : (
+                  <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
+                    <p className="text-sm text-yellow-800">
+                      Holdout validation metrics are not available for this forecast. Generate a new forecast to see real accuracy metrics.
                     </p>
                   </div>
+                )}
+
+                {/* Validation Methods */}
+                <div className="bg-white p-6 rounded border">
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">Validation Methods</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h5 className="font-medium text-gray-800 mb-3">Holdout Validation</h5>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span><strong>Train/Test Split:</strong> Last 3 months of data held out as test set</span>
+                        </div>
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span><strong>Out-of-Sample:</strong> Predictions checked against held-out data the model has never seen</span>
+                        </div>
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span><strong>Error Metrics:</strong> MAE, RMSE, and MAPE computed on test data</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h5 className="font-medium text-gray-800 mb-3">Model Diagnostics</h5>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span><strong>Residual Analysis:</strong> Forecast errors checked for systematic bias</span>
+                        </div>
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span><strong>Seasonal Decomposition:</strong> Recurring patterns are captured by SSA</span>
+                        </div>
+                        <div className="flex items-center">
+                          <svg className="w-4 h-4 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          <span><strong>Confidence Calibration:</strong> Prediction intervals verified against holdout spread</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-              )}
+
+                {/* Error Metrics */}
+                <div className="bg-white p-6 rounded border">
+                  <h4 className="text-lg font-medium text-gray-700 mb-4">Expected Accuracy Ranges</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 bg-green-50 rounded">
+                      <span className="font-medium">1-3 Month Forecasts:</span>
+                      <span className="text-green-700 font-semibold">±15-25% typical error range</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-yellow-50 rounded">
+                      <span className="font-medium">4-6 Month Forecasts:</span>
+                      <span className="text-yellow-700 font-semibold">±25-35% typical error range</span>
+                    </div>
+                    <div className="flex items-center justify-between p-3 bg-orange-50 rounded">
+                      <span className="font-medium">7-12 Month Forecasts:</span>
+                      <span className="text-orange-700 font-semibold">±35-50% typical error range</span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-4">
+                    <strong>Note:</strong> Error ranges are estimates based on historical model performance. 
+                    Actual accuracy may vary depending on data quality, external factors, and local conditions.
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         );

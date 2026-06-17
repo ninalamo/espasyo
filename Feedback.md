@@ -123,6 +123,70 @@ The catch block in `forecast/new/page.tsx` that silently substituted `generatePr
 
 **Build status:** Passes clean (0 errors).
 
+### ✅ 10. [BACKEND] Added forecast snapshot save endpoint
+
+Added `POST /api/ForecastRun/snapshot` — saves already-computed predictions directly to the database without re-running the ML pipeline. Previously, the only way to persist a forecast was either localStorage (frontend-only) or the ML re-run endpoint (required cluster data).
+
+**New files:**
+- `SaveForecastSnapshotCommand.cs` + handler — creates `ForecastRun` + `ForecastResult` records from provided predictions
+
+**Modified:**
+- `ForecastRunController.cs` — added `[HttpPost("snapshot")]` endpoint
+- `forecastApi.ts` — `save()` tries snapshot endpoint first, falls through to ML endpoint, then local
+
+---
+
+### 🔴 Critical Issues Found: Forecast Accuracy is Invisible
+
+During a full pipeline trace, these problems were identified:
+
+| # | Issue | Severity | Status |
+|---|-------|----------|--------|
+| A | **Backend computes real holdout metrics (MAE/RMSE/MAPE) on every forecast generation, but the frontend never displays them** — the numbers are returned in the API response and silently ignored | **Critical for thesis** — you have real accuracy data and don't show it | ✅ Fixed |
+| B | **Frontend displays *fake* accuracy instead** — `ForecastDocumentation.tsx:49-68` (`calculateAccuracyMetrics()`) averages `prediction.confidence` values (a decayed SSA confidence score, not accuracy) and labels it as "model accuracy" | **Critical for thesis** — a panel member reading the code will see this | ✅ Fixed |
+| C | **`GET /api/ForecastRun/{id}/evaluate` endpoint exists but is never called** — it computes real post-hoc accuracy against historical data, complete with per-comparison details, reliability flags, and warnings. The frontend has zero integration with it. | **Medium** — missed opportunity, not a fabrication | ✅ Fixed |
+| D | **"0.0% accuracy" shown when no validation is possible** — `CalculateRealMetricsAsync` returns all-zero metrics when no series has ≥9 months of data. No distinction between "validation failed" and "insufficient data for validation" | **Low** — misleading but rare | ✅ Fixed |
+| E | **3-month holdout may be too short** — the evaluation window is fixed at 3 months, regardless of the forecast horizon | **Low** — defensible with acknowledgment | ⏳ Pending |
+
+**Root cause:** The backend SSA forecast is genuine and the holdout validation is real. But the frontend was built without surfacing any of these metrics. The UI shows confidence levels and risk levels, but not a single accuracy number from the holdout evaluation.
+
+### ✅ 11. [FRONTEND] Replaced fake accuracy with real holdout metrics
+
+**Critical issue B fix:** Removed `calculateAccuracyMetrics()` from `ForecastDocumentation.tsx` — the function that averaged `prediction.confidence` values and labeled it as "model accuracy".
+
+**Critical issue A fix:** Captured `response.metrics` (MAE, RMSE, MAPE, ModelAccuracy) from the backend API response and plumbed it through:
+
+**Modified files:**
+- `ForecastBaseTypes.ts` — added `ForecastMetrics` interface, added `metrics` field to `ForecastSnapshot` and `CreateForecastRequest`
+- `ForecastContext.tsx` — `generateForecast()` now captures `response.metrics`, exposes `forecastMetrics` in context value; `loadForecast()` restores metrics from saved snapshot; `saveCurrentForecast()` includes metrics
+- `forecast/new/page.tsx` — `handleGenerate()` captures `response.metrics`, includes in save snapshot
+- `forecastApi.ts` — all three `save()` return paths preserve `data.metrics` in the returned snapshot
+- `ForecastDocumentation.tsx` — accepts `metrics` prop; validation section shows real MAE/RMSE/MAPE/ModelAccuracy with color coding; shows yellow warning when metrics are zero (insufficient data); overview section shows real `ModelAccuracy` instead of fake "Data Quality Score"; removed all heuristic scoring
+- `[id]/docs/page.tsx` — passes `forecastMetrics` from context to component
+
+**Fallback:** When metrics are not available (older saved forecasts), the validation section shows "Holdout validation metrics are not available" instead of fake numbers.
+
+### ✅ 12. [FRONTEND] Added accuracy visualization and evaluate endpoint integration
+
+**Item 12 — Accuracy card in summary page:**
+Added a "Model Accuracy" card to the key metrics grid on the forecast summary page showing:
+- Accuracy percentage (100-MAPE) with color coding
+- MAE and RMSE as secondary details
+- SSA confidence decay info line
+
+**Item 11 — Evaluate endpoint connected:**
+- `summary/page.tsx` now calls `GET /api/ForecastRun/{id}/evaluate` when the forecast has a server ID (non-local)
+- Displays reliability badge (green "Reliable" / red "Low reliability") based on `isReliable` flag
+- Shows validation warnings as a yellow alert banner
+- Passes evaluation data to `DataQualityModal` for detailed view
+
+**Modified files:**
+- `ForecastBaseTypes.ts` — added `ForecastEvaluationResult` and `ForecastComparisonDetail` types
+- `forecastApi.ts` — added `evaluate(id)` method
+- `ForecastSummary.tsx` — added accuracy card to metrics grid, evaluation warnings section, passes evaluation to DataQualityModal
+- `[id]/summary/page.tsx` — fetches evaluation data on mount, passes `metrics` and `evaluation` props
+- `DataQualityModal.tsx` — added "Holdout Validation" section showing isReliable status, MAPE, MAE, RMSE, comparison count, and warnings
+
 ---
 
 ## What Still Needs to Change
@@ -201,3 +265,6 @@ This scope is defensible. The panel gets to see real ML.NET K-Means with silhoue
 | 7 | Code quality (strict, tests, logs, CSV, GUIDs) | Frontend | Medium | Medium — panel impression | ⏳ Pending |
 | 8 | Performance (map rebuild, filter memo, Set lookup, localStorage limits) | Frontend | Low | Low — smoother demo | ✅ Done |
 | 9 | Clean up dead forecast module code | Frontend | Medium | Medium — removes dead ensemble/manpower state, orphaned tabs, stale types | ✅ Done |
+| 10 | Surface holdout accuracy metrics (MAE/RMSE/MAPE) | Frontend | Medium | **Critical** — backend already computes them, frontend now displays them | ✅ Done |
+| 11 | Connect evaluate endpoint to saved forecasts | Frontend | Medium | High — summary page now fetches and displays isReliable, warnings | ✅ Done |
+| 12 | Add accuracy visualization to forecast UI | Frontend | Medium | Medium — accuracy card in key metrics grid, eval section in DataQualityModal, color-coded | ✅ Done |
