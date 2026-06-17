@@ -15,13 +15,6 @@ import { DEFAULT_MANPOWER_ALLOCATION } from '../../types/forecast/ExtendedForeca
 import type { SingleModelRun, EnsembleSummary } from '../../types/forecast/EnsembleTypes';
 import { forecastApi, saveForecastToLocal, loadForecastFromLocal } from '../api/utils/forecastApi';
 import { apiService } from '../api/utils/apiService';
-import { processClusterData, convertHistoricalDataToClusters } from '../../utils/forecastHelpers';
-import { runAllModels, computeConsensus } from '../../utils/forecastEnsemble';
-import {
-  enhanceForecastData,
-  filterReliableForecasts,
-  createForecastMapPoints,
-} from '../../utils/forecastEnhancements';
 import type { Cluster } from '../../types/analysis/ClusterDto';
 import { toast } from 'react-toastify';
 import { getSession } from 'next-auth/react';
@@ -104,20 +97,18 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
   useEffect(() => {
     if (filteredForecastData.length > 0) {
-      const enhanced = filteredForecastData.map(f => {
-        const existing = extendedForecastData.find(
-          e => e.precinct === f.precinct && e.crimeType === f.crimeType && e.year === f.year && e.month === f.month
-        );
-        if (existing) return existing;
-        return enhanceForecastData(f as any, historicalData, clusters);
-      });
-      const reliable = filterReliableForecasts(enhanced, 0.3, 3, 1.5);
-      const points = createForecastMapPoints(reliable, 0.3);
-      setFilteredForecastMapPoints(points);
+      const filtered = forecastMapPoints.filter(p =>
+        filteredForecastData.some(f =>
+          f.precinct === p.precinct && f.crimeType === p.crimeType &&
+          f.year === parseInt(p.forecastPeriod.split('-')[0]) &&
+          f.month === parseInt(p.forecastPeriod.split('-')[1])
+        )
+      );
+      setFilteredForecastMapPoints(filtered);
     } else {
       setFilteredForecastMapPoints(forecastMapPoints);
     }
-  }, [filteredForecastData]);
+  }, [filteredForecastData, forecastMapPoints]);
 
   const loadForecast = useCallback(async (id: string) => {
     setLoading(true);
@@ -131,17 +122,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       if (data.params) {
         setManpowerSettings(DEFAULT_MANPOWER_ALLOCATION);
       }
-      if (data.historicalData && data.historicalData.length > 0) {
-        const params = data.params || { forecastPeriod: 6, model: 'polynomial' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true };
-        const thresholds = DEFAULT_MANPOWER_ALLOCATION.riskThresholds;
-        const ensembleRuns = runAllModels(data.historicalData, {
-          forecastPeriod: params.forecastPeriod,
-          includeSeasonality: params.includeSeasonality ?? true,
-          weightRecentData: params.weightRecentData ?? true,
-        }, { riskThresholds: thresholds });
-        setModelRuns(ensembleRuns);
-        setEnsembleSummary(computeConsensus(ensembleRuns));
-      }
       toast.success(`Loaded forecast: ${data.name}`);
     } catch {
       const local = loadForecastFromLocal();
@@ -151,17 +131,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         setHistoricalData(local.historicalData || []);
         setForecastData(local.predictions || []);
         setFilteredForecastData(local.predictions || []);
-        if (local.historicalData && local.historicalData.length > 0) {
-          const params = local.params || { forecastPeriod: 6, model: 'polynomial' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true };
-          const thresholds = DEFAULT_MANPOWER_ALLOCATION.riskThresholds;
-          const ensembleRuns = runAllModels(local.historicalData, {
-            forecastPeriod: params.forecastPeriod,
-            includeSeasonality: params.includeSeasonality ?? true,
-            weightRecentData: params.weightRecentData ?? true,
-          }, { riskThresholds: thresholds });
-          setModelRuns(ensembleRuns);
-          setEnsembleSummary(computeConsensus(ensembleRuns));
-        }
         toast.info('Loaded forecast from local storage');
       }
     } finally {
@@ -174,69 +143,79 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     setForecastData([]);
 
     try {
-      const processed = processClusterData(clustersData);
-      setHistoricalData(processed);
-
-      const thresholds = DEFAULT_MANPOWER_ALLOCATION.riskThresholds;
-      const ensembleRuns = runAllModels(processed, {
-        forecastPeriod: params.forecastPeriod,
-        includeSeasonality: true,
-        weightRecentData: true,
-      }, { riskThresholds: thresholds });
-      setModelRuns(ensembleRuns);
-      const consensus = computeConsensus(ensembleRuns);
-      setEnsembleSummary(consensus);
-
-      let predictions: ForecastData[];
-
-      try {
-        const clusterGroups = convertHistoricalDataToClusters(clustersData, processed);
-        const response = await apiService.post('/incident/forecast/statistical', {
-          clusterData: clusterGroups,
-          horizon: params.forecastPeriod,
-          confidenceLevel: params.confidence,
-          modelType: 'SSA',
-          includeSeasonality: params.includeSeasonality,
-          weightRecentData: params.weightRecentData,
-        }) as any;
-
-        if (response?.series) {
-          setActiveModelLabel('SSA (ML.NET)');
-          predictions = response.series.flatMap((series: any) =>
-            (series.forecasts || []).map((f: any) => ({
-              year: new Date(f.timestamp).getFullYear(),
-              month: new Date(f.timestamp).getMonth() + 1,
-              precinct: series.precinct,
-              crimeType: series.crimeType,
-              predictedCount: Math.max(0, Math.round(f.forecast)),
-              confidence: f.confidence,
-              trend: f.trend || 'stable',
-              riskLevel: f.riskLevel || 'medium',
-            }))
-          ).sort((a: ForecastData, b: ForecastData) =>
-            new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime()
-          );
-        } else {
-          throw new Error('Invalid response');
-        }
-      } catch {
-        setActiveModelLabel(`${params.model.toUpperCase()} (local fallback)`);
-        predictions = ensembleRuns[1]?.predictions || [];
+      const aggregated = aggregateByMonth(clustersData);
+      if (aggregated.length === 0) {
+        toast.error('No data to forecast');
+        return [];
       }
+      setHistoricalData(aggregated);
+
+      const clusterGroups = clustersData.map(c => ({
+        clusterId: c.clusterId,
+        clusterItems: c.clusterItems.map(i => ({
+          caseId: i.caseId, latitude: i.latitude, longitude: i.longitude,
+          month: i.month, year: i.year, timeOfDay: i.timeOfDay,
+          precinct: i.precinct, crimeType: i.crimeType,
+        })),
+        clusterCount: c.clusterItems.length,
+      }));
+
+      const response = await apiService.post('/incident/forecast/statistical', {
+        clusterData: clusterGroups,
+        horizon: params.forecastPeriod,
+        confidenceLevel: params.confidence,
+        modelType: 'SSA',
+        includeSeasonality: params.includeSeasonality,
+        weightRecentData: params.weightRecentData,
+      }) as any;
+
+      if (!response?.series) throw new Error('Invalid API response');
+
+      setActiveModelLabel('SSA (ML.NET)');
+      const predictions: ForecastData[] = response.series.flatMap((series: any) =>
+        (series.forecasts || []).map((f: any) => ({
+          year: new Date(f.timestamp).getFullYear(),
+          month: new Date(f.timestamp).getMonth() + 1,
+          precinct: series.precinct,
+          crimeType: series.crimeType,
+          predictedCount: Math.max(0, Math.round(f.forecast)),
+          confidence: f.confidence ?? 0,
+          trend: f.trend || 'stable',
+          riskLevel: f.riskLevel || 'medium',
+        }))
+      ).sort((a: ForecastData, b: ForecastData) =>
+        new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime()
+      );
 
       setForecastData(predictions);
       setFilteredForecastData(predictions);
 
-      const enhanced = predictions.map(f => enhanceForecastData(f as any, processed, clustersData));
-      setExtendedForecastData(enhanced);
-
-      const reliable = filterReliableForecasts(enhanced, 0.3, 3, 1.5);
-      const points = createForecastMapPoints(reliable, 0.3);
-      setForecastMapPoints(points);
+      const mapPoints = predictions.map(f => {
+        const precinctCoords: Record<number, { lat: number; lng: number }> = {
+          0: { lat: 14.4291, lng: 121.0358 }, 1: { lat: 14.3856, lng: 121.0189 },
+          2: { lat: 14.3734, lng: 121.0456 }, 3: { lat: 14.3589, lng: 121.0234 },
+          4: { lat: 14.4081, lng: 121.0415 }, 5: { lat: 14.3945, lng: 121.0523 },
+          6: { lat: 14.3712, lng: 121.0589 }, 7: { lat: 14.4456, lng: 121.0234 },
+          8: { lat: 14.4178, lng: 121.0634 },
+        };
+        const coord = precinctCoords[f.precinct] || { lat: 14.4081, lng: 121.0415 };
+        return {
+          id: `${f.year}-${f.month}-${f.precinct}-${f.crimeType}`,
+          latitude: coord.lat, longitude: coord.lng,
+          risk: f.riskLevel, predictedCount: f.predictedCount, confidence: f.confidence,
+          reliability: f.confidence, precinct: f.precinct, crimeType: f.crimeType,
+          timeOfDayBreakdown: { morning: 1, afternoon: 1, evening: 1, night: 1 },
+          primaryTimeOfDay: 'morning' as const,
+          forecastPeriod: `${f.year}-${String(f.month).padStart(2, '0')}`,
+          trend: f.trend,
+        };
+      });
+      setForecastMapPoints(mapPoints);
+      setFilteredForecastMapPoints(mapPoints);
 
       return predictions;
     } catch (err: any) {
-      toast.error(`Forecast generation failed: ${err.message}`);
+      toast.error(`Forecast failed: ${err.message}`);
       return [];
     } finally {
       setLoading(false);
@@ -251,7 +230,15 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         forecastPeriod: forecastData.length > 0 ? new Date(Math.max(...forecastData.map(f => new Date(f.year, f.month).getTime()))).getMonth() - new Date().getMonth() + 1 : 6,
         params: { forecastPeriod: 6, model: 'polynomial' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true },
         predictions: forecastData,
-        clusterData: convertHistoricalDataToClusters(clusters, historicalData),
+        clusterData: clusters.map(c => ({
+          clusterId: c.clusterId,
+          clusterItems: c.clusterItems.map(i => ({
+            caseId: i.caseId, latitude: i.latitude, longitude: i.longitude,
+            month: i.month, year: i.year, timeOfDay: i.timeOfDay,
+            precinct: i.precinct, crimeType: i.crimeType,
+          })),
+          clusterCount: c.clusterItems.length,
+        })),
         generatedById: session?.user?.id,
         metadata: {
           totalClusters: clusters.length,
@@ -312,6 +299,16 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       {children}
     </ForecastContext.Provider>
   );
+}
+
+function aggregateByMonth(clustersData: Cluster[]) {
+  const map = new Map<string, { year: number; month: number; precinct: number; crimeType: number; count: number; timeOfDay: string }>();
+  clustersData.forEach(c => c.clusterItems.forEach(item => {
+    const key = `${item.year}-${item.month}-${item.precinct}-${item.crimeType}`;
+    if (map.has(key)) map.get(key)!.count++;
+    else map.set(key, { year: item.year, month: item.month, precinct: item.precinct, crimeType: item.crimeType, count: 1, timeOfDay: item.timeOfDay });
+  }));
+  return Array.from(map.values()).sort((a, b) => new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime());
 }
 
 export function useForecast(): ForecastContextValue {

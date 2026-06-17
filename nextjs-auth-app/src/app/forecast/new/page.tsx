@@ -7,26 +7,22 @@ import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import type { Cluster } from '../../../types/analysis/ClusterDto';
-import type { ForecastData, ForecastParams, ForecastSnapshot } from '../../../types/forecast/ForecastBaseTypes';
-import type { ManpowerAllocation } from '../../../types/forecast/ExtendedForecastTypes';
-import { DEFAULT_MANPOWER_ALLOCATION } from '../../../types/forecast/ExtendedForecastTypes';
+import type { ForecastData, ForecastParams } from '../../../types/forecast/ForecastBaseTypes';
 import { format } from 'date-fns';
 import { apiService } from '../../api/utils/apiService';
 import { forecastApi, saveForecastToLocal } from '../../api/utils/forecastApi';
 import { getSession } from 'next-auth/react';
-import {
-  processClusterData,
-  convertHistoricalDataToClusters,
-  generatePredictions,
-} from '../../../utils/forecastHelpers';
-import { runAllModels, computeConsensus } from '../../../utils/forecastEnsemble';
-import {
-  enhanceForecastData,
-  filterReliableForecasts,
-  createForecastMapPoints,
-} from '../../../utils/forecastEnhancements';
-import TimeSeriesChart from '../TimeSeriesChart';
 import ForecastSummary from '../ForecastSummary';
+
+function aggregateByMonth(clustersData: Cluster[]) {
+  const map = new Map<string, { year: number; month: number; precinct: number; crimeType: number; count: number; timeOfDay: string }>();
+  clustersData.forEach(c => c.clusterItems.forEach(item => {
+    const key = `${item.year}-${item.month}-${item.precinct}-${item.crimeType}`;
+    if (map.has(key)) map.get(key)!.count++;
+    else map.set(key, { year: item.year, month: item.month, precinct: item.precinct, crimeType: item.crimeType, count: 1, timeOfDay: item.timeOfDay });
+  }));
+  return Array.from(map.values()).sort((a, b) => new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime());
+}
 
 type Step = 'data' | 'configure' | 'generate' | 'review';
 
@@ -124,46 +120,45 @@ export default withAuth(function NewForecastPage() {
     setStep('generate');
 
     try {
-      const processed = processClusterData(clusters);
-      setHistoricalData(processed);
+      const aggregated = aggregateByMonth(clusters);
+      setHistoricalData(aggregated);
 
-      const thresholds = DEFAULT_MANPOWER_ALLOCATION.riskThresholds;
-      let predictions: ForecastData[];
+      const clusterGroups = clusters.map(c => ({
+        clusterId: c.clusterId,
+        clusterItems: c.clusterItems.map(i => ({
+          caseId: i.caseId, latitude: i.latitude, longitude: i.longitude,
+          month: i.month, year: i.year, timeOfDay: i.timeOfDay,
+          precinct: i.precinct, crimeType: i.crimeType,
+        })),
+        clusterCount: c.clusterItems.length,
+      }));
 
-      try {
-        const clusterGroups = convertHistoricalDataToClusters(clusters, processed);
-        const response = await apiService.post('/incident/forecast/statistical', {
-          clusterData: clusterGroups,
-          horizon: forecastParams.forecastPeriod,
-          confidenceLevel: forecastParams.confidence,
-          modelType: 'SSA',
-          includeSeasonality: forecastParams.includeSeasonality,
-          weightRecentData: forecastParams.weightRecentData,
-        }) as any;
+      const response = await apiService.post('/incident/forecast/statistical', {
+        clusterData: clusterGroups,
+        horizon: forecastParams.forecastPeriod,
+        confidenceLevel: forecastParams.confidence,
+        modelType: 'SSA',
+        includeSeasonality: forecastParams.includeSeasonality,
+        weightRecentData: forecastParams.weightRecentData,
+      }) as any;
 
-        if (response?.series) {
-          setActiveModelLabel('SSA (ML.NET)');
-          predictions = response.series.flatMap((series: any) =>
-            (series.forecasts || []).map((f: any) => ({
-              year: new Date(f.timestamp).getFullYear(),
-              month: new Date(f.timestamp).getMonth() + 1,
-              precinct: series.precinct,
-              crimeType: series.crimeType,
-              predictedCount: Math.max(0, Math.round(f.forecast)),
-              confidence: f.confidence || forecastParams.confidence,
-              trend: f.trend || 'stable',
-              riskLevel: f.riskLevel || 'medium',
-            }))
-          ).sort((a: ForecastData, b: ForecastData) =>
-            new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime()
-          );
-        } else {
-          throw new Error('Invalid API response');
-        }
-      } catch {
-        setActiveModelLabel(`${forecastParams.model.toUpperCase()} (local)`);
-        predictions = generatePredictions(processed, forecastParams.forecastPeriod, forecastParams.model, thresholds);
-      }
+      if (!response?.series) throw new Error('Invalid API response');
+
+      setActiveModelLabel('SSA (ML.NET)');
+      const predictions: ForecastData[] = response.series.flatMap((series: any) =>
+        (series.forecasts || []).map((f: any) => ({
+          year: new Date(f.timestamp).getFullYear(),
+          month: new Date(f.timestamp).getMonth() + 1,
+          precinct: series.precinct,
+          crimeType: series.crimeType,
+          predictedCount: Math.max(0, Math.round(f.forecast)),
+          confidence: f.confidence || forecastParams.confidence,
+          trend: f.trend || 'stable',
+          riskLevel: f.riskLevel || 'medium',
+        }))
+      ).sort((a: ForecastData, b: ForecastData) =>
+        new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime()
+      );
 
       setForecastData(predictions);
       toast.success(`Generated ${predictions.length} predictions`);
@@ -185,7 +180,15 @@ export default withAuth(function NewForecastPage() {
         forecastPeriod: forecastParams.forecastPeriod,
         params: forecastParams,
         predictions: forecastData,
-        clusterData: convertHistoricalDataToClusters(clusters, historicalData),
+        clusterData: clusters.map(c => ({
+          clusterId: c.clusterId,
+          clusterItems: c.clusterItems.map(i => ({
+            caseId: i.caseId, latitude: i.latitude, longitude: i.longitude,
+            month: i.month, year: i.year, timeOfDay: i.timeOfDay,
+            precinct: i.precinct, crimeType: i.crimeType,
+          })),
+          clusterCount: c.clusterItems.length,
+        })),
         generatedById: session?.user?.id,
         historicalData,
         metadata: {
@@ -351,7 +354,7 @@ export default withAuth(function NewForecastPage() {
                 <option value="seasonal">Seasonal</option>
                 <option value="arima">SES (Exponential Smoothing)</option>
               </select>
-              <p className="text-xs text-gray-500 mt-1">API will attempt SSA first, falls back to selected model</p>
+              <p className="text-xs text-gray-500 mt-1">Uses SSA (Singular Spectrum Analysis) via ML.NET backend</p>
             </div>
 
             <div>
