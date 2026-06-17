@@ -275,12 +275,23 @@ export function clearLocalForecast(): void {
   } catch {}
 }
 
+const MAX_CACHE_ENTRIES = 10;
+
 export function saveHistoricalDataToCache(id: string, data: HistoricalData[]): void {
   try {
     const cache = JSON.parse(localStorage.getItem(HISTORICAL_DATA_CACHE_KEY) || '{}') as Record<string, HistoricalData[]>;
     cache[id] = data;
+    const keys = Object.keys(cache);
+    if (keys.length > MAX_CACHE_ENTRIES) {
+      const toRemove = keys.slice(0, keys.length - MAX_CACHE_ENTRIES);
+      toRemove.forEach(k => delete cache[k]);
+    }
     localStorage.setItem(HISTORICAL_DATA_CACHE_KEY, JSON.stringify(cache));
-  } catch {}
+  } catch (e) {
+    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      localStorage.removeItem(HISTORICAL_DATA_CACHE_KEY);
+    }
+  }
 }
 
 export function loadHistoricalDataFromCache(id: string): HistoricalData[] | undefined {

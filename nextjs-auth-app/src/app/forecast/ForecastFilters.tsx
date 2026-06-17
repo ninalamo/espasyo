@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import StaticMultiSelectDropdown from '../../components/StaticMultiSelectDropdown';
 import type { ForecastData, ForecastFilterState } from '../../types/forecast/ForecastBaseTypes';
@@ -89,53 +89,57 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
   }, [filters, forecastData, onFiltersChange, onFilteredDataChange, applyFilters]);
 
   // Get unique values for dropdowns
-  const uniquePrecincts = [...new Set(forecastData.map(f => f.precinct))].sort((a, b) => a - b);
-  const uniqueCrimeTypes = [...new Set(forecastData.map(f => f.crimeType))].sort((a, b) => a - b);
+  const uniquePrecincts = useMemo(() =>
+    [...new Set(forecastData.map(f => f.precinct))].sort((a, b) => a - b),
+  [forecastData]);
+  const uniqueCrimeTypes = useMemo(() =>
+    [...new Set(forecastData.map(f => f.crimeType))].sort((a, b) => a - b),
+  [forecastData]);
   
   // Create options for dropdowns
-  const precinctOptions = uniquePrecincts.map(precinct => ({
+  const precinctOptions = useMemo(() => uniquePrecincts.map(precinct => ({
     value: precinct,
     label: GetPrecinctsDictionary[precinct] || `Precinct ${precinct}`
-  }));
+  })), [uniquePrecincts]);
   
-  const crimeTypeOptions = uniqueCrimeTypes.map(crimeType => ({
+  const crimeTypeOptions = useMemo(() => uniqueCrimeTypes.map(crimeType => ({
     value: crimeType,
     label: CrimeTypesDictionary[crimeType] || `Crime Type ${crimeType}`
-  }));
+  })), [uniqueCrimeTypes]);
   
-  const riskLevelOptions = [
+  const riskLevelOptions = useMemo(() => [
     { value: 'critical', label: 'Critical' },
     { value: 'high', label: 'High' },
     { value: 'medium', label: 'Medium' },
     { value: 'low', label: 'Low' }
-  ];
+  ], []);
   
-  const trendOptions = [
+  const trendOptions = useMemo(() => [
     { value: 'increasing', label: 'Increasing ↗' },
     { value: 'stable', label: 'Stable →' },
     { value: 'decreasing', label: 'Decreasing ↘' }
-  ];
+  ], []);
   
   // Get date range for inputs
-  const dateRange = forecastData.length > 0 ? (() => {
+  const dateRange = useMemo(() => forecastData.length > 0 ? (() => {
     const dates = forecastData.map(f => `${f.year}-${f.month.toString().padStart(2, '0')}`);
     const sortedDates = [...new Set(dates)].sort();
     return {
       min: sortedDates[0],
       max: sortedDates[sortedDates.length - 1]
     };
-  })() : { min: '', max: '' };
+  })() : { min: '', max: '' }, [forecastData]);
 
   // Get data ranges
-  const confidenceRange = forecastData.length > 0 ? {
+  const confidenceRange = useMemo(() => forecastData.length > 0 ? {
     min: Math.min(...forecastData.map(f => f.confidence)),
     max: Math.max(...forecastData.map(f => f.confidence))
-  } : { min: 0, max: 1 };
+  } : { min: 0, max: 1 }, [forecastData]);
 
-  const countRange = forecastData.length > 0 ? {
+  const countRange = useMemo(() => forecastData.length > 0 ? {
     min: Math.min(...forecastData.map(f => f.predictedCount)),
     max: Math.max(...forecastData.map(f => f.predictedCount))
-  } : { min: 0, max: 1000 };
+  } : { min: 0, max: 1000 }, [forecastData]);
 
   const filteredCount = applyFilters(filters, forecastData).length;
 

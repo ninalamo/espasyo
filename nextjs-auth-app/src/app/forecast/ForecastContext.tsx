@@ -88,12 +88,9 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
   useEffect(() => {
     if (filteredForecastData.length > 0) {
+      const forecastKeySet = new Set(filteredForecastData.map(f => `${f.precinct}-${f.crimeType}-${f.year}-${f.month}`));
       const filtered = forecastMapPoints.filter(p =>
-        filteredForecastData.some(f =>
-          f.precinct === p.precinct && f.crimeType === p.crimeType &&
-          f.year === parseInt(p.forecastPeriod.split('-')[0]) &&
-          f.month === parseInt(p.forecastPeriod.split('-')[1])
-        )
+        forecastKeySet.has(`${p.precinct}-${p.crimeType}-${p.forecastPeriod}`)
       );
       setFilteredForecastMapPoints(filtered);
     } else {

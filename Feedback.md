@@ -79,6 +79,23 @@ The catch block in `forecast/new/page.tsx` that silently substituted `generatePr
 
 `page-old.tsx` (2193 lines of dead code) deleted. It was the only consumer of `SimpleForecastMap`, `ScatterPlot`, and the deleted util files.
 
+### ✅ 8. [FRONTEND] Performance improvements
+
+**Map rebuild optimization:**
+- Split `colorBy` out of the full layer rebuild effect in `ForecastMap.tsx` — changing the color scheme (risk/reliability/timeOfDay) now only updates marker styles via `setStyle()` instead of destroying and recreating all markers and the heatmap layer
+- Marker point data is stored in a `Map` ref for O(1) style lookups
+
+**Filter memoization:**
+- `ForecastFilters.tsx` — wrapped `precinctOptions`, `crimeTypeOptions`, `dateRange`, `confidenceRange`, `countRange` in `useMemo` to avoid recomputing on every render
+
+**Set-based filtering:**
+- `ForecastContext.tsx` — converted the O(N×M) `filter` + `some` double loop to O(N+M) Set-based lookup for filtered map points
+
+**localStorage limits:**
+- `forecastApi.ts` — `saveHistoricalDataToCache` now caps at 10 entries (LRU-style eviction), and handles `QuotaExceededError` by clearing the cache instead of silently failing
+
+**Build status:** Passes clean (0 errors).
+
 ### ✅ 9. [FRONTEND] Cleaned up dead forecast module code
 
 **Deleted files:**
@@ -124,14 +141,6 @@ The backend already returns `timeOfDay` correctly. Remove any frontend re-deriva
 | Hardcoded GUIDs | `consts.tsx:27-37` | Verify against actual backend precinct IDs |
 | CSV export unsafe quoting | `analysis/page.tsx:200-208` | Use a proper CSV library |
 | `db.json` + json-server | Root directory | Remove mock data from thesis branch |
-
-### 8. [FRONTEND] Performance (nice-to-have)
-
-- Map rebuilds all layers on every filter toggle
-- No virtualization on data tables
-- localStorage cache with no size limits
-
-Won't make or break a defense, but a smooth demo helps.
 
 ---
 
@@ -190,5 +199,5 @@ This scope is defensible. The panel gets to see real ML.NET K-Means with silhoue
 | 5 | Remove API fallback catch block | Frontend | Low | Critical — stops silent math substitution | ✅ Done |
 | 6 | Delete orphaned components | Frontend | Low | Low — cleanup | ✅ Done |
 | 7 | Code quality (strict, tests, logs, CSV, GUIDs) | Frontend | Medium | Medium — panel impression | ⏳ Pending |
-| 8 | Performance | Frontend | Low | Low | ⏳ Pending |
+| 8 | Performance (map rebuild, filter memo, Set lookup, localStorage limits) | Frontend | Low | Low — smoother demo | ✅ Done |
 | 9 | Clean up dead forecast module code | Frontend | Medium | Medium — removes dead ensemble/manpower state, orphaned tabs, stale types | ✅ Done |

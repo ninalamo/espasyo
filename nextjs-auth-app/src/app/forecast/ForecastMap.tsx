@@ -35,6 +35,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   const leafletMap = useRef<any>(null);
   const markersLayerRef = useRef<any>(null);
   const heatLayerRef = useRef<any>(null);
+  const markerDataRef = useRef<Map<any, ForecastMapPoint>>(new Map());
   const animFrameRef = useRef<number | null>(null);
   const [isClient, setIsClient] = useState(false);
   const [L, setL] = useState<any>(null);
@@ -261,12 +262,12 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
     };
   }, [isClient, L, center, zoom]);
 
-  // Update map markers when filtered points or display settings change
+  // Rebuild map layers when data or visibility changes
   useEffect(() => {
     if (!isClient || !L || !leafletMap.current || !markersLayerRef.current) return;
 
-    // Clear existing layers
     markersLayerRef.current.clearLayers();
+    markerDataRef.current.clear();
     if (heatLayerRef.current) {
       leafletMap.current.removeLayer(heatLayerRef.current);
       heatLayerRef.current = null;
@@ -274,7 +275,6 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
 
     if (loading) return;
 
-    // Add heatmap layer if enabled
     if (showHeatmap && filteredPoints.length > 0) {
       const heatData = filteredPoints.map(point => [
         point.latitude, 
@@ -298,11 +298,10 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
       leafletMap.current.addLayer(heatLayerRef.current);
     }
 
-    // Add point markers if enabled
     if (showPoints) {
       filteredPoints.forEach(point => {
         const color = getPointColor(point);
-        const radius = getPointRadius(point);
+        const radius = Math.min(6 + Math.log(Math.max(1, point.predictedCount)) * 2, 20);
         
         const marker = L.circleMarker([point.latitude, point.longitude], {
           color: '#000',
@@ -312,12 +311,10 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
           radius: radius
         });
 
-        // Add click handler to show details
         marker.on('click', () => {
           setSelectedPoint(point);
         });
 
-        // Add hover tooltip
         const crimeTypeName = CrimeTypesDictionary[point.crimeType] || `Crime Type ${point.crimeType}`;
         const precinctName = GetPrecinctsDictionary[point.precinct] || `Precinct ${point.precinct}`;
         
@@ -333,10 +330,23 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
           { offset: [0, -radius] }
         );
 
+        markerDataRef.current.set(marker, point);
         markersLayerRef.current!.addLayer(marker);
       });
     }
-  }, [isClient, L, filteredPoints, showPoints, showHeatmap, colorBy, loading, getPointColor, getPointRadius, zoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isClient, L, filteredPoints, showPoints, showHeatmap, loading, zoom]);
+
+  // Update marker colors when color scheme changes (avoids full rebuild)
+  useEffect(() => {
+    if (!isClient || !L || !markersLayerRef.current) return;
+    markersLayerRef.current.eachLayer((layer: any) => {
+      const point = markerDataRef.current.get(layer);
+      if (point) {
+        layer.setStyle({ fillColor: getPointColor(point) });
+      }
+    });
+  }, [colorBy, getPointColor, isClient, L]);
 
   // Animation loop
   useEffect(() => {
