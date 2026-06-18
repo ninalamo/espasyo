@@ -6,26 +6,17 @@ import Link from 'next/link';
 import { format } from 'date-fns';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import { loadForecastListFromLocal, loadForecastFromLocal, clearLocalForecast, forecastApi } from '../api/utils/forecastApi';
-import type { ForecastSummaryCard, ForecastSnapshot } from '../../types/forecast/ForecastBaseTypes';
+import { forecastApi } from '../api/utils/forecastApi';
+import type { ForecastSummaryCard } from '../../types/forecast/ForecastBaseTypes';
 
 function ForecastDashboard() {
   const [savedForecasts, setSavedForecasts] = useState<ForecastSummaryCard[]>([]);
-  const [lastForecast, setLastForecast] = useState<ForecastSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const local = loadForecastFromLocal();
-      setLastForecast(local);
-
-      let apiForecasts: ForecastSummaryCard[] = [];
-      try {
-        apiForecasts = await forecastApi.list();
-      } catch {
-        apiForecasts = loadForecastListFromLocal();
-      }
+      const apiForecasts = await forecastApi.list();
       setSavedForecasts(apiForecasts);
       setLoading(false);
     }
@@ -60,30 +51,6 @@ function ForecastDashboard() {
           New Forecast
         </Link>
       </div>
-
-      {lastForecast && (
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold text-blue-800 flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-                Last Forecast
-              </h3>
-              <p className="text-sm text-blue-600 mt-1">
-                {lastForecast.metadata.totalPredictions} predictions &middot; {lastForecast.metadata.precincts.length} precincts &middot; {lastForecast.metadata.activeModel}
-              </p>
-            </div>
-            <Link
-              href={`/forecast/${lastForecast.id}/summary`}
-              className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition text-sm"
-            >
-              Open
-            </Link>
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <div className="flex justify-center py-12">

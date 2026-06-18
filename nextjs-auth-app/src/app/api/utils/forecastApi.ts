@@ -83,27 +83,20 @@ class ForecastApiService {
   }
 
   async list(): Promise<ForecastSummaryCard[]> {
-    try {
-      const response = await this.fetchApi<GetForecastRunsResponse>('/ForecastRun');
-      return response.runs.map(r => ({
-        id: r.id,
-        name: `${r.precinctName} - ${r.modelType}`,
-        createdAt: r.runAt,
-        forecastPeriod: r.horizon,
-        totalPredictions: r.totalSeries,
-        activeModel: r.modelType,
-        precinctCount: 1,
-        crimeTypeCount: 0,
-      }));
-    } catch {
-      return loadForecastListFromLocal();
-    }
+    const response = await this.fetchApi<GetForecastRunsResponse>('/ForecastRun');
+    return response.runs.map(r => ({
+      id: r.id,
+      name: `${r.precinctName} - ${r.modelType}`,
+      createdAt: r.runAt,
+      forecastPeriod: r.horizon,
+      totalPredictions: r.totalSeries,
+      activeModel: r.modelType,
+      precinctCount: 1,
+      crimeTypeCount: 0,
+    }));
   }
 
   async getById(id: string): Promise<ForecastSnapshot> {
-    const fromLocal = loadForecastFromLocal();
-    if (fromLocal?.id === id) return fromLocal;
-
     const cachedHistorical = loadHistoricalDataFromCache(id);
 
     try {
@@ -190,7 +183,7 @@ class ForecastApiService {
           historicalData: data.historicalData,
         };
       } catch {
-        /* fall through to existing ML endpoint or local fallback */
+        throw new Error('Failed to save forecast via snapshot endpoint');
       }
     }
 
@@ -246,26 +239,15 @@ class ForecastApiService {
           historicalData: data.historicalData,
         };
       } catch {
-        /* fall through to local fallback */
+        throw new Error('Failed to save forecast via ML endpoint');
       }
     }
 
-    const snapshot: ForecastSnapshot = {
-      id: `local-${Date.now()}`,
-      name: data.name,
-      createdAt: new Date().toISOString(),
-      forecastPeriod: data.forecastPeriod,
-      predictions: data.predictions,
-      metrics: data.metrics,
-      params: data.params,
-      metadata: data.metadata,
-      historicalData: data.historicalData,
-    };
-    return snapshot;
+    throw new Error('No predictions or cluster data to save');
   }
 
   async delete(id: string): Promise<void> {
-    return;
+    await this.fetchApi<void>(`/ForecastRun/${id}`, { method: 'DELETE' });
   }
 
   async evaluate(id: string): Promise<ForecastEvaluationResult> {

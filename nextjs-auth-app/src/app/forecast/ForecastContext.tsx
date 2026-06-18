@@ -12,7 +12,7 @@ import type {
 } from '../../types/forecast/ForecastBaseTypes';
 import { initialForecastFilterState } from '../../types/forecast/ForecastBaseTypes';
 import type { ExtendedForecastData, ForecastMapPoint } from '../../types/forecast/ExtendedForecastTypes';
-import { forecastApi, saveForecastToLocal, loadForecastFromLocal } from '../api/utils/forecastApi';
+import { forecastApi } from '../api/utils/forecastApi';
 import { apiService } from '../api/utils/apiService';
 import type { Cluster } from '../../types/analysis/ClusterDto';
 import { toast } from 'react-toastify';
@@ -76,17 +76,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   useEffect(() => {
     if (initialId) {
       loadForecast(initialId);
-    } else {
-      const local = loadForecastFromLocal();
-      if (local) {
-        setForecast(local);
-        setForecastId(local.id);
-        setClusters([]);
-        setHistoricalData(local.historicalData || []);
-        setForecastData(local.predictions || []);
-        setForecastMetrics(local.metrics ?? null);
-        setFilteredForecastData(local.predictions || []);
-      }
     }
   }, [initialId]);
 
@@ -114,16 +103,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setFilteredForecastData(data.predictions || []);
       toast.success(`Loaded forecast: ${data.name}`);
     } catch {
-      const local = loadForecastFromLocal();
-      if (local && local.id === id) {
-        setForecast(local);
-        setForecastId(local.id);
-        setHistoricalData(local.historicalData || []);
-        setForecastData(local.predictions || []);
-        setForecastMetrics(local.metrics ?? null);
-        setFilteredForecastData(local.predictions || []);
-        toast.info('Loaded forecast from local storage');
-      }
+      toast.error(`Failed to load forecast ${id}`);
     } finally {
       setLoading(false);
     }
@@ -247,7 +227,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       };
 
       const saved = await forecastApi.save(snapshot);
-      saveForecastToLocal(saved);
       setForecastId(saved.id);
       setForecast(saved);
       toast.success(`Forecast saved as "${name}"`);

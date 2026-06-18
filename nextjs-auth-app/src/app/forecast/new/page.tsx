@@ -10,7 +10,7 @@ import type { Cluster } from '../../../types/analysis/ClusterDto';
 import type { ForecastData, ForecastMetrics, ForecastParams } from '../../../types/forecast/ForecastBaseTypes';
 import { format } from 'date-fns';
 import { apiService } from '../../api/utils/apiService';
-import { forecastApi, saveForecastToLocal } from '../../api/utils/forecastApi';
+import { forecastApi } from '../../api/utils/forecastApi';
 import { getSession } from 'next-auth/react';
 import ForecastSummary from '../ForecastSummary';
 
@@ -204,13 +204,7 @@ export default withAuth(function NewForecastPage() {
         },
       };
 
-      let saved: any;
-      try {
-        saved = await forecastApi.save(snapshot);
-      } catch {
-        saved = { id: `local-${Date.now()}`, ...snapshot, createdAt: new Date().toISOString() };
-      }
-      saveForecastToLocal(saved);
+      const saved = await forecastApi.save(snapshot);
       toast.success(`Saved as "${name}"`);
       router.push(`/forecast/${saved.id}/summary`);
     } catch (err: any) {

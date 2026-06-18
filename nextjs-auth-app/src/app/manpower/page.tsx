@@ -5,9 +5,9 @@ import { Users, MapPin, Check, RefreshCw, Clock, ArrowUp, ArrowDown, Minus } fro
 import { toast } from 'react-toastify';
 import { manpowerApi, ManpowerAllocation, UpsertManpowerRequest } from '../../utils/manpowerApi';
 import { PrecinctGuidToNumberMap, GetPrecinctsDictionary } from '../../constants/consts';
-import { loadForecastFromLocal, loadForecastByIdFromLocal, loadForecastListFromLocal, forecastApi } from '../api/utils/forecastApi';
+import { forecastApi } from '../api/utils/forecastApi';
 import withAuth from '../hoc/withAuth';
-import type { ForecastData, ForecastSummaryCard } from '../../types/forecast/ForecastBaseTypes';
+import type { ForecastData, ForecastSnapshot, ForecastSummaryCard } from '../../types/forecast/ForecastBaseTypes';
 
 const PrecinctNumberToGuidMap: Record<number, string> = {};
 for (const [guid, num] of Object.entries(PrecinctGuidToNumberMap)) {
@@ -57,13 +57,13 @@ function ManpowerAllocationPage() {
   const [showRules, setShowRules] = useState(false);
   const [baseOfficersPerCrime, setBaseOfficersPerCrime] = useState(1);
 
-  const loadForecast = (id: string) => {
+  const loadForecast = async (id: string) => {
     if (!id) return;
-    const snapshot = id === 'last' ? loadForecastFromLocal() : loadForecastByIdFromLocal(id);
-    if (snapshot) {
+    try {
+      const snapshot = await forecastApi.getById(id);
       setForecastData(snapshot.predictions || []);
       setSelectedForecastName(snapshot.name);
-    }
+    } catch { return; }
   };
 
   const handleForecastChange = (id: string) => {
@@ -73,19 +73,13 @@ function ManpowerAllocationPage() {
 
   useEffect(() => {
     async function load() {
-      let list: ForecastSummaryCard[] = [];
-      try {
-        list = await forecastApi.list();
-      } catch {
-        list = loadForecastListFromLocal();
-      }
+      const list = await forecastApi.list();
       setForecastList(list);
 
-      const last = loadForecastFromLocal();
-      if (last) {
-        setSelectedForecastId('last');
-        setSelectedForecastName(last.name);
-        setForecastData(last.predictions || []);
+      if (list.length > 0) {
+        setSelectedForecastId(list[0].id);
+        setSelectedForecastName(list[0].name);
+        await loadForecast(list[0].id);
       }
 
       await loadPrecinctsAndAllocations();
@@ -263,7 +257,6 @@ function ManpowerAllocationPage() {
                   {f.name} ({new Date(f.createdAt).toLocaleDateString()})
                 </option>
               ))}
-              <option value="last">Most recent saved forecast</option>
             </select>
             {selectedForecastName && (
               <span className="text-sm text-gray-500">
