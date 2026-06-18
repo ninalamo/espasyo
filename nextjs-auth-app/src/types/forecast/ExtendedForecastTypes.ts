@@ -66,14 +66,7 @@ export interface MapForecastSummary {
   crimeTypeCoverage: number[];
 }
 
-// Utility functions for time of day categorization
-export const categorizeTimeOfDay = (hour: number): 'morning' | 'afternoon' | 'evening' | 'night' => {
-  if (hour >= 6 && hour < 12) return 'morning';
-  if (hour >= 12 && hour < 18) return 'afternoon';
-  if (hour >= 18 && hour < 24) return 'evening';
-  return 'night';
-};
-
+// Time of day hour ranges
 export const getTimeOfDayHours = (category: 'morning' | 'afternoon' | 'evening' | 'night'): number[] => {
   switch (category) {
     case 'morning': return [6, 7, 8, 9, 10, 11];

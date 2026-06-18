@@ -124,7 +124,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             fillColor: '#3498db',
             fillOpacity: 0.08
           }),
-          onEachFeature: (feature, layer) => {
+          onEachFeature: (feature: any, layer: L.Layer) => {
             layer.bindTooltip(feature.properties.name, { sticky: true });
           }
         });
@@ -171,6 +171,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         const fc = turf.featureCollection(points.map(pt => turf.point([pt[1], pt[0]])));
         const hull = turf.convex(fc) || turf.bboxPolygon(turf.bbox(fc));
         const buffered = turf.buffer(hull, 0.3, { units: 'kilometers' });
+        if (!buffered) return;
         const coords = buffered.geometry.coordinates[0];
         const latLngs = coords.map(c => [c[1], c[0]] as [number, number]);
         L.polygon(latLngs, { stroke: false, fillColor: clusterColor, fillOpacity: 0.3 }).addTo(envelopeLayersRef.current!);

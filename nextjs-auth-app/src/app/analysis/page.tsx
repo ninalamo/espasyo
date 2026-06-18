@@ -59,11 +59,6 @@ const AnalysisPage = () => {
           // Calculate data summary
           const totalItems = clustersData.reduce((sum: number, cluster: any) => sum + cluster.clusterItems.length, 0);
           
-          console.log('📂 Loaded saved analysis:', {
-            clusters: clustersData.length,
-            totalDataPoints: totalItems,
-            analysisTime: timestamp
-          });
           
           toast.success(`Loaded previous analysis: ${clustersData.length} clusters, ${totalItems} data points (${timestamp})`);
         }
@@ -110,7 +105,6 @@ const AnalysisPage = () => {
         numberOfRuns,
       };
 
-      console.log("Payload:", payload);
       const response = await apiService.put<ClusterGroupResponse | ErrorDto>(
         "/incident/grouped-clusters", payload
       );
@@ -118,7 +112,6 @@ const AnalysisPage = () => {
       if ("message" in response) {
         toast.error(response.message);
       } else {
-        console.log("response", response);
         setClusters(response.clusterGroups);
         setLastAnalysisParams(payload);
         
@@ -196,15 +189,19 @@ const AnalysisPage = () => {
     );
 
     // Convert to CSV format
+    const escapeCsv = (val: unknown): string => {
+      const s = val == null ? '' : String(val);
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
     const headers = Object.keys(csvData[0]);
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => 
         headers.map(header => 
-          typeof row[header as keyof typeof row] === 'string' && 
-          (row[header as keyof typeof row] as string).includes(',') 
-            ? `"${row[header as keyof typeof row]}"` 
-            : row[header as keyof typeof row]
+          escapeCsv(row[header as keyof typeof row])
         ).join(',')
       )
     ].join('\n');

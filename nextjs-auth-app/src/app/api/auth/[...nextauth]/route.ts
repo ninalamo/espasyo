@@ -24,8 +24,6 @@ const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
-          console.log("NextAuth authorize -> API_URL:", API_URL);
-          
           // Configure fetch to ignore self-signed certificates in development
           const fetchOptions: RequestInit = {
             method: "POST",
@@ -44,8 +42,6 @@ const authOptions: NextAuthOptions = {
           
           const res = await fetch(API_URL, fetchOptions);
 
-          console.log("Response status:", res.status);
-
           if (!res.ok) {
             const errorBody = await res.text();
             console.error("Error response body:", errorBody);
@@ -53,7 +49,6 @@ const authOptions: NextAuthOptions = {
           }
 
           const user = await res.json();
-          console.log("API response:", user);
 
           if (user && user.token) {
             return {

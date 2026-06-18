@@ -68,7 +68,7 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
 
     data.filter(d => d.precinct === precinct).forEach(d => {
       const ms = new Date(d.year, d.month - 1, 1).getTime();
-      counts[ms][d.timeOfDay]++;
+      counts[ms][d.timeOfDay as TimeSlot]++;
     });
 
     const barDatasets = timeSlots.map(slot => ({

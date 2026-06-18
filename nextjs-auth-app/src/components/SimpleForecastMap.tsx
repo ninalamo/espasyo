@@ -55,7 +55,7 @@ const SimpleForecastMap: React.FC<SimpleForecastMapProps> = ({ clusters, forecas
     }
 
     // Clear existing layers
-    leafletMap.current.eachLayer((layer) => {
+    leafletMap.current.eachLayer((layer: L.Layer) => {
       if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
         leafletMap.current!.removeLayer(layer);
       }

@@ -216,10 +216,10 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
             const value = context.parsed.y;
             
             if (label.includes('Confidence')) {
-              return null; // Hide confidence bounds in tooltip
+              return undefined;
             }
             
-            if (value === null) return null;
+            if (value === null) return undefined;
             
             return `${label}: ${Math.round(value)} cases`;
           },
