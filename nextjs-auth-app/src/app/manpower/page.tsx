@@ -5,7 +5,7 @@ import { Users, MapPin, Check, RefreshCw, Clock, ArrowUp, ArrowDown, Minus } fro
 import { toast } from 'react-toastify';
 import { manpowerApi, ManpowerAllocation, UpsertManpowerRequest } from '../../utils/manpowerApi';
 import { PrecinctGuidToNumberMap, GetPrecinctsDictionary } from '../../constants/consts';
-import { loadForecastFromLocal, loadForecastByIdFromLocal, loadForecastListFromLocal } from '../api/utils/forecastApi';
+import { loadForecastFromLocal, loadForecastByIdFromLocal, loadForecastListFromLocal, forecastApi } from '../api/utils/forecastApi';
 import withAuth from '../hoc/withAuth';
 import type { ForecastData, ForecastSummaryCard } from '../../types/forecast/ForecastBaseTypes';
 
@@ -72,17 +72,25 @@ function ManpowerAllocationPage() {
   };
 
   useEffect(() => {
-    const list = loadForecastListFromLocal();
-    setForecastList(list);
+    async function load() {
+      let list: ForecastSummaryCard[] = [];
+      try {
+        list = await forecastApi.list();
+      } catch {
+        list = loadForecastListFromLocal();
+      }
+      setForecastList(list);
 
-    const last = loadForecastFromLocal();
-    if (last) {
-      setSelectedForecastId('last');
-      setSelectedForecastName(last.name);
-      setForecastData(last.predictions || []);
+      const last = loadForecastFromLocal();
+      if (last) {
+        setSelectedForecastId('last');
+        setSelectedForecastName(last.name);
+        setForecastData(last.predictions || []);
+      }
+
+      await loadPrecinctsAndAllocations();
     }
-
-    loadPrecinctsAndAllocations();
+    load();
   }, []);
 
   const loadPrecinctsAndAllocations = async () => {
