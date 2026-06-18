@@ -33,13 +33,13 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
       
       if (!acc[precinctKey][timeKey]) {
         acc[precinctKey][timeKey] = {
-          totalRisk: 0,
           count: 0,
           criticalCount: 0,
           highCount: 0,
           mediumCount: 0,
           lowCount: 0,
-          predictedCases: 0
+          predictedCases: 0,
+          maxRisk: 0,
         };
       }
       
@@ -47,12 +47,12 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
       risk.predictedCases += item.predictedCount;
       risk.count++;
       
-      // Convert risk level to numeric value
-      const riskValues = { low: 1, medium: 2, high: 3, critical: 4 };
-      risk.totalRisk += riskValues[item.riskLevel];
-      
-      // Count by risk level
+      // Count by risk level and track max
       risk[`${item.riskLevel}Count`]++;
+      const riskValues = { low: 1, medium: 2, high: 3, critical: 4 };
+      if (riskValues[item.riskLevel] > risk.maxRisk) {
+        risk.maxRisk = riskValues[item.riskLevel];
+      }
       
       return acc;
     }, {} as Record<number, Record<string, any>>);
@@ -62,29 +62,32 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
       new Set(forecastData.map(item => `${item.year}-${String(item.month).padStart(2, '0')}`))
     ).sort();
 
-    // Get precincts and sort by total risk
+    // Get precincts and sort by max risk (critical/high count first)
     const precincts = Object.keys(riskMatrix)
       .map(Number)
       .map(precinctId => {
-        const totalRisk = Object.values(riskMatrix[precinctId])
-          .reduce((sum: number, period: any) => sum + (period.totalRisk / period.count), 0);
+        const periods = Object.values(riskMatrix[precinctId]) as any[];
+        const criticalCount = periods.reduce((sum, p) => sum + p.criticalCount, 0);
+        const highCount = periods.reduce((sum, p) => sum + p.highCount, 0);
+        const maxRisk = periods.reduce((max, p) => Math.max(max, p.maxRisk), 0);
         return {
           id: precinctId,
           name: GetPrecinctsDictionary[precinctId] || `Precinct ${precinctId}`,
-          avgRisk: totalRisk / timePeriods.length
+          avgRisk: maxRisk,
+          criticalCount,
+          highCount,
         };
       })
-      .sort((a, b) => b.avgRisk - a.avgRisk);
+      .sort((a, b) => b.criticalCount - a.criticalCount || b.highCount - a.highCount || b.avgRisk - a.avgRisk);
 
-    // Create crime type risk aggregation
+    // Create crime type risk aggregation (max risk, not average)
     const crimeTypeRisk = forecastData.reduce((acc, item) => {
       const key = item.crimeType;
       if (!acc[key]) {
         acc[key] = {
           name: CrimeTypesDictionary[key] || `Crime Type ${key}`,
           totalPredicted: 0,
-          avgRisk: 0,
-          riskSum: 0,
+          maxRisk: 0,
           count: 0,
           criticalCount: 0,
           highCount: 0
@@ -93,9 +96,10 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
       
       const riskValues = { low: 1, medium: 2, high: 3, critical: 4 };
       acc[key].totalPredicted += item.predictedCount;
-      acc[key].riskSum += riskValues[item.riskLevel];
       acc[key].count++;
-      acc[key].avgRisk = acc[key].riskSum / acc[key].count;
+      if (riskValues[item.riskLevel] > acc[key].maxRisk) {
+        acc[key].maxRisk = riskValues[item.riskLevel];
+      }
       
       if (item.riskLevel === 'critical') acc[key].criticalCount++;
       if (item.riskLevel === 'high') acc[key].highCount++;
@@ -105,7 +109,7 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
 
     const sortedCrimeTypes = Object.entries(crimeTypeRisk)
       .map(([id, data]) => ({ id: parseInt(id), ...data }))
-      .sort((a, b) => b.avgRisk - a.avgRisk);
+      .sort((a, b) => b.criticalCount - a.criticalCount || b.highCount - a.highCount || b.maxRisk - a.maxRisk);
 
     return {
       riskMatrix,
@@ -123,18 +127,20 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
     );
   }
 
-  const getRiskColor = (avgRisk: number) => {
-    if (avgRisk >= 3.5) return 'bg-red-600';
-    if (avgRisk >= 2.5) return 'bg-red-400';
-    if (avgRisk >= 1.5) return 'bg-yellow-400';
-    return 'bg-green-400';
+  const getRiskColor = (maxRisk: number) => {
+    if (maxRisk >= 4) return 'bg-red-600';
+    if (maxRisk >= 3) return 'bg-red-400';
+    if (maxRisk >= 2) return 'bg-yellow-400';
+    if (maxRisk >= 1) return 'bg-green-400';
+    return 'bg-gray-200';
   };
 
-  const getRiskLabel = (avgRisk: number) => {
-    if (avgRisk >= 3.5) return 'Critical';
-    if (avgRisk >= 2.5) return 'High';
-    if (avgRisk >= 1.5) return 'Medium';
-    return 'Low';
+  const getRiskLabel = (maxRisk: number) => {
+    if (maxRisk >= 4) return 'Critical';
+    if (maxRisk >= 3) return 'High';
+    if (maxRisk >= 2) return 'Medium';
+    if (maxRisk >= 1) return 'Low';
+    return 'No Data';
   };
 
   const formatPeriod = (period: string) => {
@@ -146,65 +152,7 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
 
   return (
     <div className="space-y-6">
-      {/* Comprehensive Introduction and Legend */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          Understanding the Risk Heatmap
-        </h3>
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div>
-            <h4 className="font-medium text-blue-700 mb-3">How to Read This Visualization</h4>
-            <div className="bg-white p-4 rounded border space-y-2 text-sm">
-              <div><strong>Colors:</strong> Represent aggregated risk levels for each precinct/time period</div>
-              <div><strong>Numbers in cells:</strong> Show predicted crime case counts</div>
-              <div><strong>Rows:</strong> Different precincts (sorted by overall risk)</div>
-              <div><strong>Columns:</strong> Time periods (forecast months)</div>
-              <div><strong>Tooltips:</strong> Hover over cells for detailed information</div>
-            </div>
-          </div>
-          
-          <div>
-            <h4 className="font-medium text-blue-700 mb-3">Risk Calculation Method</h4>
-            <div className="bg-white p-4 rounded border space-y-2 text-sm">
-              <div><strong>Data Source:</strong> Individual forecast predictions by crime type</div>
-              <div><strong>Aggregation:</strong> Risk scores averaged across all crime types per cell</div>
-              <div><strong>Scale:</strong> 1.0 (Low) to 4.0 (Critical)</div>
-              <div><strong>Thresholds:</strong> Low ≤1.5, Medium ≤2.5, High ≤3.5, Critical &gt;3.5</div>
-              <div><strong>Sorting:</strong> Precincts ordered by average risk (highest first)</div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Data Quality Indicators */}
-        <div className="mt-4 p-4 bg-white rounded border">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="text-center">
-              <div className="text-xl font-bold text-blue-800">{heatmapData.precincts.length}</div>
-              <div className="text-blue-600">Precincts</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-blue-800">{heatmapData.timePeriods.length}</div>
-              <div className="text-blue-600">Time Periods</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-blue-800">{forecastData.length}</div>
-              <div className="text-blue-600">Data Points</div>
-            </div>
-            <div className="text-center">
-              <div className="text-xl font-bold text-blue-800">
-                {((forecastData.filter(f => f.confidence > 0.7).length / forecastData.length) * 100).toFixed(0)}%
-              </div>
-              <div className="text-blue-600">High Confidence</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Risk Matrix Heatmap */}
+      {/* Risk Matrix Heatmap — shown first before explanations */}
       <div className="bg-white p-6 rounded-lg border border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
           <svg className="w-5 h-5 mr-2 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -233,15 +181,16 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
                 </div>
                 {heatmapData.timePeriods.map(period => {
                   const cellData = heatmapData.riskMatrix[precinct.id]?.[period];
-                  const avgRisk = cellData ? cellData.totalRisk / cellData.count : 0;
+                  const maxRisk = cellData ? cellData.maxRisk : 0;
+                  const hasData = !!cellData;
                   
                   return (
                     <div
                       key={period}
-                      className={`w-24 h-10 m-0.5 rounded flex items-center justify-center text-xs font-semibold text-white cursor-pointer transition-all hover:scale-105 ${getRiskColor(avgRisk)}`}
-                      title={`${precinct.name} - ${formatPeriod(period)}\nRisk: ${getRiskLabel(avgRisk)}\nPredicted Cases: ${cellData?.predictedCases || 0}`}
+                      className={`w-24 h-10 m-0.5 rounded flex items-center justify-center text-xs font-semibold ${hasData ? 'text-white cursor-pointer hover:scale-105' : 'text-gray-400'} transition-all ${getRiskColor(maxRisk)}`}
+                      title={hasData ? `${precinct.name} - ${formatPeriod(period)}\nRisk: ${getRiskLabel(maxRisk)}\nPredicted Cases: ${cellData.predictedCases}` : `${precinct.name} - ${formatPeriod(period)}\nNo forecast data`}
                     >
-                      {cellData?.predictedCases || 0}
+                      {hasData ? cellData.predictedCases : '—'}
                     </div>
                   );
                 })}
@@ -292,12 +241,69 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
               <div className="bg-white p-3 rounded border space-y-2 text-sm">
                 <div><strong>Cell Color:</strong> Overall risk level for that precinct/time period</div>
                 <div><strong>Cell Number:</strong> Total predicted crime cases</div>
-                <div><strong>Empty Cells:</strong> No forecast data available (shown as 0)</div>
+                <div><strong>Empty Cells:</strong> No forecast data available (shown as —)</div>
                 <div><strong>Hover Tooltip:</strong> Shows detailed breakdown of risk calculation</div>
                 <div className="pt-2 border-t text-xs text-gray-600">
                   <strong>Example:</strong> A red cell with &quot;15&quot; means critical risk level with 15 predicted cases
                 </div>
               </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* How to Read — moved after the visualization */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+        <h3 className="text-lg font-semibold text-blue-800 mb-4 flex items-center">
+          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Understanding the Risk Heatmap
+        </h3>
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div>
+            <h4 className="font-medium text-blue-700 mb-3">How to Read This Visualization</h4>
+            <div className="bg-white p-4 rounded border space-y-2 text-sm">
+              <div><strong>Colors:</strong> Represent aggregated risk levels for each precinct/time period</div>
+              <div><strong>Numbers in cells:</strong> Show predicted crime case counts</div>
+              <div><strong>Rows:</strong> Different precincts (sorted by overall risk)</div>
+              <div><strong>Columns:</strong> Time periods (forecast months)</div>
+              <div><strong>Tooltips:</strong> Hover over cells for detailed information</div>
+            </div>
+          </div>
+          
+          <div>
+            <h4 className="font-medium text-blue-700 mb-3">Risk Calculation Method</h4>
+            <div className="bg-white p-4 rounded border space-y-2 text-sm">
+              <div><strong>Data Source:</strong> Individual forecast predictions by crime type</div>
+                <div><strong>Aggregation:</strong> Uses the highest risk level across all crime types per cell</div>
+              <div><strong>Scale:</strong> 1.0 (Low) to 4.0 (Critical)</div>
+              <div><strong>Thresholds:</strong> Low ≤1.5, Medium ≤2.5, High ≤3.5, Critical &gt;3.5</div>
+              <div><strong>Sorting:</strong> Precincts ordered by critical/high risk count</div>
+            </div>
+          </div>
+        </div>
+        
+        <div className="mt-4 p-4 bg-white rounded border">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-800">{heatmapData.precincts.length}</div>
+              <div className="text-blue-600">Precincts</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-800">{heatmapData.timePeriods.length}</div>
+              <div className="text-blue-600">Time Periods</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-800">{forecastData.length}</div>
+              <div className="text-blue-600">Data Points</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-bold text-blue-800">
+                {((forecastData.filter(f => f.confidence > 0.7).length / forecastData.length) * 100).toFixed(0)}%
+              </div>
+              <div className="text-blue-600">High Confidence</div>
             </div>
           </div>
         </div>
@@ -317,8 +323,8 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
             <div key={crime.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
               <div className="flex justify-between items-start mb-3">
                 <h4 className="font-medium text-gray-900 text-sm">{crime.name}</h4>
-                <span className={`px-2 py-1 rounded text-xs font-semibold text-white ${getRiskColor(crime.avgRisk)}`}>
-                  {getRiskLabel(crime.avgRisk)}
+                <span className={`px-2 py-1 rounded text-xs font-semibold text-white ${getRiskColor(crime.maxRisk)}`}>
+                  {getRiskLabel(crime.maxRisk)}
                 </span>
               </div>
 
@@ -329,8 +335,8 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
                 </div>
                 
                 <div className="flex justify-between">
-                  <span className="text-gray-600">Avg Risk Score:</span>
-                  <span className="font-semibold">{crime.avgRisk.toFixed(1)}/4.0</span>
+                  <span className="text-gray-600">Max Risk Score:</span>
+                  <span className="font-semibold">{crime.maxRisk}/4</span>
                 </div>
 
                 {(crime.criticalCount > 0 || crime.highCount > 0) && (
@@ -355,8 +361,8 @@ const RiskHeatmap: React.FC<Props> = ({ forecastData, dataQuality }) => {
               <div className="mt-3">
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full ${getRiskColor(crime.avgRisk)}`}
-                    style={{ width: `${(crime.avgRisk / 4) * 100}%` }}
+                    className={`h-2 rounded-full ${getRiskColor(crime.maxRisk)}`}
+                    style={{ width: `${(crime.maxRisk / 4) * 100}%` }}
                   ></div>
                 </div>
               </div>

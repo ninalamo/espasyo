@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { format } from 'date-fns';
 import type {
   ForecastData,
   ForecastFilterState,
@@ -101,6 +102,30 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setForecastData(data.predictions || []);
       setForecastMetrics(data.metrics ?? null);
       setFilteredForecastData(data.predictions || []);
+
+      const mapPoints = (data.predictions || []).map(f => {
+        const precinctCoords: Record<number, { lat: number; lng: number }> = {
+          0: { lat: 14.4291, lng: 121.0358 }, 1: { lat: 14.3856, lng: 121.0189 },
+          2: { lat: 14.3734, lng: 121.0456 }, 3: { lat: 14.3589, lng: 121.0234 },
+          4: { lat: 14.4081, lng: 121.0415 }, 5: { lat: 14.3945, lng: 121.0523 },
+          6: { lat: 14.3712, lng: 121.0589 }, 7: { lat: 14.4456, lng: 121.0234 },
+          8: { lat: 14.4178, lng: 121.0634 },
+        };
+        const coord = precinctCoords[f.precinct] || { lat: 14.4081, lng: 121.0415 };
+        return {
+          id: `${f.year}-${f.month}-${f.precinct}-${f.crimeType}`,
+          latitude: coord.lat, longitude: coord.lng,
+          risk: f.riskLevel, predictedCount: f.predictedCount, confidence: f.confidence,
+          reliability: f.confidence, precinct: f.precinct, crimeType: f.crimeType,
+          timeOfDayBreakdown: { morning: 1, afternoon: 1, evening: 1, night: 1 },
+          primaryTimeOfDay: 'morning' as const,
+          forecastPeriod: `${f.year}-${String(f.month).padStart(2, '0')}`,
+          trend: f.trend,
+        };
+      });
+      setForecastMapPoints(mapPoints);
+      setFilteredForecastMapPoints(mapPoints);
+
       toast.success(`Loaded forecast: ${data.name}`);
     } catch {
       toast.error(`Failed to load forecast ${id}`);
@@ -197,9 +222,17 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     }
   }, []);
 
+  const buildNameSuffix = (data: ForecastData[]) => {
+    if (data.length === 0) return '';
+    const months = [...new Set(data.map(f => `${f.year}-${String(f.month).padStart(2, '0')}`))].sort();
+    const range = months.length >= 2 ? `${months[0]} to ${months[months.length-1]}` : months[0];
+    return ` — ${range} — ${format(new Date(), 'yyyy-MM-dd HH:mm')}`;
+  };
+
   const saveCurrentForecast = useCallback(async (name: string): Promise<string | null> => {
     try {
       const session = await getSession();
+      name = `${name}${buildNameSuffix(forecastData)}`;
       const snapshot = {
         name,
         forecastPeriod: forecastData.length > 0 ? new Date(Math.max(...forecastData.map(f => new Date(f.year, f.month).getTime()))).getMonth() - new Date().getMonth() + 1 : 6,

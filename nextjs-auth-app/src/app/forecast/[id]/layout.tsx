@@ -11,7 +11,6 @@ import type { ForecastData } from '../../../types/forecast/ForecastBaseTypes';
 const TAB_NAV = [
   { key: 'summary', label: 'Summary', icon: '📋' },
   { key: 'trends', label: 'Trend Analysis', icon: '📊' },
-  { key: 'heatmap', label: 'Risk Heatmap', icon: '🔥' },
   { key: 'map', label: 'Forecast Map', icon: '🗺️' },
   { key: 'docs', label: 'Documentation', icon: '📚' },
 ] as const;
@@ -68,6 +67,7 @@ function ForecastDetailInner({ children }: { children: React.ReactNode }) {
               filters={filters}
               onFiltersChange={setFilters}
               onFilteredDataChange={setFilteredForecastData}
+              page={currentTab}
             />
           </div>
         )}

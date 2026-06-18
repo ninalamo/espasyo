@@ -4,12 +4,13 @@ import { useForecast } from '../../ForecastContext';
 import TrendAnalysis from '../../TrendAnalysis';
 
 export default function TrendsPage() {
-  const { historicalData, forecastData } = useForecast();
+  const { historicalData, filteredForecastData, forecastData, forecastId } = useForecast();
 
   return (
     <TrendAnalysis
       historicalData={historicalData}
-      forecastData={forecastData}
+      forecastData={filteredForecastData}
+      forecastId={forecastId}
     />
   );
 }

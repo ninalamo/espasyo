@@ -291,3 +291,82 @@ This scope is defensible. The panel gets to see real ML.NET K-Means with silhoue
 | 10 | Surface holdout accuracy metrics (MAE/RMSE/MAPE) | Frontend | Medium | **Critical** — backend already computes them, frontend now displays them | ✅ Done |
 | 11 | Connect evaluate endpoint to saved forecasts | Frontend | Medium | High — summary page now fetches and displays isReliable, warnings | ✅ Done |
 | 12 | Add accuracy visualization to forecast UI | Frontend | Medium | Medium — accuracy card in key metrics grid, eval section in DataQualityModal, color-coded | ✅ Done |
+
+---
+
+## 🔴 P0 — Ship-blocking misleading data
+
+### 14. [FRONTEND] Heatmap risk averaging hides critical alerts
+
+**File:** `RiskHeatmap.tsx:51`
+
+Risk score is a simple average of `{low:1, medium:2, high:3, critical:4}` across all crime types in a cell. A cell with 5 low + 1 critical gets avg 1.5 (medium) — identical to 6 medium predictions. Different risk profiles with the same average mislead.
+
+**Fix:** Use max risk instead of average, or show worst-case risk level with count overlay:
+```
+riskLevel = cellData.criticalCount > 0 ? 'critical' 
+          : cellData.highCount > 0 ? 'high' 
+          : cellData.mediumCount > 0 ? 'medium' : 'low'
+```
+
+### 15. [FRONTEND] Time-of-day filter/color-scheme uses dummy data
+
+**Files:** `ForecastContext.tsx:119,206`, `ForecastMap.tsx:172-175,781`, `ExtendedForecastTypes.ts:25,40`
+
+`timeOfDayBreakdown` and `primaryTimeOfDay` are hardcoded to `{morning:1, afternoon:1, evening:1, night:1}` / `'morning'` in both `generateForecast()` and `loadForecast()`. The ML pipeline doesn't generate time-of-day distributions. The map's time-of-day filter and color scheme operate on fake data.
+
+**Fix:** Either remove the time-of-day option from the map color scheme and filter, or derive real distributions from historical incident timestamps.
+
+---
+
+## 🟠 P1 — Analysis accuracy gaps
+
+### 16. [FRONTEND] Trend counts lack rates/percentages
+
+**File:** `TrendAnalysis.tsx:21-66,222-226,260-265`
+
+The trend analysis shows raw counts (`↗ 10`, `→ 5`, `↘ 3`) without any rate or percentage. "10 increasing trends" means nothing without context — 10 out of 10 is critical; 10 out of 1000 is noise. No way to distinguish.
+
+**Fix:** Add `increasingRate = increasing / (increasing + decreasing + stable)` alongside raw counts in every precinct/crime type row.
+
+### 17. [FRONTEND] Heatmap shows "0" for both no-data and zero-prediction cells
+
+**File:** `RiskHeatmap.tsx:241-246`
+
+Cells with no forecast data render as `0` in the colored cell, visually indistinguishable from actual zero-prediction cells. This erodes trust — users can't tell if data is missing or genuinely zero.
+
+**Fix:** Render grey dashes (`—`) with neutral background for absent data; show `0` with normal color for true zero-prediction cells.
+
+---
+
+## 🟡 P2 — Bugs that look broken
+
+### 18. [FRONTEND] Map time-slider interpolation drifts between precincts
+
+**File:** `ForecastMap.tsx:74-110`
+
+The time animation interpolates latitude/longitude linearly between consecutive periods. When the same precinct+crimeType exists in both periods, this is fine. But the current code interpolates ALL points between periods, including points from different precincts whose centroids differ by >1km. The animation shows points visibly drifting between barangay locations.
+
+**Fix:** Only interpolate when `precinct` AND `crimeType` match across consecutive periods. Unmatched points should remain static or fade out.
+
+---
+
+## 🟢 P3 — Polish / missing features
+
+### 19. [FRONTEND] Seasonal pattern data is computed but never visualized
+
+**File:** `TrendAnalysis.tsx:69-78`
+
+`analysis.seasonalPattern` aggregates historical incident counts by month (12 buckets) but nothing renders it. A simple 12-month bar or line chart showing average historical incidents per month would add real value.
+
+### 20. [FRONTEND] ForecastFilters collapsed by default
+
+**File:** `ForecastFilters.tsx:171,25`
+
+Advanced filters start collapsed (`isExpanded = false`). Most users won't discover them. Should expand on first visit or when filtered data differs from unfiltered.
+
+### 21. [FRONTEND] RiskHeatmap buries the visualization behind explanation text
+
+**File:** `RiskHeatmap.tsx:148-205`
+
+The first ~60 lines of rendered output are methodology blocks, data quality indicators, and legend before the actual risk matrix appears. Move the "how to read" and "methodology" sections below the heatmap or collapse them by default.

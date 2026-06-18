@@ -60,7 +60,6 @@ export interface MapForecastSummary {
   averageReliability: number;
   highRiskPoints: number;
   filteredPoints: number;
-  timeOfDayDistribution: TimeOfDayBreakdown;
   riskLevelDistribution: Record<'low' | 'medium' | 'high' | 'critical', number>;
   precinctCoverage: number[];
   crimeTypeCoverage: number[];

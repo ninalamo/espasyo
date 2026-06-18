@@ -1,4 +1,4 @@
-import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, HistoricalData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
 
 /* Mapping: Barangay enum int → name (matches backend seed data) */
 const BARANGAY_INT_TO_NAME: Record<number, string> = {
@@ -97,8 +97,6 @@ class ForecastApiService {
   }
 
   async getById(id: string): Promise<ForecastSnapshot> {
-    const cachedHistorical = loadHistoricalDataFromCache(id);
-
     try {
       const results = await this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`);
 
@@ -134,7 +132,7 @@ class ForecastApiService {
           precincts,
           crimeTypes,
         },
-        historicalData: cachedHistorical,
+        historicalData: undefined,
       };
     } catch {
       throw new Error(`Forecast ${id} not found`);
@@ -182,8 +180,8 @@ class ForecastApiService {
           },
           historicalData: data.historicalData,
         };
-      } catch {
-        throw new Error('Failed to save forecast via snapshot endpoint');
+      } catch (error) {
+        console.warn('Snapshot endpoint unavailable, falling back to ML endpoint:', error);
       }
     }
 
@@ -257,117 +255,4 @@ class ForecastApiService {
 
 export const forecastApi = new ForecastApiService();
 
-export const FORECAST_STORAGE_KEY = 'lastForecastData';
-export const FORECAST_LIST_KEY = 'savedForecastsList';
-export const HISTORICAL_DATA_CACHE_KEY = 'historicalDataCache';
 
-export function saveForecastToLocal(forecast: ForecastSnapshot): void {
-  try {
-    localStorage.setItem(FORECAST_STORAGE_KEY, JSON.stringify(forecast));
-    saveForecastSnapshotToCache(forecast);
-
-    if (forecast.historicalData?.length) {
-      saveHistoricalDataToCache(forecast.id, forecast.historicalData);
-    }
-
-    const list = loadForecastListFromLocal();
-    const existingIdx = list.findIndex(f => f.id === forecast.id);
-    const card: ForecastSummaryCard = {
-      id: forecast.id,
-      name: forecast.name,
-      createdAt: forecast.createdAt,
-      forecastPeriod: forecast.forecastPeriod,
-      totalPredictions: forecast.metadata.totalPredictions,
-      activeModel: forecast.metadata.activeModel,
-      precinctCount: forecast.metadata.precincts.length,
-      crimeTypeCount: forecast.metadata.crimeTypes.length,
-    };
-
-    if (existingIdx >= 0) {
-      list[existingIdx] = card;
-    } else {
-      list.unshift(card);
-    }
-    localStorage.setItem(FORECAST_LIST_KEY, JSON.stringify(list.slice(0, 20)));
-  } catch {}
-}
-
-const FORECAST_SNAPSHOT_CACHE_KEY = 'forecastSnapshotCache';
-
-function saveForecastSnapshotToCache(forecast: ForecastSnapshot): void {
-  try {
-    const cache = JSON.parse(localStorage.getItem(FORECAST_SNAPSHOT_CACHE_KEY) || '{}') as Record<string, ForecastSnapshot>;
-    cache[forecast.id] = forecast;
-    const keys = Object.keys(cache);
-    if (keys.length > MAX_CACHE_ENTRIES) {
-      const toRemove = keys.slice(0, keys.length - MAX_CACHE_ENTRIES);
-      toRemove.forEach(k => delete cache[k]);
-    }
-    localStorage.setItem(FORECAST_SNAPSHOT_CACHE_KEY, JSON.stringify(cache));
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-      localStorage.removeItem(FORECAST_SNAPSHOT_CACHE_KEY);
-    }
-  }
-}
-
-export function loadForecastByIdFromLocal(id: string): ForecastSnapshot | null {
-  try {
-    const cache = JSON.parse(localStorage.getItem(FORECAST_SNAPSHOT_CACHE_KEY) || '{}') as Record<string, ForecastSnapshot>;
-    return cache[id] || null;
-  } catch {
-    return null;
-  }
-}
-
-export function loadForecastFromLocal(): ForecastSnapshot | null {
-  try {
-    const raw = localStorage.getItem(FORECAST_STORAGE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
-
-export function loadForecastListFromLocal(): ForecastSummaryCard[] {
-  try {
-    const raw = localStorage.getItem(FORECAST_LIST_KEY);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-export function clearLocalForecast(): void {
-  try {
-    localStorage.removeItem(FORECAST_STORAGE_KEY);
-  } catch {}
-}
-
-const MAX_CACHE_ENTRIES = 10;
-
-export function saveHistoricalDataToCache(id: string, data: HistoricalData[]): void {
-  try {
-    const cache = JSON.parse(localStorage.getItem(HISTORICAL_DATA_CACHE_KEY) || '{}') as Record<string, HistoricalData[]>;
-    cache[id] = data;
-    const keys = Object.keys(cache);
-    if (keys.length > MAX_CACHE_ENTRIES) {
-      const toRemove = keys.slice(0, keys.length - MAX_CACHE_ENTRIES);
-      toRemove.forEach(k => delete cache[k]);
-    }
-    localStorage.setItem(HISTORICAL_DATA_CACHE_KEY, JSON.stringify(cache));
-  } catch (e) {
-    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
-      localStorage.removeItem(HISTORICAL_DATA_CACHE_KEY);
-    }
-  }
-}
-
-export function loadHistoricalDataFromCache(id: string): HistoricalData[] | undefined {
-  try {
-    const cache = JSON.parse(localStorage.getItem(HISTORICAL_DATA_CACHE_KEY) || '{}') as Record<string, HistoricalData[]>;
-    return cache[id];
-  } catch {
-    return undefined;
-  }
-}

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import withAuth from '../hoc/withAuth';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ToastContainer } from 'react-toastify';
+import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { forecastApi } from '../api/utils/forecastApi';
 import type { ForecastSummaryCard } from '../../types/forecast/ForecastBaseTypes';
@@ -27,8 +27,9 @@ function ForecastDashboard() {
     try {
       await forecastApi.delete(id);
       setSavedForecasts(prev => prev.filter(f => f.id !== id));
+      toast.success('Forecast deleted');
     } catch {
-      setSavedForecasts(prev => prev.filter(f => f.id !== id));
+      toast.error('Failed to delete forecast from server');
     }
   };
 

@@ -173,8 +173,15 @@ export default withAuth(function NewForecastPage() {
     }
   }, [analysisLoaded, clusters, forecastParams]);
 
+  const buildNameSuffix = (data: ForecastData[]) => {
+    if (data.length === 0) return '';
+    const months = [...new Set(data.map(f => `${f.year}-${String(f.month).padStart(2, '0')}`))].sort();
+    const range = months.length >= 2 ? `${months[0]} to ${months[months.length-1]}` : months[0];
+    return ` — ${range} — ${format(new Date(), 'yyyy-MM-dd HH:mm')}`;
+  };
+
   const handleSave = useCallback(async () => {
-    const name = forecastName.trim() || `Forecast ${format(new Date(), 'yyyy-MM-dd HHmm')}`;
+    const name = `${forecastName.trim() || `Forecast ${format(new Date(), 'yyyy-MM-dd HHmm')}`}${buildNameSuffix(forecastData)}`;
     setSaveLoading(true);
     try {
       const session = await getSession();

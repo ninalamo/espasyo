@@ -10,7 +10,6 @@ import {
   MapForecastSummary,
   DEFAULT_FORECAST_FILTERS,
   RISK_LEVEL_COLORS,
-  TIME_OF_DAY_COLORS,
   RELIABILITY_THRESHOLDS
 } from '../../types/forecast/ExtendedForecastTypes';
 
@@ -135,11 +134,6 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
         return false;
       }
       
-      // Time of day filter
-      if (!filters.timeOfDay.includes(point.primaryTimeOfDay)) {
-        return false;
-      }
-      
       // Precinct filter (if any selected)
       if (filters.precincts.length > 0 && !filters.precincts.includes(point.precinct)) {
         return false;
@@ -167,17 +161,6 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
       : 0;
     const highRiskPoints = filteredPoints.filter(p => p.risk === 'high' || p.risk === 'critical').length;
     
-    const timeOfDayDistribution = filteredPoints.reduce(
-      (acc, p) => {
-        acc.morning += p.timeOfDayBreakdown.morning;
-        acc.afternoon += p.timeOfDayBreakdown.afternoon;
-        acc.evening += p.timeOfDayBreakdown.evening;
-        acc.night += p.timeOfDayBreakdown.night;
-        return acc;
-      },
-      { morning: 0, afternoon: 0, evening: 0, night: 0 }
-    );
-    
     const riskLevelDistribution = filteredPoints.reduce(
       (acc, p) => {
         acc[p.risk]++;
@@ -194,7 +177,6 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
       averageReliability,
       highRiskPoints,
       filteredPoints: totalPoints,
-      timeOfDayDistribution,
       riskLevelDistribution,
       precinctCoverage,
       crimeTypeCoverage
@@ -211,8 +193,6 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
         if (point.reliability >= RELIABILITY_THRESHOLDS.good) return '#F59E0B';
         if (point.reliability >= RELIABILITY_THRESHOLDS.fair) return '#EF4444';
         return '#9CA3AF';
-      case 'timeOfDay':
-        return TIME_OF_DAY_COLORS[point.primaryTimeOfDay];
       default:
         return RISK_LEVEL_COLORS[point.risk];
     }
@@ -518,7 +498,6 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
             >
               <option value="risk">Risk Level</option>
               <option value="reliability">Reliability</option>
-              <option value="timeOfDay">Time of Day</option>
             </select>
           </div>
 
@@ -586,29 +565,6 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-medium text-gray-700 mb-1">Time of Day</label>
-            <div className="flex flex-wrap gap-1">
-              {(['morning', 'afternoon', 'evening', 'night'] as const).map(time => (
-                <button
-                  key={time}
-                  onClick={() => {
-                    const newTimes = filters.timeOfDay.includes(time)
-                      ? filters.timeOfDay.filter(t => t !== time)
-                      : [...filters.timeOfDay, time];
-                    updateFilter('timeOfDay', newTimes);
-                  }}
-                  className={`text-xs px-2 py-1 rounded border ${
-                    filters.timeOfDay.includes(time)
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-700 border-gray-300'
-                  }`}
-                >
-                  {time}
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -773,18 +729,6 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
               <div>
                 <span className="font-medium text-gray-600">Crime Type:</span>
                 <p>{CrimeTypesDictionary[selectedPoint.crimeType] || `Crime Type ${selectedPoint.crimeType}`}</p>
-              </div>
-              
-              <div>
-                <span className="font-medium text-gray-600">Time of Day Distribution:</span>
-                <div className="mt-1 space-y-1">
-                  {Object.entries(selectedPoint.timeOfDayBreakdown).map(([time, count]) => (
-                    <div key={time} className="flex justify-between text-xs">
-                      <span className="capitalize">{time}:</span>
-                      <span>{count}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
               
               <div className="grid grid-cols-2 gap-4">
