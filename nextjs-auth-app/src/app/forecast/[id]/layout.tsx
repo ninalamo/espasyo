@@ -12,7 +12,6 @@ const TAB_NAV = [
   { key: 'summary', label: 'Summary', icon: '📋' },
   { key: 'trends', label: 'Trend Analysis', icon: '📊' },
   { key: 'map', label: 'Forecast Map', icon: '🗺️' },
-  { key: 'docs', label: 'Documentation', icon: '📚' },
 ] as const;
 
 function ForecastDetailInner({ children }: { children: React.ReactNode }) {

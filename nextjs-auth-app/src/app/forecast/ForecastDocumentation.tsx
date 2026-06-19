@@ -1,34 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { format } from 'date-fns';
-import type { HistoricalData, ForecastData, ForecastMetrics } from '../../types/forecast/ForecastBaseTypes';
 
-interface Props {
-  historicalData: HistoricalData[];
-  forecastData: ForecastData[];
-  metrics?: ForecastMetrics | null;
-}
+const sections = [
+  { id: 'overview', title: 'Overview', icon: '📊' },
+  { id: 'methodology', title: 'Methodology', icon: '🔬' },
+  { id: 'validation', title: 'Validation & Accuracy', icon: '✅' },
+  { id: 'limitations', title: 'Limitations', icon: '⚠️' },
+  { id: 'interpretation', title: 'How to Use', icon: '📖' },
+];
 
-const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, metrics: realMetrics }) => {
+const ForecastDocumentation: React.FC = () => {
   const [activeSection, setActiveSection] = useState('overview');
-
-  const sections = [
-    { id: 'overview', title: 'Overview', icon: '📊' },
-    { id: 'methodology', title: 'Methodology', icon: '🔬' },
-    { id: 'validation', title: 'Validation & Accuracy', icon: '✅' },
-    { id: 'limitations', title: 'Limitations', icon: '⚠️' },
-    { id: 'interpretation', title: 'How to Use', icon: '📖' },
-  ];
-
-  const sampleSize = historicalData.length;
-  const forecastCount = forecastData.length;
-  const timeSpan = historicalData.length > 0
-    ? Math.max(...historicalData.map(d => d.year)) - Math.min(...historicalData.map(d => d.year)) + 1
-    : 0;
-  const avgConfidence = forecastData.length > 0
-    ? forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length
-    : 0;
 
   const renderContent = () => {
     switch (activeSection) {
@@ -38,68 +21,20 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
             <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
               <h3 className="text-xl font-semibold text-blue-800 mb-4">Crime Forecasting System Overview</h3>
               <p className="text-blue-700 mb-4">
-                This forecasting system predicts future crime patterns by analyzing trends in historical incident data. 
-                The system uses Singular Spectrum Analysis (SSA) — a time series decomposition method — combined with 
+                This forecasting system predicts future crime patterns by analyzing trends in historical incident data.
+                The system uses Singular Spectrum Analysis (SSA) — a time series decomposition method — combined with
                 K-Means clustering to identify crime hotspots and generate risk assessments.
               </p>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium text-blue-800 mb-3">Key Capabilities</h4>
-                  <ul className="space-y-2 text-sm text-blue-700">
-                    <li>• Predicts crime patterns up to 12 months ahead</li>
-                    <li>• Analyzes trends by precinct and crime type</li>
-                    <li>• Identifies high-risk areas and forecast periods</li>
-                    <li>• Provides prediction ranges for each forecast</li>
-                    <li>• Validates accuracy using holdout testing</li>
-                  </ul>
-                </div>
-                
-                <div>
-                  <h4 className="font-medium text-blue-800 mb-3">Current Dataset</h4>
-                  {(
-                    <div className="space-y-2 text-sm text-blue-700">
-                      <div className="flex justify-between">
-                        <span>Historical Records:</span>
-                        <span className="font-semibold">{sampleSize.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Forecast Points:</span>
-                        <span className="font-semibold">{forecastCount.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Time Coverage:</span>
-                        <span className="font-semibold">{timeSpan} years</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Model Accuracy:</span>
-                        <span className="font-semibold">{realMetrics ? `${(realMetrics.modelAccuracy * 100).toFixed(1)}%` : 'Pending validation'}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
 
-            <div className="bg-green-50 p-6 rounded-lg border border-green-200">
-              <h3 className="text-lg font-semibold text-green-800 mb-4">Forecast Summary</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                <div>
-                  <div className="text-2xl font-bold text-green-800">{sampleSize.toLocaleString() || 0}</div>
-                  <div className="text-sm text-green-700">Historical Records</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-800">{timeSpan || 0}</div>
-                  <div className="text-sm text-green-700">Years Covered</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-800">{forecastCount.toLocaleString() || 0}</div>
-                  <div className="text-sm text-green-700">Forecast Data Points</div>
-                </div>
-                <div>
-                  <div className="text-2xl font-bold text-green-800">{avgConfidence >= 0.8 ? 'Good' : avgConfidence >= 0.6 ? 'Fair' : 'Low'}</div>
-                  <div className="text-sm text-green-700">Overall Confidence</div>
-                </div>
+              <div>
+                <h4 className="font-medium text-blue-800 mb-3">Key Capabilities</h4>
+                <ul className="space-y-2 text-sm text-blue-700">
+                  <li>• Predicts crime patterns up to 12 months ahead</li>
+                  <li>• Analyzes trends by precinct and crime type</li>
+                  <li>• Identifies high-risk areas and forecast periods</li>
+                  <li>• Provides prediction ranges for each forecast</li>
+                  <li>• Validates accuracy using holdout testing</li>
+                </ul>
               </div>
             </div>
           </div>
@@ -110,7 +45,7 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
           <div className="space-y-6">
             <div className="bg-gray-50 p-6 rounded-lg">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Statistical Forecasting Methodology</h3>
-              
+
               <div className="space-y-8">
                 {/* Data Processing Pipeline */}
                 <div>
@@ -148,14 +83,14 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
                         The model then reconstructs these components to generate predictions with lower/upper bounds (95% confidence interval by default).
                       </p>
                     </div>
-                    
+
                     <div>
                       <h5 className="font-medium text-gray-800">Baseline Calculation</h5>
                       <p className="text-sm text-gray-600 mt-2">
                         6-month rolling average used as reference point for trend and risk classification.
                       </p>
                     </div>
-                    
+
                     <div>
                       <h5 className="font-medium text-gray-800">Risk Assessment</h5>
                       <p className="text-sm text-gray-600 mt-2">
@@ -190,59 +125,8 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
           <div className="space-y-6">
             <div className="bg-green-50 p-6 rounded-lg border border-green-200">
               <h3 className="text-xl font-semibold text-green-800 mb-4">Model Validation & Accuracy Assessment</h3>
-              
-              <div className="space-y-6">
-                {/* Accuracy Metrics */}
-                {realMetrics ? (
-                  <>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <div className="bg-white p-4 rounded border text-center">
-                        <div className="text-2xl font-bold text-green-800">{realMetrics.meanAbsoluteError.toFixed(2)}</div>
-                        <div className="text-sm text-green-600">MAE (Mean Absolute Error)</div>
-                        <div className="text-xs text-gray-500 mt-1">Average prediction error in crime counts</div>
-                      </div>
-                      <div className="bg-white p-4 rounded border text-center">
-                        <div className="text-2xl font-bold text-green-800">{realMetrics.rootMeanSquareError.toFixed(2)}</div>
-                        <div className="text-sm text-green-600">RMSE</div>
-                        <div className="text-xs text-gray-500 mt-1">Root Mean Square Error</div>
-                      </div>
-                      <div className="bg-white p-4 rounded border text-center">
-                        <div className={`text-2xl font-bold ${
-                          realMetrics.meanAbsolutePercentageError < 15 ? 'text-green-800' :
-                          realMetrics.meanAbsolutePercentageError < 25 ? 'text-yellow-600' :
-                          'text-red-600'
-                        }`}>
-                          {realMetrics.meanAbsolutePercentageError.toFixed(1)}%
-                        </div>
-                        <div className="text-sm text-green-600">MAPE</div>
-                        <div className="text-xs text-gray-500 mt-1">Mean Absolute Percentage Error</div>
-                      </div>
-                      <div className="bg-white p-4 rounded border text-center">
-                        <div className={`text-2xl font-bold ${
-                          realMetrics.modelAccuracy >= 0.85 ? 'text-green-800' :
-                          realMetrics.modelAccuracy >= 0.75 ? 'text-yellow-600' :
-                          'text-red-600'
-                        }`}>
-                          {(realMetrics.modelAccuracy * 100).toFixed(0)}%
-                        </div>
-                        <div className="text-sm text-green-600">Model Accuracy</div>
-                        <div className="text-xs text-gray-500 mt-1">{1 - realMetrics.meanAbsolutePercentageError / 100 > 0 ? 'max(0, 1 - MAPE/100)' : 'N/A'}</div>
-                      </div>
-                    </div>
-                    {realMetrics.meanAbsoluteError === 0 && realMetrics.rootMeanSquareError === 0 && (
-                      <div className="bg-yellow-50 p-4 rounded border border-yellow-200 text-sm text-yellow-800">
-                        Metrics are zero — insufficient historical data for holdout validation. At least 9 months of data per series are needed.
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <div className="bg-yellow-50 p-4 rounded border border-yellow-200">
-                    <p className="text-sm text-yellow-800">
-                      Holdout validation metrics are not available for this forecast. Generate a new forecast to see real accuracy metrics.
-                    </p>
-                  </div>
-                )}
 
+              <div className="space-y-6">
                 {/* Validation Methods */}
                 <div className="bg-white p-6 rounded border">
                   <h4 className="text-lg font-medium text-gray-700 mb-4">Validation Methods</h4>
@@ -270,7 +154,7 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
                         </div>
                       </div>
                     </div>
-                    
+
                     <div>
                       <h5 className="font-medium text-gray-800 mb-3">Model Diagnostics</h5>
                       <div className="space-y-2 text-sm">
@@ -315,7 +199,7 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
                     </div>
                   </div>
                   <p className="text-sm text-gray-600 mt-4">
-                    <strong>Note:</strong> Error ranges are estimates based on historical model performance. 
+                    <strong>Note:</strong> Error ranges are estimates based on historical model performance.
                     Actual accuracy may vary depending on data quality, external factors, and local conditions.
                   </p>
                 </div>
@@ -329,7 +213,7 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
           <div className="space-y-6">
             <div className="bg-red-50 p-6 rounded-lg border border-red-200">
               <h3 className="text-xl font-semibold text-red-800 mb-4">Important Limitations & Constraints</h3>
-              
+
               <div className="space-y-6">
                 {/* Data Limitations */}
                 <div className="bg-white p-6 rounded border">
@@ -344,7 +228,7 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
                         <li>• Limited to available historical data quality</li>
                       </ul>
                     </div>
-                    
+
                     <div>
                       <h5 className="font-medium text-red-700 mb-3">External Factors Not Included</h5>
                       <ul className="space-y-2 text-sm text-red-800">
@@ -365,19 +249,19 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
                     <div className="p-4 bg-yellow-50 rounded border border-yellow-200">
                       <h5 className="font-medium text-yellow-800 mb-2">Temporal Accuracy Degradation</h5>
                       <p className="text-sm text-yellow-700">
-                        Forecast accuracy decreases significantly with longer time horizons. Predictions beyond 6 months 
+                        Forecast accuracy decreases significantly with longer time horizons. Predictions beyond 6 months
                         should be used only for high-level strategic planning, not operational decisions.
                       </p>
                     </div>
-                    
+
                     <div className="p-4 bg-yellow-50 rounded border border-yellow-200">
                       <h5 className="font-medium text-yellow-800 mb-2">Spatial Resolution Limits</h5>
                       <p className="text-sm text-yellow-700">
-                        Predictions are aggregated at the precinct level. Micro-geographic patterns within precincts 
+                        Predictions are aggregated at the precinct level. Micro-geographic patterns within precincts
                         cannot be captured, potentially missing localized crime hotspots.
                       </p>
                     </div>
-                    
+
                     <div className="p-4 bg-yellow-50 rounded border border-yellow-200">
                       <h5 className="font-medium text-yellow-800 mb-2">Model Assumptions</h5>
                       <ul className="text-sm text-yellow-700 space-y-1">
@@ -433,7 +317,7 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
           <div className="space-y-6">
             <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
               <h3 className="text-xl font-semibold text-blue-800 mb-4">How to Interpret and Use Forecasts</h3>
-              
+
               <div className="space-y-6">
                 {/* Confidence Levels */}
                 <div className="bg-white p-6 rounded border">
@@ -460,7 +344,7 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
                         </div>
                       </div>
                     </div>
-                    
+
                     <div>
                       <h5 className="font-medium text-blue-700 mb-3">Recommended Use Cases</h5>
                       <div className="space-y-3 text-sm">
@@ -520,7 +404,7 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
                         </li>
                       </ul>
                     </div>
-                    
+
                     <div>
                       <h5 className="font-medium text-red-700 mb-3">Don&apos;ts</h5>
                       <ul className="space-y-2 text-sm text-gray-700">
@@ -622,25 +506,6 @@ const ForecastDocumentation: React.FC<Props> = ({ historicalData, forecastData, 
                 </button>
               ))}
             </nav>
-          </div>
-          
-          {/* Quick Stats */}
-          <div className="mt-4 bg-gray-50 p-4 rounded-lg border">
-            <h4 className="font-semibold text-gray-800 mb-3">Quick Stats</h4>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span>Generated:</span>
-                <span className="font-medium">{format(new Date(), 'PP')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Data Points:</span>
-                <span className="font-medium">{forecastData.length.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Historical Records:</span>
-                <span className="font-medium">{historicalData.length.toLocaleString()}</span>
-              </div>
-            </div>
           </div>
         </div>
 
