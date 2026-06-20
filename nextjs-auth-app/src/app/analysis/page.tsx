@@ -12,7 +12,6 @@ import { ErrorDto } from '../../types/ErrorDto';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import QueryBar from './QueryBar';
-import FilterSection, { FilterState, initialFilterState } from './FilterSection';
 import AnalysisTabs from './AnalysisTabs';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
@@ -29,9 +28,6 @@ const AnalysisPage = () => {
 
   const [numberOfClusters, setNumberOfClusters] = useState(3);
   const [numberOfRuns, setNumberOfRuns] = useState(1);
-
-  // Lifted filter state from FilterSection
-  const [parentFilterState, setParentFilterState] = useState<FilterState>(initialFilterState);
 
   // Load existing analysis data from localStorage on component mount
   useEffect(() => {
@@ -56,13 +52,6 @@ const AnalysisPage = () => {
           if (paramsData.features) setSelectedFeatures(paramsData.features);
           if (paramsData.numberOfClusters) setNumberOfClusters(paramsData.numberOfClusters);
           if (paramsData.numberOfRuns) setNumberOfRuns(paramsData.numberOfRuns);
-          if (paramsData.filters) setParentFilterState({
-            selectedCrimeTypes: paramsData.filters.crimeTypes || [],
-            selectedMotive: paramsData.filters.motives || [],
-            selectedSeverity: paramsData.filters.severities || [],
-            selectedWeather: paramsData.filters.weathers || [],
-            selectedPrecinct: paramsData.filters.precincts || []
-          });
           
           // Force map re-render
           setMapKey(prevKey => prevKey + 1);
@@ -70,11 +59,6 @@ const AnalysisPage = () => {
           // Calculate data summary
           const totalItems = clustersData.reduce((sum: number, cluster: any) => sum + cluster.clusterItems.length, 0);
           
-          console.log('📂 Loaded saved analysis:', {
-            clusters: clustersData.length,
-            totalDataPoints: totalItems,
-            analysisTime: timestamp
-          });
           
           toast.success(`Loaded previous analysis: ${clustersData.length} clusters, ${totalItems} data points (${timestamp})`);
         }
@@ -119,16 +103,8 @@ const AnalysisPage = () => {
         features: selectedFeatures,
         numberOfClusters,
         numberOfRuns,
-        filters: {
-          crimeTypes: parentFilterState.selectedCrimeTypes,
-          motives: parentFilterState.selectedMotive,
-          severities: parentFilterState.selectedSeverity,
-          weathers: parentFilterState.selectedWeather,
-          precincts: parentFilterState.selectedPrecinct,
-        },
       };
 
-      console.log("Payload:", payload);
       const response = await apiService.put<ClusterGroupResponse | ErrorDto>(
         "/incident/grouped-clusters", payload
       );
@@ -136,7 +112,6 @@ const AnalysisPage = () => {
       if ("message" in response) {
         toast.error(response.message);
       } else {
-        console.log("response", response);
         setClusters(response.clusterGroups);
         setLastAnalysisParams(payload);
         
@@ -152,7 +127,7 @@ const AnalysisPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns, parentFilterState]);
+  }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns]);
 
   // Analysis summary data
   const analysisSummary = useMemo(() => {
@@ -214,15 +189,19 @@ const AnalysisPage = () => {
     );
 
     // Convert to CSV format
+    const escapeCsv = (val: unknown): string => {
+      const s = val == null ? '' : String(val);
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
     const headers = Object.keys(csvData[0]);
     const csvContent = [
       headers.join(','),
       ...csvData.map(row => 
         headers.map(header => 
-          typeof row[header as keyof typeof row] === 'string' && 
-          (row[header as keyof typeof row] as string).includes(',') 
-            ? `"${row[header as keyof typeof row]}"` 
-            : row[header as keyof typeof row]
+          escapeCsv(row[header as keyof typeof row])
         ).join(',')
       )
     ].join('\n');
@@ -339,18 +318,7 @@ const AnalysisPage = () => {
           ''
         ].join('\n');
       }).join('\n'),
-      '',
-      '## Applied Filters',
-      lastAnalysisParams.filters.crimeTypes.length > 0 ? 
-        `Crime Types: ${lastAnalysisParams.filters.crimeTypes.join(', ')}` : '',
-      lastAnalysisParams.filters.precincts.length > 0 ? 
-        `Precincts: ${lastAnalysisParams.filters.precincts.join(', ')}` : '',
-      lastAnalysisParams.filters.severities.length > 0 ? 
-        `Severities: ${lastAnalysisParams.filters.severities.join(', ')}` : '',
-      lastAnalysisParams.filters.weathers.length > 0 ? 
-        `Weather Conditions: ${lastAnalysisParams.filters.weathers.join(', ')}` : '',
-      lastAnalysisParams.filters.motives.length > 0 ? 
-        `Motives: ${lastAnalysisParams.filters.motives.join(', ')}` : ''
+      ''
     ].filter(line => line !== '').join('\n');
 
     // Create and download file
@@ -474,12 +442,6 @@ const AnalysisPage = () => {
             numberOfClusters={numberOfClusters} setNumberOfClusters={setNumberOfClusters}
             numberOfRuns={numberOfRuns} setNumberOfRuns={setNumberOfRuns}
             selectedFeatures={selectedFeatures} setSelectedFeatures={setSelectedFeatures}
-          />
-
-          {/* Data Filters */}
-          <FilterSection
-            selectedFeatures={selectedFeatures}
-            onFilterChange={(filterState) => setParentFilterState(filterState)}
           />
 
           {/* Run Analysis Button */}

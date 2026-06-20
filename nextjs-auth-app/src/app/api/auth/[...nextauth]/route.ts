@@ -10,7 +10,7 @@ interface CustomUser extends User {
 // Determine the API URL based on environment variables:
 // Always use NEXT_PUBLIC_API_URL if provided; otherwise fallback to local API.
 // Remove fallback to NEXTAUTH_URL to avoid misrouting to the frontend.
-const API_URL = `${(process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5041/api").replace(/\/$/, "")}/user`;
+const API_URL = `${(process.env.NEXT_PUBLIC_API_URL ?? "https://localhost:7007/api").replace(/\/$/, "")}/user`;
 
 
 
@@ -24,8 +24,6 @@ const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         try {
-          console.log("NextAuth authorize -> API_URL:", API_URL);
-          
           // Configure fetch to ignore self-signed certificates in development
           const fetchOptions: RequestInit = {
             method: "POST",
@@ -44,8 +42,6 @@ const authOptions: NextAuthOptions = {
           
           const res = await fetch(API_URL, fetchOptions);
 
-          console.log("Response status:", res.status);
-
           if (!res.ok) {
             const errorBody = await res.text();
             console.error("Error response body:", errorBody);
@@ -53,7 +49,6 @@ const authOptions: NextAuthOptions = {
           }
 
           const user = await res.json();
-          console.log("API response:", user);
 
           if (user && user.token) {
             return {

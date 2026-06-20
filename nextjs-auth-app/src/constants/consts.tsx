@@ -24,16 +24,17 @@ export const PrecinctNumberToNameMap: Record<number, string> = {
 };
 
 // Mapping from GUID PrecinctIds to precinct numbers for API lookup
+// GUIDs match the backend seed data in ApplicationDbContext.cs
 export const PrecinctGuidToNumberMap: Record<string, number> = {
-  "88888888-8888-8888-8888-888888888888": 0, // Alabang
-  "11111111-1111-1111-1111-111111111111": 1, // Bayanan
-  "22222222-2222-2222-2222-222222222222": 2, // Buli
-  "33333333-3333-3333-3333-333333333333": 3, // Cupang
+  "11111111-1111-1111-1111-111111111111": 0, // Alabang
+  "88888888-8888-8888-8888-888888888888": 1, // Bayanan
+  "99999999-9999-9999-9999-999999999999": 2, // Buli
+  "77777777-7777-7777-7777-777777777777": 3, // Cupang
   "44444444-4444-4444-4444-444444444444": 4, // Poblacion
   "55555555-5555-5555-5555-555555555555": 5, // Putatan
   "66666666-6666-6666-6666-666666666666": 6, // Tunasan
-  "77777777-7777-7777-7777-777777777777": 7, // Ayala Alabang
-  "99999999-9999-9999-9999-999999999999": 8  // Sucat
+  "22222222-2222-2222-2222-222222222222": 7, // Ayala Alabang
+  "33333333-3333-3333-3333-333333333333": 8  // Sucat
 };
 
 export const CrimeTypesDictionary: Record<number, string> = {

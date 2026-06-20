@@ -2,7 +2,7 @@
  * API service for manpower operations
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5041/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7007/api';
 
 // Shift mapping constants
 export const SHIFT_MAPPING = {
@@ -23,22 +23,13 @@ export type ShiftNumber = typeof SHIFT_MAPPING[ShiftName];
 export interface ManpowerAllocation {
   id: string;
   precinctId: string;
-  precinct?: string; // For backward compatibility
   precinctName?: string;
-  headCount: number; // Backend uses headCount
-  officerCount?: number; // For backward compatibility
+  headCount: number;
   shift?: string;
-  allocatedCount?: number; // For backward compatibility
   lastUpdated: string;
-  createdAt?: string; // For backward compatibility
-  updatedAt?: string; // For backward compatibility
-  // Calculated fields for display
   efficiency?: number;
   riskLevel?: 'low' | 'medium' | 'high' | 'critical';
   trend?: 'increasing' | 'decreasing' | 'stable';
-  // Client-side fields for shift management
-  isClientShift?: boolean; // Indicates if this is a client-managed shift allocation
-  originalPrecinctName?: string; // Store original precinct name before shift modification
 }
 
 export interface CreateManpowerRequest {
@@ -101,16 +92,6 @@ class ManpowerApiService {
    */
   async getManpowerById(id: string): Promise<ManpowerAllocation> {
     return this.fetchApi<ManpowerAllocation>(`/manpower/${id}`);
-  }
-
-  /**
-   * Create new manpower allocation
-   */
-  async createManpower(data: CreateManpowerRequest): Promise<ManpowerAllocation> {
-    return this.fetchApi<ManpowerAllocation>('/manpower', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
   }
 
   /**

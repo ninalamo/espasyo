@@ -55,8 +55,8 @@ const CrimeList = () => {
   // or when currentPage or searchQuery changes.
   // Pagination is applied via the query parameters pageNumber, pageSize, and search.
   useEffect(() => {
-    if (!session || status === 'loading') {
-      return; // Don't fetch if not authenticated or still loading
+    if (status !== 'authenticated') {
+      return; // Don't fetch if not authenticated
     }
     
     setIsLoading(true);

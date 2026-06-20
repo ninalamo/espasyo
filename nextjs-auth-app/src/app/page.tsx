@@ -10,6 +10,14 @@ import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../constants/const
 import { apiService } from './api/utils/apiService';
 import { IncidentDto } from '../types/crime-record/IncidentDto';
 
+interface PeriodComparison {
+  current: number;
+  previous: number;
+  changePercent: number;
+  trend: 'up' | 'down' | 'stable';
+  isAnomaly: boolean;
+}
+
 interface DashboardData {
   lastAnalysisClusters: Cluster[] | null;
   lastAnalysisParams: any | null;
@@ -20,13 +28,65 @@ interface DashboardData {
 interface DashboardStats {
   totalIncidents: number;
   recentIncidents: IncidentDto[];
-  todayIncidents: number;
-  weekIncidents: number;
-  monthIncidents: number;
+  today: PeriodComparison;
+  thisWeek: PeriodComparison;
+  thisMonth: PeriodComparison;
   crimeTypeBreakdown: Array<{ type: string; count: number; percentage: number }>;
   severityBreakdown: Array<{ severity: string; count: number; percentage: number }>;
   precinctBreakdown: Array<{ precinct: string; count: number; percentage: number }>;
   isLoading: boolean;
+}
+
+function computeComparison(current: number, previous: number): PeriodComparison {
+  const changePercent = previous === 0
+    ? (current > 0 ? 100 : 0)
+    : Math.round(((current - previous) / previous) * 100);
+  const trend = changePercent > 5 ? 'up' : changePercent < -5 ? 'down' : 'stable';
+  const isAnomaly = previous > 0 && Math.abs(changePercent) > 50;
+  return { current, previous, changePercent, trend, isAnomaly };
+}
+
+function countInRange(incidents: IncidentDto[], start: Date, end?: Date): number {
+  return incidents.filter(i => {
+    const d = new Date(i.timeStamp);
+    return end ? d >= start && d < end : d >= start;
+  }).length;
+}
+
+function TrendIcon({ trend }: { trend: 'up' | 'down' | 'stable' }) {
+  if (trend === 'up') {
+    return <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>;
+  }
+  if (trend === 'down') {
+    return <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>;
+  }
+  return <svg className="w-4 h-4 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14" /></svg>;
+}
+
+function StatCard({ label, comparison, baselineLabel }: {
+  label: string;
+  comparison: PeriodComparison;
+  baselineLabel: string;
+}) {
+  const trendColor = comparison.trend === 'stable' ? 'text-gray-500' : comparison.trend === 'up' ? 'text-red-600' : 'text-green-600';
+  const changeSign = comparison.changePercent > 0 ? '+' : '';
+
+  return (
+    <div className="bg-white border border-gray-200 rounded-lg p-4 text-center relative shadow-sm">
+      {comparison.isAnomaly && (
+        <span className="absolute top-1 right-1 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800" title="Unusual spike compared to baseline">
+          ANOMALY
+        </span>
+      )}
+      <div className="text-2xl font-bold text-gray-900">{comparison.current}</div>
+      <div className={`text-sm ${trendColor} font-medium flex items-center justify-center gap-0.5`}>
+        <TrendIcon trend={comparison.trend} />
+        <span>{changeSign}{comparison.changePercent}%</span>
+      </div>
+      <div className="text-xs mt-0.5 text-gray-500">{baselineLabel}</div>
+      <div className="text-sm mt-1 text-gray-700 font-medium">{label}</div>
+    </div>
+  );
 }
 
 const Home = () => {
@@ -41,9 +101,9 @@ const Home = () => {
   const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
     totalIncidents: 0,
     recentIncidents: [],
-    todayIncidents: 0,
-    weekIncidents: 0,
-    monthIncidents: 0,
+    today: { current: 0, previous: 0, changePercent: 0, trend: 'stable', isAnomaly: false },
+    thisWeek: { current: 0, previous: 0, changePercent: 0, trend: 'stable', isAnomaly: false },
+    thisMonth: { current: 0, previous: 0, changePercent: 0, trend: 'stable', isAnomaly: false },
     crimeTypeBreakdown: [],
     severityBreakdown: [],
     precinctBreakdown: [],
@@ -78,32 +138,33 @@ const Home = () => {
     try {
       setDashboardStats(prev => ({ ...prev, isLoading: true }));
       
-      // Fetch recent incidents with larger page size for stats
       const response = await apiService.get<{ items: IncidentDto[]; totalCount: number }>(
-        '/incident?pageNumber=1&pageSize=100&orderBy=timeStamp&orderDirection=desc'
+        '/incident?pageNumber=1&pageSize=500&orderBy=timeStamp&orderDirection=desc'
       );
       
       if (response && response.items) {
         const incidents = response.items;
         const now = new Date();
-        const today = startOfDay(now);
+        const todayStart = startOfDay(now);
+        const yesterdayStart = subDays(todayStart, 1);
         const weekAgo = subDays(now, 7);
+        const twoWeeksAgo = subDays(now, 14);
         const monthAgo = subDays(now, 30);
+        const twoMonthsAgo = subDays(now, 60);
         
-        // Calculate time-based statistics
-        const todayIncidents = incidents.filter(i => 
-          new Date(i.timeStamp) >= today
-        ).length;
+        const today = computeComparison(
+          countInRange(incidents, todayStart),
+          countInRange(incidents, yesterdayStart, todayStart)
+        );
+        const thisWeek = computeComparison(
+          countInRange(incidents, weekAgo),
+          countInRange(incidents, twoWeeksAgo, weekAgo)
+        );
+        const thisMonth = computeComparison(
+          countInRange(incidents, monthAgo),
+          countInRange(incidents, twoMonthsAgo, monthAgo)
+        );
         
-        const weekIncidents = incidents.filter(i => 
-          new Date(i.timeStamp) >= weekAgo
-        ).length;
-        
-        const monthIncidents = incidents.filter(i => 
-          new Date(i.timeStamp) >= monthAgo
-        ).length;
-        
-        // Calculate crime type breakdown
         const crimeTypeStats = incidents.reduce((acc: Record<string, number>, incident) => {
           const type = incident.crimeTypeText || 'Unknown';
           acc[type] = (acc[type] || 0) + 1;
@@ -118,7 +179,6 @@ const Home = () => {
           }))
           .sort((a, b) => b.count - a.count);
         
-        // Calculate severity breakdown
         const severityStats = incidents.reduce((acc: Record<string, number>, incident) => {
           const severity = incident.severityText || 'Unknown';
           acc[severity] = (acc[severity] || 0) + 1;
@@ -133,7 +193,6 @@ const Home = () => {
           }))
           .sort((a, b) => b.count - a.count);
         
-        // Calculate precinct breakdown
         const precinctStats = incidents.reduce((acc: Record<string, number>, incident) => {
           const precinct = incident.policeDistrictText || 'Unknown';
           acc[precinct] = (acc[precinct] || 0) + 1;
@@ -150,10 +209,10 @@ const Home = () => {
         
         setDashboardStats({
           totalIncidents: response.totalCount || incidents.length,
-          recentIncidents: incidents.slice(0, 5), // Get 5 most recent
-          todayIncidents,
-          weekIncidents,
-          monthIncidents,
+          recentIncidents: incidents.slice(0, 5),
+          today,
+          thisWeek,
+          thisMonth,
           crimeTypeBreakdown,
           severityBreakdown,
           precinctBreakdown,
@@ -222,18 +281,24 @@ const Home = () => {
                   <div className="text-2xl font-bold text-blue-600">{dashboardStats.totalIncidents.toLocaleString()}</div>
                   <div className="text-sm text-blue-700">Total Incidents</div>
                 </div>
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-green-600">{dashboardStats.todayIncidents}</div>
-                  <div className="text-sm text-green-700">Today</div>
-                </div>
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-yellow-600">{dashboardStats.weekIncidents}</div>
-                  <div className="text-sm text-yellow-700">This Week</div>
-                </div>
-                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-purple-600">{dashboardStats.monthIncidents}</div>
-                  <div className="text-sm text-purple-700">This Month</div>
-                </div>
+
+                <StatCard
+                  label="Today"
+                  comparison={dashboardStats.today}
+                  baselineLabel="vs yesterday"
+                />
+
+                <StatCard
+                  label="This Week"
+                  comparison={dashboardStats.thisWeek}
+                  baselineLabel="vs last week"
+                />
+
+                <StatCard
+                  label="This Month"
+                  comparison={dashboardStats.thisMonth}
+                  baselineLabel="vs last month"
+                />
               </div>
               
               {/* Breakdown Charts */}

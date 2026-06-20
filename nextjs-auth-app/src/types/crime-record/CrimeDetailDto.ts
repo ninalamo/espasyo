@@ -1,12 +1,11 @@
 
-// Define CrimeRecord type
 export interface CrimeDetailDto {
-  id: number;
+  id: string;
   caseId: string;
   crimeType: string;
   address: string;
   severity: string;
-  datetime: string;
+  dateTime: string;
   motive: string;
   status: string;
 }

@@ -77,8 +77,6 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
     };
   });
 
-  console.log("Transformed Data:", transformedData);
-
   // Aggregate overlapping data points (group by same cluster, same x and same y).
   const aggregatedMap: {
     [key: string]: {
@@ -109,7 +107,6 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
 
   // Convert the aggregated object into an array.
   const aggregatedData = Object.values(aggregatedMap);
-  console.log("Aggregated Data:", aggregatedData);
 
   // Group aggregated data by cluster.
   const distinctClusters = Array.from(new Set(aggregatedData.map(pt => pt.clusterId))).sort((a, b) => a - b);
@@ -191,8 +188,6 @@ const ScatterPlot: React.FC<ScatterPlotProps> = ({ data, clusterColorsMapping })
   };
 
   const chartData = { datasets };
-  console.log("Chart Data:", chartData);
-
   return (
     <div ref={containerRef} style={{ position: 'relative', height: '400px' }}>
       {isContainerReady ? (

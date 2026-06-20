@@ -60,18 +60,25 @@ const ClusterDataTable: React.FC<Props> = ({ clusters }) => {
   }, [filteredData, currentPage, pageSize]);
 
   const downloadCsv = () => {
+    const escapeCsv = (val: unknown): string => {
+      const s = val == null ? '' : String(val);
+      if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
+        return `"${s.replace(/"/g, '""')}"`;
+      }
+      return s;
+    };
     const headers = ["Barangay", "Cluster ID", "Case ID", "Latitude", "Longitude", "Month", "Year", "Time Of Day"];
     const rows = filteredData.map(item => {
       const barangay = precinctNames[item.precinct] || `Precinct ${item.precinct}`;
       return [
-        barangay,
-        item.clusterId,
-        item.caseId,
-        item.latitude,
-        item.longitude,
-        item.month,
-        item.year,
-        item.timeOfDay
+        escapeCsv(barangay),
+        escapeCsv(item.clusterId),
+        escapeCsv(item.caseId),
+        escapeCsv(item.latitude),
+        escapeCsv(item.longitude),
+        escapeCsv(item.month),
+        escapeCsv(item.year),
+        escapeCsv(item.timeOfDay)
       ].join(',');
     });
     const csv = [headers.join(','), ...rows].join('\n');

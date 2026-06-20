@@ -1,5 +1,7 @@
 // Extended forecast data types for map visualization and enhanced analysis
 
+import type { ForecastData } from './ForecastBaseTypes';
+
 export interface TimeOfDayBreakdown {
   morning: number;    // 6 AM - 12 PM
   afternoon: number;  // 12 PM - 6 PM
@@ -16,27 +18,12 @@ export interface ReliabilityMetrics {
   seasonalPattern: boolean;   // Whether seasonal patterns were detected
 }
 
-export interface ExtendedForecastData {
-  // Basic forecast data
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  
-  // Extended spatial data
+export interface ExtendedForecastData extends ForecastData {
   latitude: number;
   longitude: number;
   clusterId?: number;
-  
-  // Time-of-day analysis
   timeOfDayBreakdown: TimeOfDayBreakdown;
   primaryTimeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
-  
-  // Reliability metrics
   reliability: ReliabilityMetrics;
 }
 
@@ -56,66 +43,6 @@ export interface ForecastMapPoint {
   trend: 'increasing' | 'decreasing' | 'stable';
 }
 
-export interface SeasonalMultipliers {
-  spring: number;  // March, April, May
-  summer: number;  // June, July, August
-  fall: number;    // September, October, November
-  winter: number;  // December, January, February
-}
-
-export interface MonthlyMultipliers {
-  january: number;
-  february: number;
-  march: number;
-  april: number;
-  may: number;
-  june: number;
-  july: number;
-  august: number;
-  september: number;
-  october: number;
-  november: number;
-  december: number;
-}
-
-export interface YearlyAdjustments {
-  baseYear: number;           // Reference year for calculations
-  yearOverYearGrowth: number; // Annual growth factor (e.g., 1.02 for 2% growth)
-  enableYearlyAdjustment: boolean;
-}
-
-export interface ManpowerAllocation {
-  baseManpowerPerYear: number;
-  riskMultipliers: {
-    low: number;      // e.g., 0.8
-    medium: number;   // e.g., 1.0
-    high: number;     // e.g., 1.3
-    critical: number; // e.g., 1.6
-  };
-  riskThresholds: {
-    lowMax: number;      // e.g., 0.8 (80% of avg)
-    mediumMax: number;   // e.g., 1.2 (120% of avg)
-    highMax: number;     // e.g., 1.5 (150% of avg)
-    // critical is anything above highMax
-  };
-  seasonalMultipliers: SeasonalMultipliers;
-  monthlyMultipliers: MonthlyMultipliers;
-  yearlyAdjustments: YearlyAdjustments;
-  enableSeasonalAdjustment: boolean;
-  enableMonthlyAdjustment: boolean;
-}
-
-export interface ManpowerRecommendation {
-  precinct: number;
-  precinctName: string;
-  currentAllocation: number;
-  recommendedAllocation: number;
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  predictedCases: number;
-  changeFromBase: number; // percentage change from base allocation
-  justification: string;
-}
-
 export interface ForecastMapFilters {
   minReliability: number;
   maxReliability: number;
@@ -133,20 +60,12 @@ export interface MapForecastSummary {
   averageReliability: number;
   highRiskPoints: number;
   filteredPoints: number;
-  timeOfDayDistribution: TimeOfDayBreakdown;
   riskLevelDistribution: Record<'low' | 'medium' | 'high' | 'critical', number>;
   precinctCoverage: number[];
   crimeTypeCoverage: number[];
 }
 
-// Utility functions for time of day categorization
-export const categorizeTimeOfDay = (hour: number): 'morning' | 'afternoon' | 'evening' | 'night' => {
-  if (hour >= 6 && hour < 12) return 'morning';
-  if (hour >= 12 && hour < 18) return 'afternoon';
-  if (hour >= 18 && hour < 24) return 'evening';
-  return 'night';
-};
-
+// Time of day hour ranges
 export const getTimeOfDayHours = (category: 'morning' | 'afternoon' | 'evening' | 'night'): number[] => {
   switch (category) {
     case 'morning': return [6, 7, 8, 9, 10, 11];
@@ -167,50 +86,6 @@ export const DEFAULT_FORECAST_FILTERS: ForecastMapFilters = {
   precincts: [],
   crimeTypes: [],
   forecastPeriods: []
-};
-
-// Default manpower allocation settings
-export const DEFAULT_MANPOWER_ALLOCATION: ManpowerAllocation = {
-  baseManpowerPerYear: 25, // Realistic baseline for a small precinct if no actual data
-  riskMultipliers: {
-    low: 0.8,      // 20% reduction for low risk
-    medium: 1.0,   // Base allocation for medium risk
-    high: 1.3,     // 30% increase for high risk
-    critical: 1.6  // 60% increase for critical risk
-  },
-  riskThresholds: {
-    lowMax: 0.8,     // Up to 80% of historical average = low risk
-    mediumMax: 1.2,  // 80-120% of historical average = medium risk
-    highMax: 1.5     // 120-150% of historical average = high risk
-    // Above 150% = critical risk
-  },
-  seasonalMultipliers: {
-    spring: 1.0,   // March, April, May (dry season transition)
-    summer: 1.0,   // June, July, August (wet season start)
-    fall: 1.0,     // September, October, November (wet season peak)
-    winter: 1.0    // December, January, February (dry season)
-  },
-  monthlyMultipliers: {
-    january: 1.0,  // Dry/cool season
-    february: 1.0, // Dry/cool season  
-    march: 1.0,    // Hot/dry season start
-    april: 1.0,    // Hot/dry season peak
-    may: 1.0,      // Hot/dry season end, wet season transition
-    june: 1.0,     // Wet season start
-    july: 1.0,     // Wet season
-    august: 1.0,   // Wet season peak
-    september: 1.0, // Wet season peak
-    october: 1.0,  // Wet season end
-    november: 1.0, // Transition to dry season
-    december: 1.0  // Dry season start
-  },
-  yearlyAdjustments: {
-    baseYear: new Date().getFullYear(),
-    yearOverYearGrowth: 1.02, // 2% annual growth
-    enableYearlyAdjustment: true
-  },
-  enableSeasonalAdjustment: false, // Disabled by default for tropical climates like Philippines
-  enableMonthlyAdjustment: true
 };
 
 // Color mapping for risk levels on map

@@ -1,2 +1,2 @@
-const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5041/api").replace(/\/$/, "");
+const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "https://localhost:7007/api").replace(/\/$/, "");
 export default API_BASE_URL;

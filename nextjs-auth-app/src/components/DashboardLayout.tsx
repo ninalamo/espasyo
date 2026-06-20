@@ -3,13 +3,14 @@
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useState, useEffect, useRef, ReactNode } from 'react';
-import { 
-  Home, 
-  FileText, 
-  BarChart3, 
-  TrendingUp, 
+import {
+  Home,
+  FileText,
+  BarChart3,
+  TrendingUp,
   MapPin,
-  User, 
+  BookOpen,
+  User,
   ChevronDown,
   Menu,
   X,
@@ -86,7 +87,16 @@ const navigationGroups: NavigationGroup[] = [
       icon: TrendingUp,
       description: 'Predictive forecasting'
     }
-  }
+  },
+  {
+    type: 'single',
+    item: {
+      name: 'Methodology',
+      href: '/methodology',
+      icon: BookOpen,
+      description: 'Forecast FAQ & methodology'
+    }
+  },
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {

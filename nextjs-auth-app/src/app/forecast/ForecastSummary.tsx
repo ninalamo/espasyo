@@ -6,56 +6,17 @@ import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/co
 import InfoBadge from '../../components/InfoBadge';
 import DataQualityModal from './modals/DataQualityModal';
 import CalculationMethodologyModal from './modals/CalculationMethodologyModal';
-
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-}
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
-
-interface ForecastParams {
-  model: string;
-  forecastPeriod: number;
-  confidence: number;
-}
-
-interface ManpowerAllocation {
-  baseManpowerPerYear: number;
-  riskMultipliers: {
-    low: number;
-    medium: number;
-    high: number;
-    critical: number;
-  };
-  riskThresholds: {
-    lowMax: number;
-    mediumMax: number;
-    highMax: number;
-  };
-}
+import type { HistoricalData, ForecastData, ForecastParams, ForecastMetrics, ForecastEvaluationResult } from '../../types/forecast/ForecastBaseTypes';
 
 interface Props {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
   params: ForecastParams;
-  manpowerSettings?: ManpowerAllocation;
+  metrics?: ForecastMetrics | null;
+  evaluation?: ForecastEvaluationResult | null;
 }
 
-const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, manpowerSettings }) => {
+const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, metrics, evaluation }) => {
   const [isDataQualityModalOpen, setIsDataQualityModalOpen] = useState(false);
   const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState(false);
   
@@ -65,6 +26,14 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
     // Overall statistics
     const totalPredicted = forecastData.reduce((sum, f) => sum + f.predictedCount, 0);
     const avgConfidence = forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length;
+    const withBounds = forecastData.filter(f => f.lowerBound != null && f.upperBound != null);
+    const hasPredictionIntervals = withBounds.length > 0;
+    const avgIntervalWidth = hasPredictionIntervals
+      ? withBounds.reduce((sum, f) => sum + (f.upperBound! - f.lowerBound!), 0) / withBounds.length
+      : 0;
+    const intervalWidthPct = avgConfidence > 0
+      ? ((avgIntervalWidth / totalPredicted * forecastData.length) * 100).toFixed(1)
+      : 'N/A';
     
     // Historical baseline
     const historicalTotal = historicalData.reduce((sum, h) => sum + h.count, 0);
@@ -140,6 +109,9 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
     return {
       totalPredicted,
       avgConfidence,
+      hasPredictionIntervals,
+      avgIntervalWidth,
+      intervalWidthPct,
       historicalAvgMonthly,
       trends,
       riskLevels,
@@ -148,7 +120,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
       monthlyForecast,
       changeFromHistorical: ((totalPredicted / params.forecastPeriod) - historicalAvgMonthly) / historicalAvgMonthly * 100
     };
-  }, [forecastData, historicalData, params, manpowerSettings]);
+  }, [forecastData, historicalData, params]);
 
   if (!summary) {
     return (
@@ -207,6 +179,11 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="ml-4">
               <p className="text-sm font-medium text-green-800">Avg Confidence</p>
               <p className="text-2xl font-bold text-green-900">{(summary.avgConfidence * 100).toFixed(1)}%</p>
+              {summary.hasPredictionIntervals && (
+                <p className="text-xs text-green-600 mt-1">
+                  Avg prediction interval: ±{summary.intervalWidthPct}%
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -247,6 +224,56 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
               }`}>
                 {summary.changeFromHistorical > 0 ? '+' : ''}{summary.changeFromHistorical.toFixed(1)}%
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Accuracy Metrics */}
+        <div className="bg-gradient-to-r from-orange-50 to-amber-50 p-4 rounded-lg border border-amber-200">
+          <div className="flex items-center">
+            <div className="p-2 bg-amber-600 rounded-lg">
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className="text-sm font-medium text-amber-800">Model Accuracy</p>
+              {evaluation ? (
+                <>
+                  <p className={`text-2xl font-bold ${
+                    evaluation.isReliable ? 'text-green-900' : 'text-red-900'
+                  }`}>
+                    {evaluation.meanAbsolutePercentageError < 100
+                      ? `${(100 - evaluation.meanAbsolutePercentageError).toFixed(0)}%`
+                      : 'N/A'}
+                  </p>
+                  <p className={`text-xs mt-1 flex items-center ${
+                    evaluation.isReliable ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    <span className={`inline-block w-2 h-2 rounded-full mr-1 ${
+                      evaluation.isReliable ? 'bg-green-500' : 'bg-red-500'
+                    }`} />
+                    {evaluation.isReliable ? 'Reliable' : 'Low reliability'}
+                    <span className="text-gray-400 ml-2">
+                      MAPE: {evaluation.meanAbsolutePercentageError.toFixed(1)}%
+                    </span>
+                  </p>
+                </>
+              ) : metrics && metrics.meanAbsolutePercentageError > 0 ? (
+                <>
+                  <p className="text-2xl font-bold text-amber-900">
+                    {(metrics.modelAccuracy * 100).toFixed(0)}%
+                  </p>
+                  <p className="text-xs text-amber-600 mt-1">
+                    MAPE: {metrics.meanAbsolutePercentageError.toFixed(1)}% | MAE: {metrics.meanAbsoluteError.toFixed(1)}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-gray-400">--</p>
+                  <p className="text-xs text-gray-500 mt-1">Validate with historical data</p>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -423,7 +450,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="text-sm text-blue-800">
               <strong>Risk Level Determination:</strong> Each prediction is compared to the historical average 
               for that specific precinct and crime type. The risk level is automatically assigned based on 
-              the configured thresholds (which can be adjusted in the Manpower Allocation tab).
+              the configured thresholds.
             </div>
           </div>
         </div>
@@ -445,10 +472,10 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="text-sm text-amber-800">
               <strong>Risk Level Determination:</strong> Each forecast period is classified based on how much it exceeds historical averages.
               <div className="mt-2 space-y-1">
-                <div>• <strong className="text-red-700">Critical:</strong> Forecasts &gt;{((manpowerSettings?.riskThresholds.highMax || 1.5) * 100).toFixed(0)}% of historical average</div>
-                <div>• <strong className="text-orange-700">High:</strong> Forecasts {((manpowerSettings?.riskThresholds.mediumMax || 1.2) * 100).toFixed(0)}-{((manpowerSettings?.riskThresholds.highMax || 1.5) * 100).toFixed(0)}% of historical average</div>
-                <div>• <strong className="text-yellow-700">Medium:</strong> Forecasts {((manpowerSettings?.riskThresholds.lowMax || 0.8) * 100).toFixed(0)}-{((manpowerSettings?.riskThresholds.mediumMax || 1.2) * 100).toFixed(0)}% of historical average</div>
-                <div>• <strong className="text-green-700">Low:</strong> Forecasts ≤{((manpowerSettings?.riskThresholds.lowMax || 0.8) * 100).toFixed(0)}% of historical average</div>
+                <div>• <strong className="text-red-700">Critical:</strong> Forecasts &gt;150% of historical average</div>
+                <div>• <strong className="text-orange-700">High:</strong> Forecasts 120-150% of historical average</div>
+                <div>• <strong className="text-yellow-700">Medium:</strong> Forecasts 80-120% of historical average</div>
+                <div>• <strong className="text-green-700">Low:</strong> Forecasts ≤80% of historical average</div>
               </div>
             </div>
           </div>
@@ -600,29 +627,6 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         </div>
       </div>
 
-      {/* Quick Link to Manpower Analysis */}
-      <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <svg className="w-5 h-5 mr-2 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <div>
-              <h4 className="font-medium text-indigo-800">Resource Allocation Analysis</h4>
-              <p className="text-sm text-indigo-600">Dynamic manpower allocation based on seasonal patterns and risk levels</p>
-            </div>
-          </div>
-          <div className="text-indigo-600">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-          </div>
-        </div>
-        <div className="mt-2 text-xs text-indigo-500">
-          💡 Switch to the <strong>Manpower Allocation</strong> tab for detailed month/year-based resource planning
-        </div>
-      </div>
-
       {/* Data Quality and Validation Metrics - Collapsed to InfoBadge */}
       <div className="bg-green-50 border border-green-200 rounded-lg p-4">
         <div className="flex items-center justify-between">
@@ -644,6 +648,25 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         </div>
       </div>
 
+      {/* Evaluation Warnings */}
+      {evaluation?.warnings && evaluation.warnings.length > 0 && (
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-start">
+            <svg className="w-5 h-5 text-yellow-600 mr-2 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+            <div>
+              <h4 className="font-medium text-yellow-800">Validation Warnings</h4>
+              <ul className="mt-1 space-y-1">
+                {evaluation.warnings.map((w, i) => (
+                  <li key={i} className="text-sm text-yellow-700">{w}</li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Model Information */}
       <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
         <div className="flex items-center justify-between">
@@ -652,7 +675,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm font-medium text-gray-700">
-              Forecast generated using {params.model.toUpperCase()} model with {(params.confidence * 100).toFixed(0)}% confidence level
+              Forecast generated using SSA (Singular Spectrum Analysis) via ML.NET backend
             </span>
           </div>
           <span className="text-xs text-gray-500">
@@ -665,18 +688,18 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
           <h4 className="font-medium text-gray-800 mb-2">Calculation Methodology</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
             <div>
-              <strong>Baseline Calculation:</strong>
+              <strong>SSA Forecast:</strong>
               <ul className="mt-1 ml-4 space-y-1">
-                <li>• 6-month rolling average for recent trends</li>
-                <li>• Historical variance analysis for stability</li>
-                <li>• Seasonal pattern identification</li>
+                <li>• Singular Spectrum Analysis for time series decomposition</li>
+                <li>• Prediction intervals from SSA eigenvalue reconstruction</li>
+                <li>• Holdout validation with MAE/RMSE/MAPE metrics</li>
               </ul>
             </div>
             <div>
               <strong>Risk Assessment:</strong>
               <ul className="mt-1 ml-4 space-y-1">
                 <li>• Comparative analysis vs. historical averages</li>
-                <li>• Confidence interval weighting</li>
+                <li>• Prediction interval weighting</li>
                 <li>• Geographic and temporal clustering</li>
               </ul>
             </div>
@@ -692,13 +715,13 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         forecastData={forecastData}
         params={params}
         summary={summary}
+        evaluation={evaluation}
       />
       
       <CalculationMethodologyModal
         isOpen={isMethodologyModalOpen}
         onClose={() => setIsMethodologyModalOpen(false)}
         historicalDataLength={historicalData.length}
-        manpowerSettings={manpowerSettings}
       />
     </div>
   );

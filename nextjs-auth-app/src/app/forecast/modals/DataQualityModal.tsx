@@ -7,6 +7,7 @@ interface DataQualityModalProps {
   forecastData: any[];
   params: any;
   summary: any;
+  evaluation?: any;
 }
 
 const DataQualityModal: React.FC<DataQualityModalProps> = ({
@@ -15,7 +16,8 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
   historicalData,
   forecastData,
   params,
-  summary
+  summary,
+  evaluation
 }) => {
   return (
     <InfoModal
@@ -93,7 +95,7 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
             <div className="space-y-2 text-sm text-green-800">
               <div className="flex justify-between">
                 <span>Model Type:</span>
-                <span className="font-semibold">{params.model.toUpperCase()}</span>
+                <span className="font-semibold">SSA</span>
               </div>
               <div className="flex justify-between">
                 <span>Forecast Horizon:</span>
@@ -115,44 +117,28 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
             </div>
           </div>
           
-          {/* Validation Checks */}
+          {/* Coverage Summary */}
           <div className="bg-white p-4 rounded-lg border">
-            <h4 className="font-medium text-green-700 mb-3">Validation Status</h4>
+            <h4 className="font-medium text-green-700 mb-3">Coverage Summary</h4>
             <div className="space-y-2 text-sm text-green-800">
-              <div className="flex items-center justify-between">
-                <span>Data Integrity:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Passed</span>
+              <div className="flex justify-between">
+                <span>Precincts Covered:</span>
+                <span className="font-semibold">{new Set(forecastData.map(f => f.precinct)).size}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Crime Types Analyzed:</span>
+                <span className="font-semibold">{new Set(forecastData.map(f => f.crimeType)).size}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Data Completeness:</span>
+                <span className="font-semibold">
+                  {((forecastData.filter(f => f.predictedCount > 0).length / forecastData.length) * 100).toFixed(0)}%
                 </span>
               </div>
-              <div className="flex items-center justify-between">
-                <span>Range Validation:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Passed</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Outlier Detection:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Clean</span>
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Cross-Validation:</span>
-                <span className="flex items-center">
-                  <svg className="w-4 h-4 text-green-500 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                  <span className="font-semibold">Valid</span>
+              <div className="flex justify-between">
+                <span>Positive Predictions:</span>
+                <span className="font-semibold">
+                  {forecastData.filter(f => f.predictedCount > 0).length} of {forecastData.length}
                 </span>
               </div>
             </div>
@@ -219,9 +205,46 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
               <p className="font-medium text-red-800 mb-1">Important Disclaimer</p>
               <p className="text-red-700">These are predictive models based on historical data patterns. Actual crime incidents may vary due to unforeseen circumstances, policy changes, or external factors not captured in historical data. Use these forecasts as guidance tools alongside professional judgment and situational awareness.</p>
             </div>
+            </div>
           </div>
+
+          {evaluation && (
+            <div className="bg-white p-4 rounded-lg border">
+              <h4 className="font-medium text-green-700 mb-3">Holdout Validation</h4>
+              <div className="space-y-2 text-sm text-green-800">
+                <div className="flex justify-between">
+                  <span>Status:</span>
+                  <span className={`font-semibold ${evaluation.isReliable ? 'text-green-600' : 'text-red-600'}`}>
+                    {evaluation.isReliable ? '✅ Reliable' : '⚠️ Low Reliability'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span>MAPE:</span>
+                  <span className="font-semibold">{evaluation.meanAbsolutePercentageError.toFixed(2)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>MAE:</span>
+                  <span className="font-semibold">{evaluation.meanAbsoluteError.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>RMSE:</span>
+                  <span className="font-semibold">{evaluation.rootMeanSquareError.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Comparisons:</span>
+                  <span className="font-semibold">{evaluation.totalComparisons}</span>
+                </div>
+                {evaluation.warnings?.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    {evaluation.warnings.map((w: string, i: number) => (
+                      <p key={i} className="text-yellow-700 text-xs mt-1">{w}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-      </div>
     </InfoModal>
   );
 };

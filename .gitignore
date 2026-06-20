@@ -1,1 +1,3 @@
 /.idea
+nextjs-auth-app/src/app/forecast/\[id]/timeseries/page.tsx
+/node_modules

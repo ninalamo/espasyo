@@ -80,7 +80,7 @@ export default function PrecinctsPage() {
     setEditingId(allocation.id);
     setEditForm({ 
       ...allocation,
-      headCount: allocation.headCount || allocation.officerCount || allocation.allocatedCount 
+      headCount: allocation.headCount 
     });
   };
 
@@ -92,7 +92,7 @@ export default function PrecinctsPage() {
       toast.error('Please select a precinct');
       return;
     }
-    const headCount = editForm.headCount || editForm.officerCount || editForm.allocatedCount;
+    const headCount = editForm.headCount;
     if (!headCount || headCount <= 0) {
       toast.error('Please enter a valid number of officers (greater than 0)');
       return;
@@ -205,12 +205,12 @@ export default function PrecinctsPage() {
 
   const getTotalOfficers = () => {
     return manpowerAllocations.reduce((sum, allocation) => 
-      sum + (allocation.headCount || allocation.officerCount || allocation.allocatedCount || 0), 0
+      sum + (allocation.headCount || 0), 0
     );
   };
 
   const getUniquePrecincts = () => {
-    const precincts = new Set(manpowerAllocations.map(a => a.precinctName || a.precinct));
+    const precincts = new Set(manpowerAllocations.map(a => a.precinctName || a.precinctId));
     return precincts.size;
   };
 
@@ -230,7 +230,7 @@ export default function PrecinctsPage() {
     
     manpowerAllocations.forEach(allocation => {
       const precinctKey = allocation.precinctId;
-      const precinctName = allocation.precinctName || allocation.precinct || 'Unknown';
+      const precinctName = allocation.precinctName || 'Unknown';
       
       if (groupedByPrecinct.has(precinctKey)) {
         const existing = groupedByPrecinct.get(precinctKey)!;
@@ -486,7 +486,7 @@ export default function PrecinctsPage() {
                         ) : (
                           <div>
                             <div className="text-sm font-medium text-gray-900">
-                              {allocation.precinctName || allocation.precinct || 'Unknown Precinct'}
+                              {allocation.precinctName || 'Unknown Precinct'}
                             </div>
                             {allocation.precinctId && (
                               <div className="text-sm text-gray-500">
@@ -506,7 +506,7 @@ export default function PrecinctsPage() {
                           type="number"
                           min="1"
                           max="50"
-                          value={editForm.headCount || editForm.officerCount || editForm.allocatedCount || ''}
+                          value={editForm.headCount || ''}
                           onChange={(e) => setEditForm(prev => ({ 
                             ...prev, 
                             headCount: parseInt(e.target.value) 
@@ -515,7 +515,7 @@ export default function PrecinctsPage() {
                         />
                       ) : (
                         <span className="text-sm font-medium text-gray-900">
-                          {allocation.headCount || allocation.officerCount || allocation.allocatedCount}
+                          {allocation.headCount}
                         </span>
                       )}
                     </div>

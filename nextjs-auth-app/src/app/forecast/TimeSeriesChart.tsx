@@ -5,39 +5,14 @@ import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement
 import { Line } from 'react-chartjs-2';
 import { format, startOfMonth } from 'date-fns';
 
-// Register Chart.js components
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, Filler);
 
-interface HistoricalData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  count: number;
-  timeOfDay: string;
-}
-
-interface ForecastData {
-  year: number;
-  month: number;
-  precinct: number;
-  crimeType: number;
-  predictedCount: number;
-  confidence: number;
-  trend: 'increasing' | 'decreasing' | 'stable';
-  riskLevel: 'low' | 'medium' | 'high' | 'critical';
-}
-
-interface ForecastParams {
-  model: string;
-  forecastPeriod: number;
-}
+import type { HistoricalData, ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
 interface Props {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
-  params: ForecastParams;
-  /** The model actually used for this forecast run, set by the parent after API success/fallback. */
+  params: { model: string; forecastPeriod: number };
   activeModelLabel?: string;
 }
 
@@ -95,13 +70,14 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
     const forecastByMonth = forecastData.reduce((acc, item) => {
       const key = `${item.year}-${String(item.month).padStart(2, '0')}`;
       if (!acc[key]) {
-        acc[key] = { total: 0, confidence: 0, count: 0 };
+        acc[key] = { total: 0, lowerSum: 0, upperSum: 0, count: 0 };
       }
       acc[key].total += item.predictedCount;
-      acc[key].confidence += item.confidence;
+      acc[key].lowerSum += item.lowerBound ?? 0;
+      acc[key].upperSum += item.upperBound ?? 0;
       acc[key].count += 1;
       return acc;
-    }, {} as Record<string, { total: number; confidence: number; count: number }>);
+    }, {} as Record<string, { total: number; lowerSum: number; upperSum: number; count: number }>);
 
     // Create combined timeline
     const allDates = new Set([
@@ -127,13 +103,20 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
         confidenceUpper.push(null);
         confidenceLower.push(null);
       } else if (forecast !== undefined) {
-        const avgConfidence = forecast.confidence / forecast.count;
-        const margin = forecast.total * (1 - avgConfidence) * 0.5;
-        
         historicalValues.push(null);
         forecastValues.push(forecast.total);
-        confidenceUpper.push(forecast.total + margin);
-        confidenceLower.push(forecast.total - margin);
+        // Use real SSA lower/upper bounds when available, otherwise compute from confidence
+        if (forecast.lowerSum > 0 || forecast.upperSum > 0) {
+          const avgLower = forecast.lowerSum / forecast.count;
+          const avgUpper = forecast.upperSum / forecast.count;
+          confidenceUpper.push(Math.max(0, Math.round(avgUpper)));
+          confidenceLower.push(Math.max(0, Math.round(avgLower)));
+        } else {
+          const avgConfidence = 0.95;
+          const margin = forecast.total * (1 - avgConfidence) * 0.5;
+          confidenceUpper.push(forecast.total + margin);
+          confidenceLower.push(Math.max(0, forecast.total - margin));
+        }
       } else {
         historicalValues.push(null);
         forecastValues.push(null);
@@ -233,10 +216,10 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
             const value = context.parsed.y;
             
             if (label.includes('Confidence')) {
-              return null; // Hide confidence bounds in tooltip
+              return undefined;
             }
             
-            if (value === null) return null;
+            if (value === null) return undefined;
             
             return `${label}: ${Math.round(value)} cases`;
           },

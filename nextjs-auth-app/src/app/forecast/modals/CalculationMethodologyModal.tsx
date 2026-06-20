@@ -3,14 +3,12 @@ import InfoModal from '../../../components/InfoModal';
 interface CalculationMethodologyModalProps {
   isOpen: boolean;
   onClose: () => void;
-  manpowerSettings?: any;
   historicalDataLength: number;
 }
 
 const CalculationMethodologyModal: React.FC<CalculationMethodologyModalProps> = ({
   isOpen,
   onClose,
-  manpowerSettings,
   historicalDataLength
 }) => {
   return (
@@ -27,10 +25,10 @@ const CalculationMethodologyModal: React.FC<CalculationMethodologyModalProps> = 
             <div className="bg-gray-50 p-4 rounded border space-y-2 text-sm">
               <div className="font-medium text-gray-800">Formula: Risk Ratio = Predicted Cases ÷ Historical Average</div>
               <div className="space-y-1 text-gray-700">
-                <div>• <strong className="text-green-600">Low Risk:</strong> Ratio ≤ {manpowerSettings?.riskThresholds.lowMax || 0.8} ({((manpowerSettings?.riskThresholds.lowMax || 0.8) * 100).toFixed(0)}% of historical average)</div>
-                <div>• <strong className="text-yellow-600">Medium Risk:</strong> Ratio {(manpowerSettings?.riskThresholds.lowMax || 0.8).toFixed(1)} - {(manpowerSettings?.riskThresholds.mediumMax || 1.2).toFixed(1)} ({((manpowerSettings?.riskThresholds.lowMax || 0.8) * 100).toFixed(0)}-{((manpowerSettings?.riskThresholds.mediumMax || 1.2) * 100).toFixed(0)}%)</div>
-                <div>• <strong className="text-orange-600">High Risk:</strong> Ratio {(manpowerSettings?.riskThresholds.mediumMax || 1.2).toFixed(1)} - {(manpowerSettings?.riskThresholds.highMax || 1.5).toFixed(1)} ({((manpowerSettings?.riskThresholds.mediumMax || 1.2) * 100).toFixed(0)}-{((manpowerSettings?.riskThresholds.highMax || 1.5) * 100).toFixed(0)}%)</div>
-                <div>• <strong className="text-red-600">Critical Risk:</strong> Ratio &gt; {(manpowerSettings?.riskThresholds.highMax || 1.5).toFixed(1)} (&gt;{((manpowerSettings?.riskThresholds.highMax || 1.5) * 100).toFixed(0)}% of historical average)</div>
+                <div>• <strong className="text-green-600">Low Risk:</strong> Ratio ≤ 0.8 (≤80% of historical average)</div>
+                <div>• <strong className="text-yellow-600">Medium Risk:</strong> Ratio 0.8 - 1.2 (80-120% of historical average)</div>
+                <div>• <strong className="text-orange-600">High Risk:</strong> Ratio 1.2 - 1.5 (120-150% of historical average)</div>
+                <div>• <strong className="text-red-600">Critical Risk:</strong> Ratio &gt; 1.5 (&gt;150% of historical average)</div>
               </div>
             </div>
           </div>
