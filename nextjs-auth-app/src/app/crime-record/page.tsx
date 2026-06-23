@@ -1,7 +1,7 @@
 'use client';
 
 import { useSession } from 'next-auth/react';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import withAuth from '../hoc/withAuth';
 import { apiService } from '../api/utils/apiService'; // API service to handle HTTP requests
@@ -27,15 +27,15 @@ const CrimeList = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Regular page change handler that updates the current page if within bounds.
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     if (page > 0 && page <= totalPages) {
       setCurrentPage(page);
     }
-  };
+  }, [totalPages]);
 
   // Debounced function to update the search query and reset the page to 1.
-  const debouncedSetSearchQuery = useCallback(
-    debounce((value: string) => {
+  const debouncedSetSearchQuery = useMemo(
+    () => debounce((value: string) => {
       setSearchQuery(value);
       setCurrentPage(1);
     }, 300),
@@ -44,11 +44,11 @@ const CrimeList = () => {
 
   // Create a debounced version of the page change handler to avoid rapid-fire API calls.
   // debounce delays the execution until 300ms have passed without a new call.
-  const debouncedHandlePageChange = useCallback(
-    debounce((page: number) => {
+  const debouncedHandlePageChange = useMemo(
+    () => debounce((page: number) => {
       handlePageChange(page);
     }, 300), // Adjust the delay as needed (300ms in this example)
-    [totalPages]
+    [handlePageChange]
   );
 
   // Fetch crime records from the API when the component mounts,

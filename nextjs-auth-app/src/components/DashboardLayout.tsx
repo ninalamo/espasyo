@@ -9,7 +9,6 @@ import {
   BarChart3,
   TrendingUp,
   MapPin,
-  BookOpen,
   User,
   ChevronDown,
   Menu,
@@ -88,15 +87,7 @@ const navigationGroups: NavigationGroup[] = [
       description: 'Predictive forecasting'
     }
   },
-  {
-    type: 'single',
-    item: {
-      name: 'Methodology',
-      href: '/methodology',
-      icon: BookOpen,
-      description: 'Forecast FAQ & methodology'
-    }
-  },
+
 ];
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {

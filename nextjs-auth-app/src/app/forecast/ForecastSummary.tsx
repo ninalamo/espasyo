@@ -2,23 +2,25 @@
 
 import { useMemo, useState } from 'react';
 import { format } from 'date-fns';
+import Link from 'next/link';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import InfoBadge from '../../components/InfoBadge';
 import DataQualityModal from './modals/DataQualityModal';
-import CalculationMethodologyModal from './modals/CalculationMethodologyModal';
 import type { HistoricalData, ForecastData, ForecastParams, ForecastMetrics, ForecastEvaluationResult } from '../../types/forecast/ForecastBaseTypes';
+
+const MODEL_LABEL = 'SSA (Singular Spectrum Analysis)';
 
 interface Props {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
   params: ForecastParams;
+  createdAt?: string;
   metrics?: ForecastMetrics | null;
   evaluation?: ForecastEvaluationResult | null;
 }
 
-const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, metrics, evaluation }) => {
+const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, createdAt, metrics, evaluation }) => {
   const [isDataQualityModalOpen, setIsDataQualityModalOpen] = useState(false);
-  const [isMethodologyModalOpen, setIsMethodologyModalOpen] = useState(false);
   
   const summary = useMemo(() => {
     if (forecastData.length === 0) return null;
@@ -132,8 +134,8 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
   return (
     <div className="space-y-6">
-      {/* Calculation Basis and Methodology - Collapsed to InfoBadge */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      {/* Calculation Basis and Methodology */}
+      <Link href="/methodology" className="block bg-blue-50 border border-blue-200 rounded-lg p-4 hover:bg-blue-100 transition">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -142,16 +144,15 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div>
               <h4 className="font-medium text-blue-800">How These Numbers Are Calculated</h4>
               <p className="text-sm text-blue-600 mt-1">
-                Learn about risk classification formulas, trend calculation methods, and data sources.
+                View methodology documentation → risk classification formulas, trend methods, and data sources.
               </p>
             </div>
           </div>
-          <InfoBadge
-            onClick={() => setIsMethodologyModalOpen(true)}
-            tooltip="Click for detailed calculation methodology and formulas"
-          />
+          <svg className="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
         </div>
-      </div>
+      </Link>
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -675,11 +676,11 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm font-medium text-gray-700">
-              Forecast generated using SSA (Singular Spectrum Analysis) via ML.NET backend
+              Forecast generated using {MODEL_LABEL} via ML.NET backend
             </span>
           </div>
           <span className="text-xs text-gray-500">
-            Generated on {format(new Date(), 'PPp')}
+            Generated on {createdAt ? format(new Date(createdAt), 'PPp') : format(new Date(), 'PPp')}
           </span>
         </div>
         
@@ -688,10 +689,10 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
           <h4 className="font-medium text-gray-800 mb-2">Calculation Methodology</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
             <div>
-              <strong>SSA Forecast:</strong>
+              <strong>{MODEL_LABEL}:</strong>
               <ul className="mt-1 ml-4 space-y-1">
-                <li>• Singular Spectrum Analysis for time series decomposition</li>
-                <li>• Prediction intervals from SSA eigenvalue reconstruction</li>
+                <li>• Time series decomposition for trend/seasonal pattern extraction</li>
+                <li>• Prediction intervals from model reconstruction</li>
                 <li>• Holdout validation with MAE/RMSE/MAPE metrics</li>
               </ul>
             </div>
@@ -718,11 +719,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         evaluation={evaluation}
       />
       
-      <CalculationMethodologyModal
-        isOpen={isMethodologyModalOpen}
-        onClose={() => setIsMethodologyModalOpen(false)}
-        historicalDataLength={historicalData.length}
-      />
+
     </div>
   );
 };

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { 
   Users, 
   MapPin, 
@@ -38,12 +38,7 @@ export default function PrecinctsPage() {
   });
   const [showPerShift, setShowPerShift] = useState(true); // Toggle for per-shift vs totaled view
 
-  useEffect(() => {
-    fetchPrecincts();
-    fetchManpowerAllocations();
-  }, []);
-
-  const fetchPrecincts = async () => {
+  const fetchPrecincts = useCallback(async () => {
     try {
       const data = await manpowerApi.getPrecincts();
       setPrecincts(data);
@@ -51,9 +46,9 @@ export default function PrecinctsPage() {
       console.error('Error fetching precincts:', error);
       toast.error('Failed to load precincts');
     }
-  };
+  }, []);
 
-  const fetchManpowerAllocations = async () => {
+  const fetchManpowerAllocations = useCallback(async () => {
     setLoading(true);
     try {
       const data = await manpowerApi.getAllManpowerWithShifts();
@@ -68,7 +63,12 @@ export default function PrecinctsPage() {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [refreshing]);
+
+  useEffect(() => {
+    fetchPrecincts();
+    fetchManpowerAllocations();
+  }, [fetchPrecincts, fetchManpowerAllocations]);
 
   const handleRefresh = async () => {
     setRefreshing(true);

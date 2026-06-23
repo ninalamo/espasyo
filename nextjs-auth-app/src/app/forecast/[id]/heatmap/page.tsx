@@ -1,15 +1,15 @@
 'use client';
 
-import { useForecast } from '../../ForecastContext';
-import RiskHeatmap from '../../RiskHeatmap';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 
-export default function HeatmapPage() {
-  const { forecastData, dataQuality } = useForecast();
+export default function HeatmapRedirect() {
+  const params = useParams();
+  const router = useRouter();
 
-  return (
-    <RiskHeatmap
-      forecastData={forecastData}
-      dataQuality={dataQuality}
-    />
-  );
+  useEffect(() => {
+    router.replace(`/forecast/${params.id}/overview`);
+  }, [params.id, router]);
+
+  return null;
 }

@@ -1,30 +1,15 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useForecast } from '../../ForecastContext';
-import ForecastSummary from '../../ForecastSummary';
-import { forecastApi } from '../../../api/utils/forecastApi';
-import type { ForecastEvaluationResult } from '../../../../types/forecast/ForecastBaseTypes';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 
-export default function SummaryPage() {
-  const { forecastData, forecastParams, historicalData, forecastMetrics, forecastId } = useForecast();
-  const [evaluation, setEvaluation] = useState<ForecastEvaluationResult | null>(null);
+export default function SummaryRedirect() {
+  const params = useParams();
+  const router = useRouter();
 
   useEffect(() => {
-    if (forecastId && !forecastId.startsWith('local-')) {
-      forecastApi.evaluate(forecastId)
-        .then(setEvaluation)
-        .catch(() => {});
-    }
-  }, [forecastId]);
+    router.replace(`/forecast/${params.id}/overview`);
+  }, [params.id, router]);
 
-  return (
-    <ForecastSummary
-      historicalData={historicalData}
-      forecastData={forecastData}
-      params={forecastParams}
-      metrics={forecastMetrics}
-      evaluation={evaluation}
-    />
-  );
+  return null;
 }

@@ -8,7 +8,7 @@ export default function ForecastIdRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace(`/forecast/${params.id}/summary`);
+    router.replace(`/forecast/${params.id}/overview`);
   }, [params.id, router]);
 
   return null;

@@ -138,7 +138,6 @@ export default withAuth(function NewForecastPage() {
         clusterData: clusterGroups,
         horizon: forecastParams.forecastPeriod,
         confidenceLevel: forecastParams.confidence,
-        modelType: 'SSA',
         includeSeasonality: forecastParams.includeSeasonality,
         weightRecentData: forecastParams.weightRecentData,
       }) as any;
@@ -219,7 +218,7 @@ export default withAuth(function NewForecastPage() {
     } finally {
       setSaveLoading(false);
     }
-  }, [forecastName, forecastParams, forecastData, clusters, historicalData, activeModelLabel, router]);
+  }, [forecastName, forecastParams, forecastData, forecastMetrics, clusters, historicalData, activeModelLabel, router]);
 
   const dataLoaded = analysisLoaded && clusters.length > 0;
 
@@ -349,17 +348,9 @@ export default withAuth(function NewForecastPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
-              <select
-                value={forecastParams.model}
-                onChange={e => setForecastParams({ ...forecastParams, model: e.target.value as any })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="ssa">SSA (default)</option>
-                <option value="linear">Linear</option>
-                <option value="seasonal">Seasonal</option>
-                <option value="arima">SES (Exponential Smoothing)</option>
-              </select>
-              <p className="text-xs text-gray-500 mt-1">Uses SSA (Singular Spectrum Analysis) via ML.NET backend</p>
+              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">
+                SSA (Singular Spectrum Analysis) — <span className="text-gray-500">statistical time-series decomposition via ML.NET</span>
+              </div>
             </div>
 
             <div>

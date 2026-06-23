@@ -14,7 +14,6 @@ interface ForecastFiltersProps {
   filters: ForecastFilterState;
   onFiltersChange: (filters: ForecastFilterState) => void;
   onFilteredDataChange: (filteredData: ForecastData[]) => void;
-  page?: string;
 }
 
 const ForecastFilters: React.FC<ForecastFiltersProps> = ({ 
@@ -22,14 +21,11 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
   filters, 
   onFiltersChange, 
   onFilteredDataChange,
-  page = 'summary'
 }) => {
-  const isTrendsPage = page === 'trends';
   const [isExpanded, setIsExpanded] = useState(true);
 
   // Apply filters to forecast data
-  const applyFilters = useCallback((filterState: ForecastFilterState, data: ForecastData[], activePage?: string) => {
-    const isTrending = activePage === 'trends';
+  const applyFilters = useCallback((filterState: ForecastFilterState, data: ForecastData[]) => {
     return data.filter(forecast => {
       // Precinct filter
       if (filterState.selectedPrecincts.length > 0 && 
@@ -43,25 +39,25 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
         return false;
       }
 
-      // Risk level filter (skipped on trends — would distort aggregate view)
-      if (!isTrending && !filterState.selectedRiskLevels.includes(forecast.riskLevel)) {
+      // Risk level filter
+      if (!filterState.selectedRiskLevels.includes(forecast.riskLevel)) {
         return false;
       }
 
-      // Trend filter (skipped on trends — would distort aggregate view)
-      if (!isTrending && !filterState.selectedTrends.includes(forecast.trend)) {
+      // Trend filter
+      if (!filterState.selectedTrends.includes(forecast.trend)) {
         return false;
       }
 
-      // Confidence range filter (skipped on trends)
-      if (!isTrending && (forecast.confidence < filterState.minConfidence || 
-          forecast.confidence > filterState.maxConfidence)) {
+      // Confidence range filter
+      if (forecast.confidence < filterState.minConfidence || 
+          forecast.confidence > filterState.maxConfidence) {
         return false;
       }
 
-      // Predicted count range filter (skipped on trends)
-      if (!isTrending && (forecast.predictedCount < filterState.minPredictedCount || 
-          forecast.predictedCount > filterState.maxPredictedCount)) {
+      // Predicted count range filter
+      if (forecast.predictedCount < filterState.minPredictedCount || 
+          forecast.predictedCount > filterState.maxPredictedCount) {
         return false;
       }
 
@@ -74,8 +70,8 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
         return false;
       }
 
-      // High risk only filter (skipped on trends)
-      if (!isTrending && filterState.showOnlyHighRisk && 
+      // High risk only filter
+      if (filterState.showOnlyHighRisk && 
           !['high', 'critical'].includes(forecast.riskLevel)) {
         return false;
       }
@@ -88,9 +84,9 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
   const handleFilterChange = useCallback((newFilters: Partial<ForecastFilterState>) => {
     const updatedFilters = { ...filters, ...newFilters };
     onFiltersChange(updatedFilters);
-    const filteredData = applyFilters(updatedFilters, forecastData, page);
+    const filteredData = applyFilters(updatedFilters, forecastData);
     onFilteredDataChange(filteredData);
-  }, [filters, forecastData, onFiltersChange, onFilteredDataChange, applyFilters, page]);
+  }, [filters, forecastData, onFiltersChange, onFilteredDataChange, applyFilters]);
 
   // Get unique values for dropdowns
   const uniquePrecincts = useMemo(() =>
@@ -135,7 +131,7 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
     max: Math.max(...forecastData.map(f => f.predictedCount))
   } : { min: 0, max: 1000 }, [forecastData]);
 
-  const filteredCount = applyFilters(filters, forecastData, page).length;
+  const filteredCount = applyFilters(filters, forecastData).length;
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 mb-6">
@@ -165,35 +161,33 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
       {isExpanded && (
         <div className="border-t pt-4 space-y-4">
           {/* Quick Filters */}
-          {!isTrendsPage && (
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => handleFilterChange({ showOnlyHighRisk: !filters.showOnlyHighRisk })}
-                className={`px-3 py-1 rounded-full text-sm font-medium transition ${
-                  filters.showOnlyHighRisk 
-                    ? 'bg-red-100 text-red-800 border border-red-300' 
-                    : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
-                }`}
-              >
-                High Risk Only
-              </button>
-              <button
-                onClick={() => handleFilterChange({ 
-                  selectedRiskLevels: ['critical'],
-                  selectedTrends: ['increasing']
-                })}
-                className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 border border-orange-300 hover:bg-orange-200"
-              >
-                Critical + Increasing
-              </button>
-              <button
-                onClick={() => handleFilterChange(initialForecastFilterState)}
-                className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200"
-              >
-                Reset All
-              </button>
-            </div>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => handleFilterChange({ showOnlyHighRisk: !filters.showOnlyHighRisk })}
+              className={`px-3 py-1 rounded-full text-sm font-medium transition ${
+                filters.showOnlyHighRisk 
+                  ? 'bg-red-100 text-red-800 border border-red-300' 
+                  : 'bg-gray-100 text-gray-700 border border-gray-300 hover:bg-gray-200'
+              }`}
+            >
+              High Risk Only
+            </button>
+            <button
+              onClick={() => handleFilterChange({ 
+                selectedRiskLevels: ['critical'],
+                selectedTrends: ['increasing']
+              })}
+              className="px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800 border border-orange-300 hover:bg-orange-200"
+            >
+              Critical + Increasing
+            </button>
+            <button
+              onClick={() => handleFilterChange(initialForecastFilterState)}
+              className="px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800 border border-blue-300 hover:bg-blue-200"
+            >
+              Reset All
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Precincts */}
@@ -215,72 +209,65 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
             />
 
             {/* Risk Levels */}
-            {!isTrendsPage && (
-              <StaticMultiSelectDropdown
-                options={riskLevelOptions}
-                selected={filters.selectedRiskLevels}
-                setSelected={(selected) => handleFilterChange({ selectedRiskLevels: selected as ('low' | 'medium' | 'high' | 'critical')[] })}
-                label="Risk Levels"
-                placeholder="Select risk levels..."
-              />
-            )}
+            <StaticMultiSelectDropdown
+              options={riskLevelOptions}
+              selected={filters.selectedRiskLevels}
+              setSelected={(selected) => handleFilterChange({ selectedRiskLevels: selected as ('low' | 'medium' | 'high' | 'critical')[] })}
+              label="Risk Levels"
+              placeholder="Select risk levels..."
+            />
 
             {/* Trends */}
-            {!isTrendsPage && (
-              <StaticMultiSelectDropdown
-                options={trendOptions}
-                selected={filters.selectedTrends}
-                setSelected={(selected) => handleFilterChange({ selectedTrends: selected as ('increasing' | 'decreasing' | 'stable')[] })}
-                label="Trends"
-                placeholder="Select trends..."
-              />
-            )}
+            <StaticMultiSelectDropdown
+              options={trendOptions}
+              selected={filters.selectedTrends}
+              setSelected={(selected) => handleFilterChange({ selectedTrends: selected as ('increasing' | 'decreasing' | 'stable')[] })}
+              label="Trends"
+              placeholder="Select trends..."
+            />
 
             {/* Confidence Range */}
-            {!isTrendsPage && (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-2">
-                  Confidence Range: {(filters.minConfidence * 100).toFixed(0)}% - {(filters.maxConfidence * 100).toFixed(0)}%
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    min={confidenceRange.min}
-                    max={confidenceRange.max}
-                    step="0.05"
-                    value={filters.minConfidence}
-                    onChange={(e) => handleFilterChange({ minConfidence: parseFloat(e.target.value) })}
-                    className="w-full"
-                  />
-                  <input
-                    type="range"
-                    min={confidenceRange.min}
-                    max={confidenceRange.max}
-                    step="0.05"
-                    value={filters.maxConfidence}
-                    onChange={(e) => handleFilterChange({ maxConfidence: parseFloat(e.target.value) })}
-                    className="w-full"
-                  />
-                </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">
+                Confidence Range: {(filters.minConfidence * 100).toFixed(0)}% - {(filters.maxConfidence * 100).toFixed(0)}%
+              </label>
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min={confidenceRange.min}
+                  max={confidenceRange.max}
+                  step="0.05"
+                  value={filters.minConfidence}
+                  onChange={(e) => handleFilterChange({ minConfidence: parseFloat(e.target.value) })}
+                  className="w-full"
+                />
+                <input
+                  type="range"
+                  min={confidenceRange.min}
+                  max={confidenceRange.max}
+                  step="0.05"
+                  value={filters.maxConfidence}
+                  onChange={(e) => handleFilterChange({ maxConfidence: parseFloat(e.target.value) })}
+                  className="w-full"
+                />
               </div>
-            )}
+            </div>
 
             {/* Predicted Count Range */}
-            {!isTrendsPage && (
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-2">
-                  Predicted Count: {filters.minPredictedCount} - {filters.maxPredictedCount}
-                </label>
-                <div className="space-y-2">
-                  <input
-                    type="range"
-                    min={countRange.min}
-                    max={countRange.max}
-                    step="1"
-                    value={filters.minPredictedCount}
-                    onChange={(e) => handleFilterChange({ minPredictedCount: parseInt(e.target.value) })}
-                    className="w-full"
-                  />
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-2">
+                Predicted Count: {filters.minPredictedCount} - {filters.maxPredictedCount}
+              </label>
+              <div className="space-y-2">
+                <input
+                  type="range"
+                  min={countRange.min}
+                  max={countRange.max}
+                  step="1"
+                  value={filters.minPredictedCount}
+                  onChange={(e) => handleFilterChange({ minPredictedCount: parseInt(e.target.value) })}
+                  className="w-full"
+                />
                   <input
                     type="range"
                     min={countRange.min}
@@ -292,7 +279,6 @@ const ForecastFilters: React.FC<ForecastFiltersProps> = ({
                   />
                 </div>
               </div>
-            )}
           </div>
 
 

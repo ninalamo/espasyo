@@ -24,6 +24,11 @@ interface InterpolatedPoint extends ForecastMapPoint {
   _isInterpolated?: boolean;
 }
 
+const PRECINCT_COLORS = [
+  '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
+  '#911eb4', '#42d4f4', '#f032e6', '#bfef45',
+];
+
 const ForecastMap: React.FC<ForecastMapProps> = ({ 
   center, 
   zoom, 
@@ -36,6 +41,8 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   const heatLayerRef = useRef<any>(null);
   const markerDataRef = useRef<Map<any, ForecastMapPoint>>(new Map());
   const animFrameRef = useRef<number | null>(null);
+  const precinctLayerRef = useRef<any>(null);
+  const precinctLabelLayerRef = useRef<any>(null);
   const [isClient, setIsClient] = useState(false);
   const [L, setL] = useState<any>(null);
 
@@ -43,7 +50,8 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   const [filters, setFilters] = useState<ForecastMapFilters>(DEFAULT_FORECAST_FILTERS);
   const [showPoints, setShowPoints] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
-  const [colorBy, setColorBy] = useState<'risk' | 'reliability' | 'timeOfDay'>('risk');
+  const [showPrecincts, setShowPrecincts] = useState(false);
+  const [colorBy, setColorBy] = useState<'risk' | 'reliability'>('risk');
   
   // Modal state for showing forecast details
   const [selectedPoint, setSelectedPoint] = useState<ForecastMapPoint | null>(null);
@@ -52,6 +60,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   const [sliderValue, setSliderValue] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [showAnimSlider, setShowAnimSlider] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
 
   // Compute sorted periods from forecast points
   const sortedPeriods = useMemo(() => {
@@ -232,6 +241,8 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
         attribution: "&copy; OpenStreetMap contributors"
       }).addTo(leafletMap.current);
       markersLayerRef.current = L.layerGroup().addTo(leafletMap.current);
+      precinctLabelLayerRef.current = L.layerGroup();
+      setMapReady(true);
     }
 
     return () => {
@@ -241,6 +252,79 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
       }
     };
   }, [isClient, L, center, zoom]);
+
+  // Load precinct boundary layer
+  useEffect(() => {
+    if (!isClient || !L || !leafletMap.current || !mapReady) return;
+
+    if (!document.getElementById('precinct-label-style')) {
+      const style = document.createElement('style');
+      style.id = 'precinct-label-style';
+      style.textContent = `
+      .precinct-label {
+        background: rgba(255,255,255,0.85);
+        border: none;
+        box-shadow: none;
+        font-size: 11px;
+        font-weight: 700;
+        color: #1a1a2e;
+        text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+        padding: 2px 6px;
+        border-radius: 3px;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+      }
+      `;
+      document.head.appendChild(style);
+    }
+
+    fetch('/data/precincts.geojson')
+      .then(res => res.json())
+      .then(data => {
+        precinctLayerRef.current = L.geoJSON(data, {
+          style: (feature: any) => ({
+            color: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
+            weight: 2.5,
+            fill: false,
+          }),
+        });
+
+        precinctLabelLayerRef.current?.clearLayers();
+        data.features.forEach((feature: any) => {
+          if (feature.geometry.type !== 'Polygon') return;
+          const coords = feature.geometry.coordinates[0];
+          const lngs = coords.map((c: number[]) => c[0]);
+          const lats = coords.map((c: number[]) => c[1]);
+          const centroid: [number, number] = [
+            lats.reduce((a: number, b: number) => a + b, 0) / lats.length,
+            lngs.reduce((a: number, b: number) => a + b, 0) / lngs.length,
+          ];
+          const icon = L.divIcon({
+            className: 'precinct-label',
+            html: feature.properties.name,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+          });
+          L.marker(centroid, { icon, interactive: false }).addTo(precinctLabelLayerRef.current!);
+        });
+      })
+      .catch(() => {});
+  }, [isClient, L, mapReady]);
+
+  // Toggle precinct layer visibility
+  useEffect(() => {
+    if (!precinctLayerRef.current || !precinctLabelLayerRef.current || !leafletMap.current) return;
+    if (showPrecincts) {
+      leafletMap.current.addLayer(precinctLayerRef.current);
+      leafletMap.current.addLayer(precinctLabelLayerRef.current);
+    } else {
+      leafletMap.current.removeLayer(precinctLayerRef.current);
+      leafletMap.current.removeLayer(precinctLabelLayerRef.current);
+    }
+  }, [showPrecincts, isClient, L, mapReady]);
 
   // Rebuild map layers when data or visibility changes
   useEffect(() => {
@@ -486,6 +570,16 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
                 className="mr-2"
               />
               <span className="text-sm font-medium">Show Heatmap</span>
+            </label>
+
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={showPrecincts}
+                onChange={(e) => setShowPrecincts(e.target.checked)}
+                className="mr-2"
+              />
+              <span className="text-sm font-medium">Show Precincts</span>
             </label>
           </div>
 

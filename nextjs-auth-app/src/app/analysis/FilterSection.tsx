@@ -1,4 +1,4 @@
-import { useState, useReducer, useEffect } from "react";
+import { useState, useReducer, useEffect, useCallback, useMemo } from "react";
 import MultiSelectDropdown from "../../components/MultiSelectDropdown";
 
 export type FilterState = {
@@ -85,20 +85,27 @@ const FilterSection = ({ selectedFeatures, onFilterChange }: FilterSectionProps)
   const displaySelected = (arr: string[]) => (arr.length > 0 ? arr.join(", ") : "All");
 
   // Normalize selected features for flexible matching.
-  const normalizedFeatures = selectedFeatures.map((feature) =>
-    feature.toLowerCase().replace(/\s+/g, "")
+  const normalizedFeatures = useMemo(
+    () =>
+      selectedFeatures.map((feature) =>
+        feature.toLowerCase().replace(/\s+/g, "")
+      ),
+    [selectedFeatures]
   );
 
   // Helper function to check if a feature is selected (accepts multiple variants).
-  const isFeatureSelected = (variants: string[]) =>
-    variants.some((variant) =>
-      normalizedFeatures.includes(variant.toLowerCase().replace(/\s+/g, ""))
-    );
+  const isFeatureSelected = useCallback(
+    (variants: string[]) =>
+      variants.some((variant) =>
+        normalizedFeatures.includes(variant.toLowerCase().replace(/\s+/g, ""))
+      ),
+    [normalizedFeatures]
+  );
 
   // Reset filters when selectedFeatures change.
   useEffect(() => {
     dispatch({ type: "RESET_ALL", isFeatureSelected });
-  }, [selectedFeatures]);
+  }, [selectedFeatures, isFeatureSelected]);
 
   return (
     <div className="bg-white shadow-lg rounded-lg p-4 w-full mt-4">

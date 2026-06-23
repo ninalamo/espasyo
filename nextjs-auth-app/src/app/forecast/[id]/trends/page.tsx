@@ -1,16 +1,15 @@
 'use client';
 
-import { useForecast } from '../../ForecastContext';
-import TrendAnalysis from '../../TrendAnalysis';
+import { useEffect } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 
-export default function TrendsPage() {
-  const { historicalData, filteredForecastData, forecastData, forecastId } = useForecast();
+export default function TrendsRedirect() {
+  const params = useParams();
+  const router = useRouter();
 
-  return (
-    <TrendAnalysis
-      historicalData={historicalData}
-      forecastData={filteredForecastData}
-      forecastId={forecastId}
-    />
-  );
+  useEffect(() => {
+    router.replace(`/forecast/${params.id}/overview`);
+  }, [params.id, router]);
+
+  return null;
 }

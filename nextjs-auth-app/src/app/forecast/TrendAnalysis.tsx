@@ -12,7 +12,8 @@ interface Props {
   forecastId?: string | null;
 }
 
-const MANPOWER_BASE: Record<string, number> = { critical: 20, high: 15, medium: 10, low: 5 };
+const MANPOWER_CASES_PER_OFFICER = 15;
+const MANPOWER_BASE: Record<string, number> = { critical: 8, high: 6, medium: 4, low: 2 };
 
 type TrendRow = {
   id: number; name: string;
@@ -129,7 +130,7 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
       items.map(item => ({
         ...item,
         avgPerMonth: Math.round(item.totalPredicted / monthCount),
-        ...(isPrecinct ? { suggestedOfficers: Math.max(MANPOWER_BASE[getPrecinctRisk(item.highRisk || 0, item.criticalRisk || 0)], Math.ceil(item.totalPredicted / 2)) } : {}),
+        ...(isPrecinct ? { suggestedOfficers: Math.max(MANPOWER_BASE[getPrecinctRisk(item.highRisk || 0, item.criticalRisk || 0)], Math.ceil(item.avgPerMonth / MANPOWER_CASES_PER_OFFICER)) } : {}),
       }));
 
     const overallStats = {
@@ -318,7 +319,7 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
                         <div className="flex items-center gap-2">
                           <span className="font-medium truncate">{precinct.name}</span>
                           {precinct.suggestedOfficers && (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex-shrink-0" title="Suggested officers based on risk and crime volume">
+                            <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex-shrink-0" title={`Suggested officers: ~${precinct.avgPerMonth} monthly cases ÷ ${MANPOWER_CASES_PER_OFFICER} per officer`}>
                               👮 {precinct.suggestedOfficers}
                             </span>
                           )}
