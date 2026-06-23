@@ -30,6 +30,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const heatLayersRef = useRef<L.LayerGroup | null>(null);
   const envelopeLayersRef = useRef<L.LayerGroup | null>(null);
   const precinctLayerRef = useRef<L.GeoJSON | null>(null);
+  const precinctLabelLayerRef = useRef<L.LayerGroup | null>(null);
 
   const crimeTypeEnum = CrimeTypesDictionary;
 
@@ -125,18 +126,21 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       style.id = 'precinct-label-style';
       style.textContent = `
       .precinct-label {
-        background: rgba(255,255,255,0.85) !important;
-        border: none !important;
-        box-shadow: none !important;
-        font-size: 11px !important;
-        font-weight: 700 !important;
-        color: #1a1a2e !important;
+        background: rgba(255,255,255,0.85);
+        border: none;
+        box-shadow: none;
+        font-size: 11px;
+        font-weight: 700;
+        color: #1a1a2e;
         text-shadow: 0 0 3px #fff, 0 0 3px #fff;
-        padding: 2px 6px !important;
-        border-radius: 3px !important;
-        white-space: nowrap !important;
+        padding: 2px 6px;
+        border-radius: 3px;
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
       }
-      .precinct-label::before { display: none !important; }
       `;
       document.head.appendChild(style);
     }
@@ -150,19 +154,25 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             weight: 2.5,
             fill: false,
           }),
-          onEachFeature: (feature: any, layer: L.Layer) => {
-            const bounds = (layer as any).getBounds();
-            const centroid = bounds?.getCenter?.() ?? leafletMap.current!.getCenter();
-            layer.bindTooltip(feature.properties.name, {
-              permanent: true,
-              direction: 'center',
-              className: 'precinct-label',
-            });
-            const tooltip = layer.getTooltip();
-            if (tooltip) {
-              tooltip.setLatLng(centroid);
-            }
-          }
+        });
+
+        precinctLabelLayerRef.current?.clearLayers();
+        data.features.forEach((feature: any) => {
+          if (feature.geometry.type !== 'Polygon') return;
+          const coords = feature.geometry.coordinates[0];
+          const lngs = coords.map((c: number[]) => c[0]);
+          const lats = coords.map((c: number[]) => c[1]);
+          const centroid: [number, number] = [
+            lats.reduce((a: number, b: number) => a + b, 0) / lats.length,
+            lngs.reduce((a: number, b: number) => a + b, 0) / lngs.length,
+          ];
+          const icon = L.divIcon({
+            className: 'precinct-label',
+            html: feature.properties.name,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+          });
+          L.marker(centroid, { icon, interactive: false }).addTo(precinctLabelLayerRef.current!);
         });
       })
       .catch(() => {
@@ -170,11 +180,13 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   }, [mapReady]);
 
   useEffect(() => {
-    if (!precinctLayerRef.current || !leafletMap.current) return;
+    if (!precinctLayerRef.current || !precinctLabelLayerRef.current || !leafletMap.current) return;
     if (showPrecincts) {
       leafletMap.current.addLayer(precinctLayerRef.current);
+      leafletMap.current.addLayer(precinctLabelLayerRef.current);
     } else {
       leafletMap.current.removeLayer(precinctLayerRef.current);
+      leafletMap.current.removeLayer(precinctLabelLayerRef.current);
     }
   }, [showPrecincts, mapReady]);
 
@@ -189,6 +201,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       markersLayerRef.current = L.layerGroup().addTo(leafletMap.current);
       heatLayersRef.current = L.layerGroup().addTo(leafletMap.current);
       envelopeLayersRef.current = L.layerGroup().addTo(leafletMap.current);
+      precinctLabelLayerRef.current = L.layerGroup();
       setMapReady(true);
     }
 
