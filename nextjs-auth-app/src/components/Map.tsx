@@ -57,17 +57,23 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const uniqueSteps = Array.from(
-    new Set(
-      clusters.flatMap(c =>
-        c.clusterItems.map(i => `${i.year}-${i.month.toString().padStart(2, '0')}`)
+  const uniqueSteps = useMemo(
+    () => Array.from(
+      new Set(
+        clusters.flatMap(c =>
+          c.clusterItems.map(i => `${i.year}-${i.month.toString().padStart(2, '0')}`)
+        )
       )
-    )
-  ).sort();
+    ).sort(),
+    [clusters]
+  );
 
-  const uniqueYears = Array.from(
-    new Set(clusters.flatMap(c => c.clusterItems.map(i => i.year)))
-  ).sort();
+  const uniqueYears = useMemo(
+    () => Array.from(
+      new Set(clusters.flatMap(c => c.clusterItems.map(i => i.year)))
+    ).sort(),
+    [clusters]
+  );
 
   const [filteredClusters, setFilteredClusters] = useState<Cluster[]>([]);
 
