@@ -20,7 +20,7 @@ interface RiskRule {
 interface PrecinctAllocation {
   precinctNumber: number;
   precinctName: string;
-  totalPredicted: number;
+  avgMonthlyCrimes: number;
   riskLevel: string;
   highRiskCount: number;
   criticalRiskCount: number;
@@ -122,7 +122,7 @@ function ManpowerProposalPage() {
         return {
           precinctNumber: num,
           precinctName: name,
-          totalPredicted,
+          avgMonthlyCrimes: Math.round(avgPerMonth),
           riskLevel,
           highRiskCount: items.filter(i => i.riskLevel === 'high').length,
           criticalRiskCount: items.filter(i => i.riskLevel === 'critical').length,
@@ -273,7 +273,7 @@ function ManpowerProposalPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precinct</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Predicted Crimes</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Monthly Crimes</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Area (km²)</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Trend</th>
@@ -292,7 +292,7 @@ function ManpowerProposalPage() {
                         <span className="font-medium text-gray-900">{pa.precinctName}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{pa.totalPredicted}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{pa.avgMonthlyCrimes}</td>
                     <td className="px-4 py-3 text-right text-sm text-gray-600">{pa.areaSqKm > 0 ? pa.areaSqKm.toFixed(2) : '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getRiskColor(pa.riskLevel)}`}>
@@ -323,7 +323,7 @@ function ManpowerProposalPage() {
             <tfoot className="bg-gray-50 font-semibold">
               <tr>
                 <td className="px-4 py-3 text-gray-700">Total</td>
-                <td className="px-4 py-3 text-right text-gray-900">{forecastData.reduce((s, f) => s + f.predictedCount, 0)}</td>
+                <td className="px-4 py-3 text-right text-gray-900">{precinctAllocations.reduce((s, p) => s + p.avgMonthlyCrimes, 0)}</td>
                 <td className="px-4 py-3 text-right text-gray-600">
                   {precinctAllocations.reduce((s, p) => s + p.areaSqKm, 0) > 0
                     ? precinctAllocations.reduce((s, p) => s + p.areaSqKm, 0).toFixed(2)
