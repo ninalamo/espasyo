@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
@@ -298,6 +298,22 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     });
   }, [filteredClusters, center, zoom, viewMode, showEnvelope, compareMode, periodBYears, clusterColorsMapping, crimeTypeEnum]);
 
+  const [fullscreen, setFullscreen] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
+
+  const toggleFullscreen = useCallback(() => {
+    setFullscreen(prev => {
+      if (prev) {
+        setTimeout(() => leafletMap.current?.invalidateSize(), 100);
+      } else {
+        setTimeout(() => leafletMap.current?.invalidateSize(), 300);
+      }
+      return !prev;
+    });
+  }, []);
+
+  const crimeTypeEntries = useMemo(() => Object.entries(crimeTypeEnum), [crimeTypeEnum]);
+
   const handleCompareToggle = useCallback(() => {
     if (!compareMode) {
       const sortedYears = [...uniqueYears];
@@ -311,251 +327,156 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     setCompareMode(!compareMode);
   }, [compareMode, uniqueYears]);
 
-  return (
-    <div className="space-y-4">
-      {clusters && clusters.length > 0 ? (
-        <>
-          <div className="flex flex-wrap items-center gap-4 border border-gray-200 p-3 rounded bg-white shadow-sm">
-            <span className="text-sm font-semibold text-gray-700">View:</span>
-            {(['points', 'heatmap', 'both'] as ViewMode[]).map(mode => (
-              <label key={mode} className="flex items-center gap-1 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="viewMode"
-                  checked={viewMode === mode}
-                  onChange={() => setViewMode(mode)}
-                  className="accent-blue-600"
-                />
-                {mode === 'points' ? 'Points' : mode === 'heatmap' ? 'Heatmap' : 'Both'}
-              </label>
-            ))}
+  const hasData = clusters && clusters.length > 0;
 
-            <div className="w-px h-5 bg-gray-300" />
-
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={showEnvelope}
-                onChange={e => setShowEnvelope(e.target.checked)}
-                className="accent-blue-600"
-              />
-              Envelope
-            </label>
-
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={showPrecincts}
-                onChange={e => setShowPrecincts(e.target.checked)}
-                className="accent-blue-600"
-              />
-              Precincts
-            </label>
-
-            <div className="ml-auto flex items-center gap-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={stepwise}
-                  onChange={e => {
-                    setStepwise(e.target.checked);
-                    setPlay(false);
-                  }}
-                  className="accent-blue-600"
-                />
-                Trends
-              </label>
-
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={compareMode}
-                  onChange={handleCompareToggle}
-                  className="accent-purple-600"
-                />
-                Compare
-              </label>
+  const mapEl = (
+    <>
+      {hasData ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowFilters(prev => !prev)}
+                className="px-3 py-1.5 text-xs font-medium bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-1.5"
+              >
+                <svg className={`w-3.5 h-3.5 transition-transform ${showFilters ? 'rotate-0' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+                Filters
+              </button>
+              <div className="flex items-center gap-1.5 border-l border-gray-200 pl-2">
+                {(['points', 'heatmap', 'both'] as ViewMode[]).map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    className={`px-2 py-1 text-xs rounded border transition ${
+                      viewMode === mode
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    {mode === 'points' ? '📍Pts' : mode === 'heatmap' ? '🔥Heat' : 'Both'}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center gap-2 border-l border-gray-200 pl-2">
+                <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                  <input type="checkbox" checked={showEnvelope} onChange={e => setShowEnvelope(e.target.checked)} className="accent-blue-600" />
+                  Env
+                </label>
+                <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                  <input type="checkbox" checked={showPrecincts} onChange={e => setShowPrecincts(e.target.checked)} className="accent-blue-600" />
+                  Precincts
+                </label>
+                <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                  <input type="checkbox" checked={stepwise} onChange={e => { setStepwise(e.target.checked); setPlay(false); }} className="accent-blue-600" />
+                  Trends
+                </label>
+                <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
+                  <input type="checkbox" checked={compareMode} onChange={handleCompareToggle} className="accent-purple-600" />
+                  Compare
+                </label>
+              </div>
             </div>
+            <button
+              onClick={toggleFullscreen}
+              className="p-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex-shrink-0"
+              title="Fullscreen"
+            >
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              </svg>
+            </button>
           </div>
 
-          {compareMode && (
-            <fieldset className="border p-3 rounded shadow-sm bg-white space-y-2">
-              <legend className="text-sm font-semibold mb-1">Compare Periods</legend>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <span className="text-xs font-medium text-blue-700">Period A (Blue)</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {uniqueYears.map(y => (
-                      <button
-                        key={y}
-                        onClick={() =>
-                          setPeriodAYears(prev =>
-                            prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]
-                          )
-                        }
-                        className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-blue-600 text-white' : ''}`}
-                      >
-                        {y}
-                      </button>
-                    ))}
+          {showFilters && (
+            <div className="space-y-3">
+              {compareMode && (
+                <div className="flex gap-4 p-2.5 bg-gray-50 rounded-lg border">
+                  <div className="flex-1">
+                    <span className="text-xs font-medium text-blue-700">Period A (Blue)</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {uniqueYears.map(y => (
+                        <button
+                          key={y}
+                          onClick={() => setPeriodAYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
+                          className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                        >{y}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <span className="text-xs font-medium text-red-700">Period B (Red)</span>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {uniqueYears.map(y => (
+                        <button
+                          key={y}
+                          onClick={() => setPeriodBYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
+                          className={`px-2 py-0.5 border rounded text-xs ${periodBYears.includes(y) ? 'bg-red-600 text-white' : 'bg-white'}`}
+                        >{y}</button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                <div className="flex-1">
-                  <span className="text-xs font-medium text-red-700">Period B (Red)</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {uniqueYears.map(y => (
-                      <button
-                        key={y}
-                        onClick={() =>
-                          setPeriodBYears(prev =>
-                            prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]
-                          )
-                        }
-                        className={`px-2 py-0.5 border rounded text-xs ${periodBYears.includes(y) ? 'bg-red-600 text-white' : ''}`}
-                      >
-                        {y}
-                      </button>
-                    ))}
+              )}
+
+              {stepwise && (
+                <div className="flex items-center justify-between gap-2 p-2.5 bg-gray-50 rounded-lg border">
+                  <div className="flex items-center gap-1.5">
+                    <button onClick={() => setPlay(!play)} className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700">{play ? '⏸' : '▶'} {play ? 'Pause' : 'Play'}</button>
+                    <button onClick={() => setCurrentStep(p => Math.max(p - 1, 0))} className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50">◀</button>
+                    <button onClick={() => setCurrentStep(p => Math.min(p + 1, uniqueSteps.length - 1))} className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50">▶</button>
                   </div>
-                </div>
-              </div>
-            </fieldset>
-          )}
-
-          {stepwise && (
-            <fieldset className="border p-3 rounded shadow-sm bg-white space-y-2">
-              <legend className="text-sm font-semibold mb-2">Trends Playback</legend>
-              <div className="flex items-center justify-between flex-wrap gap-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setPlay(!play)}
-                    className="px-3 py-1 bg-blue-600 text-white rounded shadow"
-                  >
-                    {play ? 'Pause' : 'Play'}
-                  </button>
-                  <button
-                    onClick={() => setCurrentStep(p => Math.max(p - 1, 0))}
-                    className="px-3 py-1 bg-gray-200 rounded"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    onClick={() => setCurrentStep(p => Math.min(p + 1, uniqueSteps.length - 1))}
-                    className="px-3 py-1 bg-gray-200 rounded"
-                  >
-                    Next
-                  </button>
-                </div>
-
-                <div className="ml-auto flex items-center gap-2">
-                  <span className="text-sm text-gray-600 font-medium">Month:</span>
-                  <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-sm font-semibold shadow-sm">
-                    {(() => {
-                      const [year, month] = uniqueSteps[currentStep].split('-').map(Number);
-                      return new Intl.DateTimeFormat('en-US', {
-                        year: 'numeric',
-                        month: 'short',
-                      }).format(new Date(year, month - 1));
-                    })()}
+                  <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                    {(() => { const [y, m] = uniqueSteps[currentStep].split('-').map(Number); return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short' }).format(new Date(y, m - 1)); })()}
                   </span>
                 </div>
+              )}
 
-              </div>
-            </fieldset>
-          )}
-
-          {!stepwise && !compareMode && (
-            <fieldset className="border px-3 pt-0 pb-3 rounded shadow-sm bg-white space-y-4">
-              <legend className="text-sm font-semibold mb-1">Filter by Month and Year</legend>
-              <p className="text-xs text-gray-500 italic">
-                Tip: Leave all unchecked to show <strong>all months</strong> and <strong>all years</strong>.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1">
-                  <span className="font-medium text-sm">Month:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
+              {!stepwise && !compareMode && (
+                <div className="p-2.5 bg-gray-50 rounded-lg border space-y-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="text-xs font-medium text-gray-600">Month:</span>
                     {[...Array(12)].map((_, i) => {
                       const m = i + 1;
                       return (
-                        <button
-                          key={m}
-                          onClick={() =>
-                            setSelectedMonths(prev =>
-                              prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]
-                            )
-                          }
-                          className={`px-2 py-1 border rounded text-sm ${selectedMonths.includes(m) ? 'bg-blue-600 text-white' : ''
-                            }`}
-                        >
-                          {m}
-                        </button>
+                        <button key={m} onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
+                          className={`px-2 py-0.5 border rounded text-xs ${selectedMonths.includes(m) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                        >{m}</button>
                       );
                     })}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <span className="font-medium text-sm">Year:</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
+                    <span className="text-xs font-medium text-gray-600 ml-1">Year:</span>
                     {uniqueYears.map(y => (
-                      <button
-                        key={y}
-                        onClick={() =>
-                          setSelectedYears(prev =>
-                            prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y]
-                          )
-                        }
-                        className={`px-2 py-1 border rounded text-sm ${selectedYears.includes(y) ? 'bg-blue-600 text-white' : ''}`}
-                      >
-                        {y}
-                      </button>
+                      <button key={y} onClick={() => setSelectedYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
+                        className={`px-2 py-0.5 border rounded text-xs ${selectedYears.includes(y) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                      >{y}</button>
                     ))}
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-600">Crime:</span>
+                    <div className="flex flex-wrap gap-1 flex-1">
+                      {crimeTypeEntries.map(([id, label]) => {
+                        const crimeId = parseInt(id);
+                        return (
+                          <button key={id} onClick={() => setSelectedCrimeTypes(prev => prev.includes(crimeId) ? prev.filter(x => x !== crimeId) : [...prev, crimeId])}
+                            className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(crimeId) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                          >{label}</button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <button onClick={() => { setSelectedMonths([]); setSelectedYears([]); setSelectedCrimeTypes([]); }}
+                      className="px-2 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300"
+                    >Reset</button>
+                  </div>
                 </div>
-              </div>
-            </fieldset>
-          )}
-
-          <fieldset className="border p-3 rounded shadow-sm bg-white">
-            <legend className="text-sm font-semibold mb-2">Filter by Crime Type</legend>
-            <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto pr-2">
-              {Object.entries(crimeTypeEnum).map(([id, label]) => {
-                const crimeId = parseInt(id);
-                return (
-                  <button
-                    key={id}
-                    onClick={() =>
-                      setSelectedCrimeTypes(prev =>
-                        prev.includes(crimeId)
-                          ? prev.filter(x => x !== crimeId)
-                          : [...prev, crimeId]
-                      )
-                    }
-                    className={`px-2 py-1 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(crimeId) ? 'bg-blue-600 text-white' : ''}`}
-                  >
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          {!stepwise && !compareMode && (
-            <div className="flex justify-end">
-              <button
-                onClick={() => {
-                  setSelectedMonths([]);
-                  setSelectedYears([]);
-                  setSelectedCrimeTypes([]);
-                }}
-                title="Reset filters to show all results without filtering"
-                className="px-4 py-2 bg-gray-300 hover:bg-gray-400 text-sm rounded shadow"
-              >
-                Reset
-              </button>
+              )}
             </div>
           )}
 
-          <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} />
+          <div id="map" ref={mapRef} style={{ height: fullscreen ? '100%' : '500px', width: '100%' }} className="rounded-lg border border-gray-200 z-0" />
+
           {modalCases && (
             <MapModal
               onClose={() => setModalCases(null)}
@@ -566,7 +487,6 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             >
               <h2 className="text-lg font-semibold mb-3">Cluster at [{modalCases.lat}, {modalCases.lng}]</h2>
               <p className="text-sm mb-2"><strong>Cluster ID:</strong> {modalCases.clusterId}</p>
-
               {modalCases.items.length === 1 ? (
                 <ul className="space-y-1 text-sm">
                   <li><strong>Case ID:</strong> {modalCases.items[0].caseId}</li>
@@ -606,15 +526,44 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
               )}
             </MapModal>
           )}
-
-        </>
+        </div>
       ) : (
         <div className="text-center text-gray-500 italic py-12">
           No clusters to display. Please run analysis or adjust filters.
         </div>
       )}
+    </>
+  );
+
+  const content = (
+    <div className={fullscreen && hasData ? 'fixed inset-0 z-50 bg-white flex flex-col' : ''}>
+      {fullscreen && hasData && (
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            {(['points', 'heatmap', 'both'] as ViewMode[]).map(mode => (
+              <button key={mode} onClick={() => setViewMode(mode)}
+                className={`px-2 py-1 text-xs rounded border transition ${viewMode === mode ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
+              >{mode === 'points' ? '📍Pts' : mode === 'heatmap' ? '🔥Heat' : 'Both'}</button>
+            ))}
+            <div className="w-px h-4 bg-gray-300 mx-1" />
+            <label className="flex items-center gap-1 text-xs cursor-pointer select-none"><input type="checkbox" checked={showEnvelope} onChange={e => setShowEnvelope(e.target.checked)} className="accent-blue-600" /> Env</label>
+            <label className="flex items-center gap-1 text-xs cursor-pointer select-none"><input type="checkbox" checked={showPrecincts} onChange={e => setShowPrecincts(e.target.checked)} className="accent-blue-600" /> Precincts</label>
+            <label className="flex items-center gap-1 text-xs cursor-pointer select-none"><input type="checkbox" checked={stepwise} onChange={e => { setStepwise(e.target.checked); setPlay(false); }} className="accent-blue-600" /> Trends</label>
+            <label className="flex items-center gap-1 text-xs cursor-pointer select-none"><input type="checkbox" checked={compareMode} onChange={handleCompareToggle} className="accent-purple-600" /> Compare</label>
+          </div>
+          <button onClick={toggleFullscreen} className="p-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-50" title="Exit fullscreen">
+            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {fullscreen && hasData ? mapEl : <div className="space-y-4">{mapEl}</div>}
     </div>
   );
+
+  return content;
+
 
 };
 
