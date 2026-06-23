@@ -6,7 +6,7 @@ import { MapPin, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
 import turfArea from '@turf/area';
-import { GetPrecinctsDictionary } from '../../constants/consts';
+import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import { forecastApi } from '../api/utils/forecastApi';
 import withAuth from '../hoc/withAuth';
 import type { ForecastData, ForecastSummaryCard } from '../../types/forecast/ForecastBaseTypes';
@@ -31,8 +31,15 @@ interface PrecinctAllocation {
   suggestedOfficers: number;
 }
 
-const MANPOWER_CASES_PER_OFFICER = 15;
-const AREA_WEIGHT_PER_SQKM = 0.15;
+const PATROL_DEMAND_PER_OFFICER = 20;
+const OFFICERS_PER_SQKM = 1.5;
+
+const CRIME_SEVERITY_WEIGHTS: Record<number, number> = {
+  0: 5,  1: 4,  2: 3,  3: 2,  4: 2,
+  5: 3,  6: 4,  7: 4,  8: 2,  9: 4,
+  10: 2, 11: 5, 12: 5, 13: 5, 14: 5,
+  15: 5, 16: 5, 17: 5, 18: 2, 19: 2,
+};
 
 const DEFAULT_RULES: RiskRule[] = [
   { riskLevel: 'critical', label: 'Critical', officers: 6 },
@@ -115,9 +122,11 @@ function ManpowerProposalPage() {
         const riskLevel = getOverallRisk(avgPerMonth);
         const rule = getRule(riskLevel);
         const areaSqKm = precinctAreas.get(num) || 0;
-        const baseOfficers = Math.max(rule.officers, Math.ceil(avgPerMonth / MANPOWER_CASES_PER_OFFICER));
-        const coverageMultiplier = 1 + (areaSqKm * AREA_WEIGHT_PER_SQKM);
-        const suggestedOfficers = Math.max(rule.officers, Math.round(baseOfficers * coverageMultiplier));
+        const weightedScore = items.reduce((s, i) => s + i.predictedCount * (CRIME_SEVERITY_WEIGHTS[i.crimeType] ?? 1), 0);
+        const monthlyWeighted = weightedScore / monthCount;
+        const patrolUnits = monthlyWeighted / PATROL_DEMAND_PER_OFFICER;
+        const areaUnits = areaSqKm * OFFICERS_PER_SQKM;
+        const suggestedOfficers = Math.max(rule.officers, Math.round(patrolUnits + areaUnits));
 
         return {
           precinctNumber: num,
@@ -349,9 +358,10 @@ function ManpowerProposalPage() {
           <div className="text-sm text-blue-800 space-y-2">
             <p className="font-medium">How each precinct&apos;s officer count is decided</p>
             <ol className="list-decimal list-inside space-y-1 text-blue-700">
-              <li><strong>Workload:</strong> monthly crimes ÷ {MANPOWER_CASES_PER_OFFICER} cases handled per officer</li>
+              <li><strong>Crime severity:</strong> violent crimes (murder, robbery, etc.) are weighted 5×, property crimes (theft, fraud) weighted 2×, so high-risk areas get more patrols</li>
+              <li><strong>Patrol demand:</strong> weighted monthly crimes ÷ {PATROL_DEMAND_PER_OFFICER} demand units per officer</li>
+              <li><strong>Area coverage:</strong> +{OFFICERS_PER_SQKM} officers per square kilometre to cover the whole barangay</li>
               <li><strong>Baseline:</strong> each precinct gets at least 2–6 officers depending on its risk severity</li>
-              <li><strong>Territory size:</strong> +{AREA_WEIGHT_PER_SQKM * 100}% more officers per square kilometre for wider patrol coverage</li>
             </ol>
             <p className="text-blue-600">
               The final number is split across three shifts <strong>Morning</strong> ☀️, <strong>Evening</strong> 🌆, and <strong>Night</strong> 🌙.
