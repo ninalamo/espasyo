@@ -82,10 +82,10 @@ function ManpowerProposalPage() {
     })();
   }, [forecastId]);
 
-  const getOverallRisk = (items: ForecastData[]): string => {
-    if (items.some(i => i.riskLevel === 'critical')) return 'critical';
-    if (items.some(i => i.riskLevel === 'high')) return 'high';
-    if (items.some(i => i.riskLevel === 'medium')) return 'medium';
+  const getOverallRisk = (avgPerMonth: number): string => {
+    if (avgPerMonth >= 50) return 'critical';
+    if (avgPerMonth >= 25) return 'high';
+    if (avgPerMonth >= 10) return 'medium';
     return 'low';
   };
 
@@ -112,7 +112,7 @@ function ManpowerProposalPage() {
         const name = GetPrecinctsDictionary[num] || `Precinct ${num}`;
         const totalPredicted = items.reduce((s, i) => s + i.predictedCount, 0);
         const avgPerMonth = totalPredicted / monthCount;
-        const riskLevel = getOverallRisk(items);
+        const riskLevel = getOverallRisk(avgPerMonth);
         const rule = getRule(riskLevel);
         const areaSqKm = precinctAreas.get(num) || 0;
         const baseOfficers = Math.max(rule.officers, Math.ceil(avgPerMonth / MANPOWER_CASES_PER_OFFICER));
@@ -278,7 +278,7 @@ function ManpowerProposalPage() {
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Trend</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Suggested Officers</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Per Shift (M/E/N)</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Per Shift (Morning / Evening / Night)</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -298,23 +298,24 @@ function ManpowerProposalPage() {
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getRiskColor(pa.riskLevel)}`}>
                         {pa.riskLevel}
                       </span>
-                      {(pa.criticalRiskCount > 0 || pa.highRiskCount > 0) && (
-                        <span className="text-xs text-gray-500 ml-1">
-                          ({pa.criticalRiskCount}C/{pa.highRiskCount}H)
-                        </span>
-                      )}
+                      <div className="text-xs text-gray-500 mt-0.5 space-x-1">
+                        {pa.criticalRiskCount > 0 && <span className="text-red-600">{pa.criticalRiskCount} critical</span>}
+                        {pa.criticalRiskCount > 0 && pa.highRiskCount > 0 && <span>·</span>}
+                        {pa.highRiskCount > 0 && <span className="text-orange-600">{pa.highRiskCount} high</span>}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1 text-sm">
+                      <div className="flex items-center justify-center gap-1.5 text-sm">
                         {getTrendIcon(pa.increasingCount, pa.decreasingCount)}
-                        <span className="text-red-600">{pa.increasingCount}</span>
-                        <span className="text-gray-400">/</span>
-                        <span className="text-green-600">{pa.decreasingCount}</span>
+                        <span className="text-red-600"><span className="text-xs">↑</span>{pa.increasingCount}</span>
+                        <span className="text-green-600"><span className="text-xs">↓</span>{pa.decreasingCount}</span>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-blue-700">{pa.suggestedOfficers}</td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-600">
-                      {perShift} / {perShift} / {pa.suggestedOfficers - perShift * 2}
+                    <td className="px-4 py-3 text-center text-sm text-gray-600 whitespace-nowrap">
+                      <span>☀️{perShift}</span> <span className="text-gray-300">|</span>
+                      <span>🌆{perShift}</span> <span className="text-gray-300">|</span>
+                      <span>🌙{pa.suggestedOfficers - perShift * 2}</span>
                     </td>
                   </tr>
                 );
@@ -331,8 +332,10 @@ function ManpowerProposalPage() {
                 </td>
                 <td colSpan={2}></td>
                 <td className="px-4 py-3 text-right text-blue-700">{totalOfficers}</td>
-                <td className="px-4 py-3 text-center text-gray-600">
-                  {Math.round(totalOfficers / 3)} / {Math.round(totalOfficers / 3)} / {totalOfficers - Math.round(totalOfficers / 3) * 2}
+                <td className="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
+                  <span>☀️{Math.round(totalOfficers / 3)}</span> <span className="text-gray-300">|</span>
+                  <span>🌆{Math.round(totalOfficers / 3)}</span> <span className="text-gray-300">|</span>
+                  <span>🌙{totalOfficers - Math.round(totalOfficers / 3) * 2}</span>
                 </td>
               </tr>
             </tfoot>
@@ -343,13 +346,15 @@ function ManpowerProposalPage() {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 no-print">
         <div className="flex items-start gap-2">
           <Clock className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-blue-800">
-            <p className="font-medium mb-1">How allocation is calculated</p>
-            <p>
-              Each precinct gets a suggested officer count based on its forecast workload: avg monthly predicted cases ÷ {MANPOWER_CASES_PER_OFFICER} cases per officer.
-              A risk floor ensures critical/high-risk precincts maintain a minimum staffing level.
-              Territory area adds a coverage multiplier (+{AREA_WEIGHT_PER_SQKM * 100}% per km²) so larger precincts get more roving personnel.
-              Officers are split evenly across Morning, Evening, and Night shifts.
+          <div className="text-sm text-blue-800 space-y-2">
+            <p className="font-medium">How each precinct&apos;s officer count is decided</p>
+            <ol className="list-decimal list-inside space-y-1 text-blue-700">
+              <li><strong>Workload:</strong> monthly crimes ÷ {MANPOWER_CASES_PER_OFFICER} cases handled per officer</li>
+              <li><strong>Baseline:</strong> each precinct gets at least 2–6 officers depending on its risk severity</li>
+              <li><strong>Territory size:</strong> +{AREA_WEIGHT_PER_SQKM * 100}% more officers per square kilometre for wider patrol coverage</li>
+            </ol>
+            <p className="text-blue-600">
+              The final number is split across three shifts <strong>Morning</strong> ☀️, <strong>Evening</strong> 🌆, and <strong>Night</strong> 🌙.
             </p>
             <p className="mt-2">
               <strong>Published proposals</strong> are saved locally and can be printed.
