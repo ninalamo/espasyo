@@ -2,13 +2,6 @@
 
 import type { ForecastData } from './ForecastBaseTypes';
 
-export interface TimeOfDayBreakdown {
-  morning: number;    // 6 AM - 12 PM
-  afternoon: number;  // 12 PM - 6 PM
-  evening: number;    // 6 PM - 12 AM
-  night: number;      // 12 AM - 6 AM
-}
-
 export interface ReliabilityMetrics {
   score: number;              // 0-1, overall reliability score
   sampleSize: number;         // Historical data points used
@@ -22,8 +15,6 @@ export interface ExtendedForecastData extends ForecastData {
   latitude: number;
   longitude: number;
   clusterId?: number;
-  timeOfDayBreakdown: TimeOfDayBreakdown;
-  primaryTimeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
   reliability: ReliabilityMetrics;
 }
 
@@ -37,8 +28,6 @@ export interface ForecastMapPoint {
   reliability: number;
   precinct: number;
   crimeType: number;
-  timeOfDayBreakdown: TimeOfDayBreakdown;
-  primaryTimeOfDay: 'morning' | 'afternoon' | 'evening' | 'night';
   forecastPeriod: string; // "2024-03" format
   trend: 'increasing' | 'decreasing' | 'stable';
 }
@@ -49,7 +38,6 @@ export interface ForecastMapFilters {
   minConfidence: number;
   maxConfidence: number;
   riskLevels: ('low' | 'medium' | 'high' | 'critical')[];
-  timeOfDay: ('morning' | 'afternoon' | 'evening' | 'night')[];
   precincts: number[];
   crimeTypes: number[];
   forecastPeriods: string[]; // Array of "YYYY-MM" strings
@@ -65,16 +53,6 @@ export interface MapForecastSummary {
   crimeTypeCoverage: number[];
 }
 
-// Time of day hour ranges
-export const getTimeOfDayHours = (category: 'morning' | 'afternoon' | 'evening' | 'night'): number[] => {
-  switch (category) {
-    case 'morning': return [6, 7, 8, 9, 10, 11];
-    case 'afternoon': return [12, 13, 14, 15, 16, 17];
-    case 'evening': return [18, 19, 20, 21, 22, 23];
-    case 'night': return [0, 1, 2, 3, 4, 5];
-  }
-};
-
 // Default filter values
 export const DEFAULT_FORECAST_FILTERS: ForecastMapFilters = {
   minReliability: 0.3,
@@ -82,7 +60,6 @@ export const DEFAULT_FORECAST_FILTERS: ForecastMapFilters = {
   minConfidence: 0.5,
   maxConfidence: 1.0,
   riskLevels: ['low', 'medium', 'high', 'critical'],
-  timeOfDay: ['morning', 'afternoon', 'evening', 'night'],
   precincts: [],
   crimeTypes: [],
   forecastPeriods: []
@@ -94,14 +71,6 @@ export const RISK_LEVEL_COLORS = {
   medium: '#F59E0B',   // Yellow/Amber
   high: '#EF4444',     // Red
   critical: '#7C2D12'  // Dark Red
-};
-
-// Color mapping for time of day
-export const TIME_OF_DAY_COLORS = {
-  morning: '#FED7AA',   // Light orange
-  afternoon: '#FDE68A', // Light yellow
-  evening: '#D8B4FE',   // Light purple
-  night: '#A7F3D0'      // Light green
 };
 
 // Reliability score thresholds

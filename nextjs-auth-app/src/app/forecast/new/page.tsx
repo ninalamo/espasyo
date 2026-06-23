@@ -138,7 +138,6 @@ export default withAuth(function NewForecastPage() {
         clusterData: clusterGroups,
         horizon: forecastParams.forecastPeriod,
         confidenceLevel: forecastParams.confidence,
-        modelType: 'SSA',
         includeSeasonality: forecastParams.includeSeasonality,
         weightRecentData: forecastParams.weightRecentData,
       }) as any;

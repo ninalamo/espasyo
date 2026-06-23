@@ -114,8 +114,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
           latitude: coord.lat, longitude: coord.lng,
           risk: f.riskLevel, predictedCount: f.predictedCount, confidence: f.confidence,
           reliability: f.confidence, precinct: f.precinct, crimeType: f.crimeType,
-          timeOfDayBreakdown: { morning: 1, afternoon: 1, evening: 1, night: 1 },
-          primaryTimeOfDay: 'morning' as const,
           forecastPeriod: `${f.year}-${String(f.month).padStart(2, '0')}`,
           trend: f.trend,
         };
@@ -157,7 +155,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         clusterData: clusterGroups,
         horizon: params.forecastPeriod,
         confidenceLevel: params.confidence,
-        modelType: 'SSA',
         includeSeasonality: params.includeSeasonality,
         weightRecentData: params.weightRecentData,
       }) as any;
@@ -201,8 +198,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
           latitude: coord.lat, longitude: coord.lng,
           risk: f.riskLevel, predictedCount: f.predictedCount, confidence: f.confidence,
           reliability: f.confidence, precinct: f.precinct, crimeType: f.crimeType,
-          timeOfDayBreakdown: { morning: 1, afternoon: 1, evening: 1, night: 1 },
-          primaryTimeOfDay: 'morning' as const,
           forecastPeriod: `${f.year}-${String(f.month).padStart(2, '0')}`,
           trend: f.trend,
         };

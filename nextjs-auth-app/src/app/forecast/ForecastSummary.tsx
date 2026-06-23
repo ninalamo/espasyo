@@ -8,12 +8,7 @@ import InfoBadge from '../../components/InfoBadge';
 import DataQualityModal from './modals/DataQualityModal';
 import type { HistoricalData, ForecastData, ForecastParams, ForecastMetrics, ForecastEvaluationResult } from '../../types/forecast/ForecastBaseTypes';
 
-const MODEL_LABELS: Record<string, string> = {
-  ssa: 'SSA (Singular Spectrum Analysis)',
-  linear: 'Linear Regression',
-  seasonal: 'Seasonal Decomposition',
-  arima: 'SES (Exponential Smoothing)',
-};
+const MODEL_LABEL = 'SSA (Singular Spectrum Analysis)';
 
 interface Props {
   historicalData: HistoricalData[];
@@ -681,7 +676,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span className="text-sm font-medium text-gray-700">
-              Forecast generated using {MODEL_LABELS[params.model] || params.model} via ML.NET backend
+              Forecast generated using {MODEL_LABEL} via ML.NET backend
             </span>
           </div>
           <span className="text-xs text-gray-500">
@@ -694,7 +689,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
           <h4 className="font-medium text-gray-800 mb-2">Calculation Methodology</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-700">
             <div>
-              <strong>{MODEL_LABELS[params.model] || params.model}:</strong>
+              <strong>{MODEL_LABEL}:</strong>
               <ul className="mt-1 ml-4 space-y-1">
                 <li>• Time series decomposition for trend/seasonal pattern extraction</li>
                 <li>• Prediction intervals from model reconstruction</li>

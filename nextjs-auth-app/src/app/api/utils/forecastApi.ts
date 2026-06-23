@@ -200,7 +200,7 @@ class ForecastApiService {
             precinctId,
             horizon: data.params.forecastPeriod,
             confidenceLevel: data.params.confidence,
-            modelType: data.params.model,
+            modelType: 'SSA',
             includeSeasonality: data.params.includeSeasonality,
             weightRecentData: data.params.weightRecentData,
             generatedById: data.generatedById ?? '',

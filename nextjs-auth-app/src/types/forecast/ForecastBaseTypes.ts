@@ -37,7 +37,7 @@ export interface HistoricalData {
 
 export interface ForecastParams {
   forecastPeriod: number;
-  model: 'linear' | 'ssa' | 'seasonal' | 'arima';
+  model: 'ssa';
   confidence: number;
   includeSeasonality: boolean;
   weightRecentData: boolean;

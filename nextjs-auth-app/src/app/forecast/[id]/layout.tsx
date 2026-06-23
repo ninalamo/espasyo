@@ -9,8 +9,7 @@ import ForecastFilters, { ForecastFilterState } from '../ForecastFilters';
 import type { ForecastData } from '../../../types/forecast/ForecastBaseTypes';
 
 const TAB_NAV = [
-  { key: 'summary', label: 'Summary', icon: '📋' },
-  { key: 'trends', label: 'Trend Analysis', icon: '📊' },
+  { key: 'overview', label: 'Overview', icon: '📊' },
   { key: 'map', label: 'Forecast Map', icon: '🗺️' },
 ] as const;
 
@@ -20,7 +19,7 @@ function ForecastDetailInner({ children }: { children: React.ReactNode }) {
   const forecastCtx = useForecast();
   const { forecastData, filteredForecastData, filters, setFilters, setFilteredForecastData, loading } = forecastCtx;
 
-  const currentTab = TAB_NAV.find(t => pathname.includes(`/${t.key}`))?.key || 'summary';
+  const currentTab = TAB_NAV.find(t => pathname.includes(`/${t.key}`))?.key || 'overview';
   const forecastId = params.id as string;
 
   return (
@@ -66,7 +65,6 @@ function ForecastDetailInner({ children }: { children: React.ReactNode }) {
               filters={filters}
               onFiltersChange={setFilters}
               onFilteredDataChange={setFilteredForecastData}
-              page={currentTab}
             />
           </div>
         )}

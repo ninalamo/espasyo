@@ -29,6 +29,8 @@ interface PrecinctAllocation {
   stableCount: number;
   areaSqKm: number;
   suggestedOfficers: number;
+  rangeLow: number;
+  rangeHigh: number;
 }
 
 const PATROL_HOURS_PER_MONTH = 22 * 8;
@@ -129,6 +131,9 @@ function ManpowerProposalPage() {
         const areaUnits = areaSqKm * OFFICERS_PER_SQKM;
         const suggestedOfficers = Math.max(rule.officers, Math.round(patrolUnits + areaUnits));
 
+        const rangeLow = Math.max(rule.officers, Math.round((monthlyWeighted / (patrolDemand + 20)) + areaUnits));
+        const rangeHigh = Math.max(rule.officers, Math.round((monthlyWeighted / (patrolDemand - 20)) + areaUnits));
+
         return {
           precinctNumber: num,
           precinctName: name,
@@ -141,6 +146,8 @@ function ManpowerProposalPage() {
           stableCount: items.filter(i => i.trend === 'stable').length,
           areaSqKm,
           suggestedOfficers,
+          rangeLow,
+          rangeHigh,
         };
       })
       .sort((a, b) => {
@@ -288,12 +295,26 @@ function ManpowerProposalPage() {
         </div>
       </div>
 
+      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 no-print">
+        <div className="flex items-start gap-2">
+          <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.865-.833-2.635 0L4.178 16.5c-.77.833.192 2.5 1.732 2.5z" />
+          </svg>
+          <div className="text-sm text-amber-800">
+            <p className="font-medium mb-1">Exploratory guideline — not a validated staffing model</p>
+            <p className="text-amber-700">
+              The constants used (weighted units per officer, officers per km², baseline counts) are estimates and have not been validated against historical patrol data. Ranges reflect sensitivity to the patrol capacity slider. Use this as a starting point for discussion, not a definitive staffing requirement. See Precinct Management page for actual allocation records.
+            </p>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800">
             Suggested Officer Allocation
             <span className="text-sm font-normal text-gray-500 ml-2">
-              ({precinctAllocations.length} precincts, {totalOfficers} total officers)
+              ({precinctAllocations.length} precincts, {precinctAllocations.reduce((s, p) => s + p.rangeLow, 0)}–{precinctAllocations.reduce((s, p) => s + p.rangeHigh, 0)} total officers)
             </span>
           </h2>
         </div>
@@ -307,7 +328,7 @@ function ManpowerProposalPage() {
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Area (km²)</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Trend</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Suggested Officers</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Suggested Range</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Per Shift (Morning / Evening / Night)</th>
               </tr>
             </thead>
@@ -341,7 +362,10 @@ function ManpowerProposalPage() {
                         <span className="text-green-600"><span className="text-xs">↓</span>{pa.decreasingCount}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-bold text-blue-700">{pa.suggestedOfficers}</td>
+                     <td className="px-4 py-3 text-right font-bold text-blue-700">
+                       {pa.rangeLow}–{pa.rangeHigh}
+                       <span className="text-xs font-normal text-gray-400 ml-1">({pa.suggestedOfficers})</span>
+                     </td>
                     <td className="px-4 py-3 text-center text-sm text-gray-600 whitespace-nowrap">
                       <span>☀️{perShift}</span> <span className="text-gray-300">|</span>
                       <span>🌆{perShift}</span> <span className="text-gray-300">|</span>
@@ -361,7 +385,10 @@ function ManpowerProposalPage() {
                     : '—'}
                 </td>
                 <td colSpan={2}></td>
-                <td className="px-4 py-3 text-right text-blue-700">{totalOfficers}</td>
+                <td className="px-4 py-3 text-right text-blue-700">
+                  {precinctAllocations.reduce((s, p) => s + p.rangeLow, 0)}–{precinctAllocations.reduce((s, p) => s + p.rangeHigh, 0)}
+                  <span className="text-xs font-normal text-gray-400 ml-1">({totalOfficers})</span>
+                </td>
                 <td className="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
                   <span>☀️{Math.round(totalOfficers / 3)}</span> <span className="text-gray-300">|</span>
                   <span>🌆{Math.round(totalOfficers / 3)}</span> <span className="text-gray-300">|</span>
@@ -386,6 +413,9 @@ function ManpowerProposalPage() {
             </ol>
             <p className="text-blue-600">
               The final number is split across three shifts <strong>Morning</strong> ☀️, <strong>Evening</strong> 🌆, and <strong>Night</strong> 🌙.
+            </p>
+            <p className="mt-2 text-blue-600">
+              <strong>Note on risk:</strong> This page computes precinct-level risk using monthly crime-rate thresholds (≥50=critical, ≥25=high, ≥10=medium). The backend SSA model assigns per-prediction risk independently as % deviation from historical average — these two risk assessments may differ for the same precinct.
             </p>
             <p className="mt-2">
               <strong>Published proposals</strong> are saved locally and can be printed.

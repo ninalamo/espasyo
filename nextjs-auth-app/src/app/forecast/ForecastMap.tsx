@@ -51,7 +51,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   const [showPoints, setShowPoints] = useState(true);
   const [showHeatmap, setShowHeatmap] = useState(true);
   const [showPrecincts, setShowPrecincts] = useState(false);
-  const [colorBy, setColorBy] = useState<'risk' | 'reliability' | 'timeOfDay'>('risk');
+  const [colorBy, setColorBy] = useState<'risk' | 'reliability'>('risk');
   
   // Modal state for showing forecast details
   const [selectedPoint, setSelectedPoint] = useState<ForecastMapPoint | null>(null);
