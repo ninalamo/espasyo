@@ -18,6 +18,11 @@ interface MapProps {
 
 type ViewMode = 'points' | 'heatmap' | 'both';
 
+const PRECINCT_COLORS = [
+  '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
+  '#911eb4', '#42d4f4', '#f032e6', '#bfef45',
+];
+
 const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping }) => {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<L.Map | null>(null);
@@ -118,11 +123,10 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       .then(res => res.json())
       .then(data => {
         precinctLayerRef.current = L.geoJSON(data, {
-          style: () => ({
-            color: '#2c3e50',
-            weight: 1.5,
-            fillColor: '#3498db',
-            fillOpacity: 0.08
+          style: (feature) => ({
+            color: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
+            weight: 2.5,
+            fill: false,
           }),
           onEachFeature: (feature: any, layer: L.Layer) => {
             layer.bindTooltip(feature.properties.name, { sticky: true });

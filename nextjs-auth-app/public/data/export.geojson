@@ -1,11 +1,27 @@
 {
   "type": "FeatureCollection",
+  "generator": "overpass-turbo",
+  "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL.",
+  "timestamp": "2026-06-23T01:36:15Z",
   "features": [
     {
       "type": "Feature",
       "properties": {
-        "id": 7,
-        "name": "Ayala Alabang"
+        "@id": "relation/110365",
+        "admin_level": "10",
+        "alt_name": "New Alabang Village",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Ayala Alabang",
+        "name:es": "Ayala-Alabang",
+        "old_ref": "137603009",
+        "population": "22850",
+        "population:date": "2024-07-01",
+        "ref": "1380800009",
+        "type": "boundary",
+        "wikidata": "Q15735745",
+        "wikimedia_commons": "Category:Ayala Alabang, Muntinlupa",
+        "wikipedia": "en:Ayala Alabang"
       },
       "geometry": {
         "type": "Polygon",
@@ -705,13 +721,26 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/110365"
     },
     {
       "type": "Feature",
       "properties": {
-        "id": 0,
-        "name": "Alabang"
+        "@id": "relation/110375",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Alabang",
+        "name:es": "Alabang",
+        "old_ref": "137603001",
+        "population": "69215",
+        "population:date": "2024-07-01",
+        "ref": "1380800001",
+        "type": "boundary",
+        "wikidata": "Q4830864",
+        "wikimedia_commons": "Category:Alabang, Muntinlupa",
+        "wikipedia": "en:Alabang"
       },
       "geometry": {
         "type": "Polygon",
@@ -2219,13 +2248,25 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/110375"
     },
     {
       "type": "Feature",
       "properties": {
-        "id": 2,
-        "name": "Buli"
+        "@id": "relation/110394",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Buli",
+        "old_ref": "137603003",
+        "population": "14802",
+        "population:date": "2024-07-01",
+        "ref": "1380800003",
+        "type": "boundary",
+        "wikidata": "Q60768608",
+        "wikimedia_commons": "Category:Buli, Muntinlupa",
+        "wikipedia": "en:Buli, Muntinlupa"
       },
       "geometry": {
         "type": "Polygon",
@@ -2617,13 +2658,25 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/110394"
     },
     {
       "type": "Feature",
       "properties": {
-        "id": 5,
-        "name": "Putatan"
+        "@id": "relation/146717",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Putatan",
+        "old_ref": "137603006",
+        "population": "102146",
+        "population:date": "2024-07-01",
+        "ref": "1380800006",
+        "type": "boundary",
+        "wikidata": "Q25112769",
+        "wikimedia_commons": "Category:Putatan, Muntinlupa",
+        "wikipedia": "en:Putatan, Muntinlupa"
       },
       "geometry": {
         "type": "Polygon",
@@ -3679,13 +3732,25 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/146717"
     },
     {
       "type": "Feature",
       "properties": {
-        "id": 4,
-        "name": "Poblacion"
+        "@id": "relation/146721",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Poblacion",
+        "old_ref": "137603005",
+        "population": "124554",
+        "population:date": "2024-07-01",
+        "ref": "1380800005",
+        "type": "boundary",
+        "wikidata": "Q24347675",
+        "wikimedia_commons": "Category:Poblacion, Muntinlupa",
+        "wikipedia": "en:Poblacion, Muntinlupa"
       },
       "geometry": {
         "type": "Polygon",
@@ -5425,13 +5490,25 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/146721"
     },
     {
       "type": "Feature",
       "properties": {
-        "id": 8,
-        "name": "Sucat"
+        "@id": "relation/147407",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Sucat",
+        "old_ref": "137603007",
+        "population": "59601",
+        "population:date": "2024-07-01",
+        "ref": "1380800007",
+        "type": "boundary",
+        "wikidata": "Q60768593",
+        "wikimedia_commons": "Category:Sucat, Muntinlupa",
+        "wikipedia": "en:Sucat, Muntinlupa"
       },
       "geometry": {
         "type": "Polygon",
@@ -6799,13 +6876,25 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/147407"
     },
     {
       "type": "Feature",
       "properties": {
-        "id": 6,
-        "name": "Tunasan"
+        "@id": "relation/1346839",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Tunasan",
+        "old_ref": "137603008",
+        "population": "63217",
+        "population:date": "2024-07-01",
+        "ref": "1380800008",
+        "type": "boundary",
+        "wikidata": "Q25053618",
+        "wikimedia_commons": "Category:Tunasan",
+        "wikipedia": "en:Tunasan"
       },
       "geometry": {
         "type": "Polygon",
@@ -9393,13 +9482,25 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/1346839"
     },
     {
       "type": "Feature",
       "properties": {
-        "id": 1,
-        "name": "Bayanan"
+        "@id": "relation/1346861",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Bayanan",
+        "old_ref": "137603002",
+        "population": "38358",
+        "population:date": "2024-07-01",
+        "ref": "1380800002",
+        "type": "boundary",
+        "wikidata": "Q60768626",
+        "wikimedia_commons": "Category:Bayanan, Muntinlupa",
+        "wikipedia": "en:Bayanan, Muntinlupa"
       },
       "geometry": {
         "type": "Polygon",
@@ -9963,13 +10064,25 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/1346861"
     },
     {
       "type": "Feature",
       "properties": {
-        "id": 3,
-        "name": "Cupang"
+        "@id": "relation/2095593",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Cupang",
+        "old_ref": "137603004",
+        "population": "57482",
+        "population:date": "2024-07-01",
+        "ref": "1380800004",
+        "type": "boundary",
+        "wikidata": "Q60768623",
+        "wikimedia_commons": "Category:Cupang, Muntinlupa",
+        "wikipedia": "en:Cupang, Muntinlupa"
       },
       "geometry": {
         "type": "Polygon",
@@ -11605,7 +11718,1163 @@
             ]
           ]
         ]
-      }
+      },
+      "id": "relation/2095593"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "relation/3291317",
+        "admin_level": "10",
+        "border_type": "barangay",
+        "boundary": "administrative",
+        "name": "Almanza Uno",
+        "old_ref": "137601001",
+        "population": "36232",
+        "population:date": "2024-07-01",
+        "postal_code": "1750",
+        "ref": "1380200001",
+        "type": "boundary",
+        "wikidata": "Q127607800"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              121.0156401,
+              14.4397682
+            ],
+            [
+              121.0156506,
+              14.4398845
+            ],
+            [
+              121.0156774,
+              14.4400122
+            ],
+            [
+              121.0155524,
+              14.4400259
+            ],
+            [
+              121.0153459,
+              14.4400667
+            ],
+            [
+              121.0136321,
+              14.4405246
+            ],
+            [
+              121.0135209,
+              14.4405364
+            ],
+            [
+              121.0134371,
+              14.4403915
+            ],
+            [
+              121.0125569,
+              14.4402408
+            ],
+            [
+              121.0106503,
+              14.4398565
+            ],
+            [
+              121.0101148,
+              14.4396039
+            ],
+            [
+              121.0097013,
+              14.4394263
+            ],
+            [
+              121.01004,
+              14.438472
+            ],
+            [
+              121.0107413,
+              14.4375957
+            ],
+            [
+              121.010904,
+              14.4373089
+            ],
+            [
+              121.0105412,
+              14.4370219
+            ],
+            [
+              121.0102308,
+              14.4367706
+            ],
+            [
+              121.0100283,
+              14.4366089
+            ],
+            [
+              121.0098671,
+              14.4364813
+            ],
+            [
+              121.0096741,
+              14.4363549
+            ],
+            [
+              121.008918,
+              14.4357665
+            ],
+            [
+              121.0082412,
+              14.4347322
+            ],
+            [
+              121.0077685,
+              14.4340399
+            ],
+            [
+              121.0077444,
+              14.4338568
+            ],
+            [
+              121.0076378,
+              14.4335869
+            ],
+            [
+              121.0076244,
+              14.4334527
+            ],
+            [
+              121.0075622,
+              14.4332943
+            ],
+            [
+              121.0075567,
+              14.4332174
+            ],
+            [
+              121.0075687,
+              14.4331202
+            ],
+            [
+              121.007647,
+              14.4330248
+            ],
+            [
+              121.0077124,
+              14.4329302
+            ],
+            [
+              121.007751,
+              14.4328304
+            ],
+            [
+              121.0077413,
+              14.432724
+            ],
+            [
+              121.0076926,
+              14.4326464
+            ],
+            [
+              121.0075798,
+              14.4326081
+            ],
+            [
+              121.0073283,
+              14.4326159
+            ],
+            [
+              121.0070537,
+              14.4326573
+            ],
+            [
+              121.0068648,
+              14.432699
+            ],
+            [
+              121.0067361,
+              14.432699
+            ],
+            [
+              121.0066503,
+              14.4326824
+            ],
+            [
+              121.0066331,
+              14.4325577
+            ],
+            [
+              121.0066525,
+              14.4324212
+            ],
+            [
+              121.0066756,
+              14.4322206
+            ],
+            [
+              121.0070372,
+              14.4320694
+            ],
+            [
+              121.0073503,
+              14.4319055
+            ],
+            [
+              121.0078331,
+              14.4317197
+            ],
+            [
+              121.0081737,
+              14.4317036
+            ],
+            [
+              121.0088468,
+              14.4315554
+            ],
+            [
+              121.0091911,
+              14.4313334
+            ],
+            [
+              121.0093032,
+              14.4312623
+            ],
+            [
+              121.0096571,
+              14.4307455
+            ],
+            [
+              121.0099833,
+              14.4304379
+            ],
+            [
+              121.0103608,
+              14.4301327
+            ],
+            [
+              121.0108729,
+              14.429494
+            ],
+            [
+              121.0111451,
+              14.4289865
+            ],
+            [
+              121.0112333,
+              14.4289124
+            ],
+            [
+              121.0112856,
+              14.4287673
+            ],
+            [
+              121.0114322,
+              14.4281953
+            ],
+            [
+              121.0114543,
+              14.4280894
+            ],
+            [
+              121.0116936,
+              14.427926
+            ],
+            [
+              121.0117061,
+              14.4278858
+            ],
+            [
+              121.0123244,
+              14.4276112
+            ],
+            [
+              121.0124475,
+              14.4275723
+            ],
+            [
+              121.0127859,
+              14.4274982
+            ],
+            [
+              121.0127749,
+              14.4274421
+            ],
+            [
+              121.0127386,
+              14.4274473
+            ],
+            [
+              121.0126676,
+              14.4270927
+            ],
+            [
+              121.0126421,
+              14.4271018
+            ],
+            [
+              121.0126225,
+              14.4269476
+            ],
+            [
+              121.0129612,
+              14.4269314
+            ],
+            [
+              121.0129991,
+              14.4269317
+            ],
+            [
+              121.013436,
+              14.4269223
+            ],
+            [
+              121.0134417,
+              14.4267037
+            ],
+            [
+              121.0133255,
+              14.4261808
+            ],
+            [
+              121.0132094,
+              14.4253807
+            ],
+            [
+              121.0131984,
+              14.4253045
+            ],
+            [
+              121.0130686,
+              14.4247171
+            ],
+            [
+              121.0125362,
+              14.4247433
+            ],
+            [
+              121.0124346,
+              14.4247511
+            ],
+            [
+              121.0122545,
+              14.4247643
+            ],
+            [
+              121.0121378,
+              14.4234833
+            ],
+            [
+              121.0092244,
+              14.4238464
+            ],
+            [
+              121.0094657,
+              14.4226078
+            ],
+            [
+              121.0094603,
+              14.4225267
+            ],
+            [
+              121.0094104,
+              14.4214228
+            ],
+            [
+              121.0093744,
+              14.4214161
+            ],
+            [
+              121.0093472,
+              14.4214125
+            ],
+            [
+              121.0093953,
+              14.4212051
+            ],
+            [
+              121.0094248,
+              14.4210895
+            ],
+            [
+              121.0094271,
+              14.4209627
+            ],
+            [
+              121.0094094,
+              14.4209109
+            ],
+            [
+              121.0093769,
+              14.4208617
+            ],
+            [
+              121.0094206,
+              14.4208493
+            ],
+            [
+              121.0105628,
+              14.4205345
+            ],
+            [
+              121.011706,
+              14.4202458
+            ],
+            [
+              121.0117532,
+              14.4202164
+            ],
+            [
+              121.0118945,
+              14.4201814
+            ],
+            [
+              121.0119466,
+              14.4201596
+            ],
+            [
+              121.0127013,
+              14.4201179
+            ],
+            [
+              121.0127935,
+              14.4213075
+            ],
+            [
+              121.0128743,
+              14.4222482
+            ],
+            [
+              121.0138748,
+              14.4222412
+            ],
+            [
+              121.0139783,
+              14.4222417
+            ],
+            [
+              121.0139711,
+              14.4228598
+            ],
+            [
+              121.0139299,
+              14.4235016
+            ],
+            [
+              121.0139223,
+              14.4238246
+            ],
+            [
+              121.0139111,
+              14.4240735
+            ],
+            [
+              121.0140396,
+              14.4242586
+            ],
+            [
+              121.0140239,
+              14.4245721
+            ],
+            [
+              121.0142838,
+              14.4249247
+            ],
+            [
+              121.0144434,
+              14.4249602
+            ],
+            [
+              121.014639,
+              14.4249977
+            ],
+            [
+              121.0147748,
+              14.4250333
+            ],
+            [
+              121.0147891,
+              14.4250371
+            ],
+            [
+              121.0149068,
+              14.4249752
+            ],
+            [
+              121.015013,
+              14.4249312
+            ],
+            [
+              121.0150377,
+              14.4249201
+            ],
+            [
+              121.0150917,
+              14.4248053
+            ],
+            [
+              121.0151932,
+              14.4246253
+            ],
+            [
+              121.0152643,
+              14.424483
+            ],
+            [
+              121.0154208,
+              14.4242194
+            ],
+            [
+              121.0155678,
+              14.4238888
+            ],
+            [
+              121.0157053,
+              14.4234718
+            ],
+            [
+              121.0158513,
+              14.4230916
+            ],
+            [
+              121.0159092,
+              14.4229915
+            ],
+            [
+              121.0159566,
+              14.4229299
+            ],
+            [
+              121.0160249,
+              14.4228647
+            ],
+            [
+              121.0161746,
+              14.4227572
+            ],
+            [
+              121.0161841,
+              14.4227734
+            ],
+            [
+              121.016329,
+              14.423076
+            ],
+            [
+              121.0164471,
+              14.4232121
+            ],
+            [
+              121.0167992,
+              14.4235625
+            ],
+            [
+              121.0169887,
+              14.4235897
+            ],
+            [
+              121.0172571,
+              14.4236216
+            ],
+            [
+              121.0175111,
+              14.4236515
+            ],
+            [
+              121.0174966,
+              14.423894
+            ],
+            [
+              121.0174007,
+              14.4256537
+            ],
+            [
+              121.0172999,
+              14.4273421
+            ],
+            [
+              121.0172184,
+              14.4286936
+            ],
+            [
+              121.0172337,
+              14.4286836
+            ],
+            [
+              121.0172605,
+              14.4286743
+            ],
+            [
+              121.0173666,
+              14.4286371
+            ],
+            [
+              121.0174519,
+              14.4275317
+            ],
+            [
+              121.0176769,
+              14.423659
+            ],
+            [
+              121.0175963,
+              14.4233026
+            ],
+            [
+              121.0189463,
+              14.4230026
+            ],
+            [
+              121.0204795,
+              14.4226618
+            ],
+            [
+              121.0205291,
+              14.4228442
+            ],
+            [
+              121.0204784,
+              14.4235596
+            ],
+            [
+              121.0208982,
+              14.4235023
+            ],
+            [
+              121.0218072,
+              14.4238932
+            ],
+            [
+              121.0219188,
+              14.4239404
+            ],
+            [
+              121.0219285,
+              14.4239445
+            ],
+            [
+              121.0221936,
+              14.424058
+            ],
+            [
+              121.0224806,
+              14.4241883
+            ],
+            [
+              121.0223423,
+              14.4260503
+            ],
+            [
+              121.0221994,
+              14.4275364
+            ],
+            [
+              121.0222037,
+              14.4276766
+            ],
+            [
+              121.022238,
+              14.427805
+            ],
+            [
+              121.0222319,
+              14.4279265
+            ],
+            [
+              121.0222372,
+              14.4280642
+            ],
+            [
+              121.0225403,
+              14.4292657
+            ],
+            [
+              121.0227232,
+              14.4299241
+            ],
+            [
+              121.0232508,
+              14.4317222
+            ],
+            [
+              121.0239087,
+              14.4341436
+            ],
+            [
+              121.0241613,
+              14.434149
+            ],
+            [
+              121.0242042,
+              14.434397
+            ],
+            [
+              121.022992,
+              14.4343921
+            ],
+            [
+              121.0228261,
+              14.4343612
+            ],
+            [
+              121.0223323,
+              14.4342393
+            ],
+            [
+              121.0221623,
+              14.4346477
+            ],
+            [
+              121.0219156,
+              14.4350296
+            ],
+            [
+              121.0216589,
+              14.4348927
+            ],
+            [
+              121.0213511,
+              14.4352662
+            ],
+            [
+              121.0210725,
+              14.4355556
+            ],
+            [
+              121.0197507,
+              14.4364616
+            ],
+            [
+              121.0179037,
+              14.4371534
+            ],
+            [
+              121.0177199,
+              14.4372763
+            ],
+            [
+              121.0175311,
+              14.4374176
+            ],
+            [
+              121.0172822,
+              14.4375174
+            ],
+            [
+              121.016999,
+              14.4375839
+            ],
+            [
+              121.0167415,
+              14.4376005
+            ],
+            [
+              121.0165526,
+              14.4375506
+            ],
+            [
+              121.0163638,
+              14.4374924
+            ],
+            [
+              121.0162007,
+              14.4375174
+            ],
+            [
+              121.0160291,
+              14.4376587
+            ],
+            [
+              121.015969,
+              14.4378498
+            ],
+            [
+              121.0161063,
+              14.4380161
+            ],
+            [
+              121.0161664,
+              14.4382239
+            ],
+            [
+              121.016072,
+              14.4383735
+            ],
+            [
+              121.0159089,
+              14.438548
+            ],
+            [
+              121.0156857,
+              14.4386893
+            ],
+            [
+              121.0155227,
+              14.4388057
+            ],
+            [
+              121.0154197,
+              14.4390052
+            ],
+            [
+              121.0154025,
+              14.4392047
+            ],
+            [
+              121.0155393,
+              14.4395447
+            ],
+            [
+              121.0156401,
+              14.4397682
+            ]
+          ]
+        ]
+      },
+      "id": "relation/3291317"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/1067419253",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 146717,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Putatan",
+              "old_ref": "137603006",
+              "population": "102146",
+              "population:date": "2024-07-01",
+              "ref": "1380800006",
+              "type": "boundary",
+              "wikidata": "Q25112769",
+              "wikimedia_commons": "Category:Putatan, Muntinlupa",
+              "wikipedia": "en:Putatan, Muntinlupa"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0448274,
+          14.3949668
+        ]
+      },
+      "id": "node/1067419253"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/1067419275",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 1346861,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Bayanan",
+              "old_ref": "137603002",
+              "population": "38358",
+              "population:date": "2024-07-01",
+              "ref": "1380800002",
+              "type": "boundary",
+              "wikidata": "Q60768626",
+              "wikimedia_commons": "Category:Bayanan, Muntinlupa",
+              "wikipedia": "en:Bayanan, Muntinlupa"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0516301,
+          14.4109481
+        ]
+      },
+      "id": "node/1067419275"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/1067419276",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 110375,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Alabang",
+              "name:es": "Alabang",
+              "old_ref": "137603001",
+              "population": "69215",
+              "population:date": "2024-07-01",
+              "ref": "1380800001",
+              "type": "boundary",
+              "wikidata": "Q4830864",
+              "wikimedia_commons": "Category:Alabang, Muntinlupa",
+              "wikipedia": "en:Alabang"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.044338,
+          14.4190326
+        ]
+      },
+      "id": "node/1067419276"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/1067419444",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 1346839,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Tunasan",
+              "old_ref": "137603008",
+              "population": "63217",
+              "population:date": "2024-07-01",
+              "ref": "1380800008",
+              "type": "boundary",
+              "wikidata": "Q25053618",
+              "wikimedia_commons": "Category:Tunasan",
+              "wikipedia": "en:Tunasan"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0514828,
+          14.3801129
+        ]
+      },
+      "id": "node/1067419444"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/1076645355",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 2095593,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Cupang",
+              "old_ref": "137603004",
+              "population": "57482",
+              "population:date": "2024-07-01",
+              "ref": "1380800004",
+              "type": "boundary",
+              "wikidata": "Q60768623",
+              "wikimedia_commons": "Category:Cupang, Muntinlupa",
+              "wikipedia": "en:Cupang, Muntinlupa"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0503212,
+          14.4378843
+        ]
+      },
+      "id": "node/1076645355"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/1076645356",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 110394,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Buli",
+              "old_ref": "137603003",
+              "population": "14802",
+              "population:date": "2024-07-01",
+              "ref": "1380800003",
+              "type": "boundary",
+              "wikidata": "Q60768608",
+              "wikimedia_commons": "Category:Buli, Muntinlupa",
+              "wikipedia": "en:Buli, Muntinlupa"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0505787,
+          14.4432959
+        ]
+      },
+      "id": "node/1076645356"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/1076645357",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 147407,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Sucat",
+              "old_ref": "137603007",
+              "population": "59601",
+              "population:date": "2024-07-01",
+              "ref": "1380800007",
+              "type": "boundary",
+              "wikidata": "Q60768593",
+              "wikimedia_commons": "Category:Sucat, Muntinlupa",
+              "wikipedia": "en:Sucat, Muntinlupa"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0531587,
+          14.4569804
+        ]
+      },
+      "id": "node/1076645357"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/3732953946",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 3291317,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Almanza Uno",
+              "old_ref": "137601001",
+              "population": "36232",
+              "population:date": "2024-07-01",
+              "postal_code": "1750",
+              "ref": "1380200001",
+              "type": "boundary",
+              "wikidata": "Q127607800"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0131249,
+          14.4330542
+        ]
+      },
+      "id": "node/3732953946"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/8163893051",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 110365,
+            "reltags": {
+              "admin_level": "10",
+              "alt_name": "New Alabang Village",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Ayala Alabang",
+              "name:es": "Ayala-Alabang",
+              "old_ref": "137603009",
+              "population": "22850",
+              "population:date": "2024-07-01",
+              "ref": "1380800009",
+              "type": "boundary",
+              "wikidata": "Q15735745",
+              "wikimedia_commons": "Category:Ayala Alabang, Muntinlupa",
+              "wikipedia": "en:Ayala Alabang"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.0269407,
+          14.4226096
+        ]
+      },
+      "id": "node/8163893051"
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "@id": "node/5232915807",
+        "@relations": [
+          {
+            "role": "label",
+            "rel": 146721,
+            "reltags": {
+              "admin_level": "10",
+              "border_type": "barangay",
+              "boundary": "administrative",
+              "name": "Poblacion",
+              "old_ref": "137603005",
+              "population": "124554",
+              "population:date": "2024-07-01",
+              "ref": "1380800005",
+              "type": "boundary",
+              "wikidata": "Q24347675",
+              "wikimedia_commons": "Category:Poblacion, Muntinlupa",
+              "wikipedia": "en:Poblacion, Muntinlupa"
+            }
+          }
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.044912,
+          14.3892344
+        ]
+      },
+      "id": "node/5232915807"
     }
   ]
 }
