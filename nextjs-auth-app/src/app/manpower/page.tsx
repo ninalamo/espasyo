@@ -31,7 +31,7 @@ interface PrecinctAllocation {
   suggestedOfficers: number;
 }
 
-const PATROL_DEMAND_PER_OFFICER = 20;
+const PATROL_HOURS_PER_MONTH = 22 * 8;
 const OFFICERS_PER_SQKM = 1.5;
 
 const CRIME_SEVERITY_WEIGHTS: Record<number, number> = {
@@ -57,6 +57,7 @@ function ManpowerProposalPage() {
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  const [patrolDemand, setPatrolDemand] = useState(40);
   const [precinctAreas, setPrecinctAreas] = useState<Map<number, number>>(new Map());
   const [rules] = useState<RiskRule[]>(DEFAULT_RULES);
 
@@ -124,7 +125,7 @@ function ManpowerProposalPage() {
         const areaSqKm = precinctAreas.get(num) || 0;
         const weightedScore = items.reduce((s, i) => s + i.predictedCount * (CRIME_SEVERITY_WEIGHTS[i.crimeType] ?? 1), 0);
         const monthlyWeighted = weightedScore / monthCount;
-        const patrolUnits = monthlyWeighted / PATROL_DEMAND_PER_OFFICER;
+        const patrolUnits = monthlyWeighted / patrolDemand;
         const areaUnits = areaSqKm * OFFICERS_PER_SQKM;
         const suggestedOfficers = Math.max(rule.officers, Math.round(patrolUnits + areaUnits));
 
@@ -146,7 +147,7 @@ function ManpowerProposalPage() {
         const order = ['critical', 'high', 'medium', 'low'];
         return order.indexOf(a.riskLevel) - order.indexOf(b.riskLevel);
       });
-  }, [forecastData, rules, precinctAreas]);
+  }, [forecastData, rules, precinctAreas, patrolDemand]);
 
   const totalOfficers = useMemo(
     () => precinctAllocations.reduce((s, p) => s + p.suggestedOfficers, 0),
@@ -267,6 +268,26 @@ function ManpowerProposalPage() {
         </div>
       </div>
 
+      <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4 no-print">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Patrol capacity:</label>
+          <input
+            type="range"
+            min={10}
+            max={200}
+            step={5}
+            value={patrolDemand}
+            onChange={(e) => setPatrolDemand(parseInt(e.target.value))}
+            className="w-32"
+          />
+          <span className="text-sm font-semibold text-blue-700 w-10">{patrolDemand}</span>
+          <span className="text-xs text-gray-500">weighted units per officer / month</span>
+        </div>
+        <div className="text-xs text-gray-400 border-l border-gray-200 pl-4">
+          8h patrol · 22 days/mo = {PATROL_HOURS_PER_MONTH}h available
+        </div>
+      </div>
+
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800">
@@ -359,7 +380,7 @@ function ManpowerProposalPage() {
             <p className="font-medium">How each precinct&apos;s officer count is decided</p>
             <ol className="list-decimal list-inside space-y-1 text-blue-700">
               <li><strong>Crime severity:</strong> violent crimes (murder, robbery, etc.) are weighted 5×, property crimes (theft, fraud) weighted 2×, so high-risk areas get more patrols</li>
-              <li><strong>Patrol demand:</strong> weighted monthly crimes ÷ {PATROL_DEMAND_PER_OFFICER} demand units per officer</li>
+              <li><strong>Patrol demand:</strong> weighted monthly crimes ÷ {patrolDemand} demand units per officer</li>
               <li><strong>Area coverage:</strong> +{OFFICERS_PER_SQKM} officers per square kilometre to cover the whole barangay</li>
               <li><strong>Baseline:</strong> each precinct gets at least 2–6 officers depending on its risk severity</li>
             </ol>
