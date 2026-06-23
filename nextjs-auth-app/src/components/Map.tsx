@@ -308,15 +308,14 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const [showFilters, setShowFilters] = useState(true);
 
   const toggleFullscreen = useCallback(() => {
-    setFullscreen(prev => {
-      if (prev) {
-        setTimeout(() => leafletMap.current?.invalidateSize(), 100);
-      } else {
-        setTimeout(() => leafletMap.current?.invalidateSize(), 300);
-      }
-      return !prev;
-    });
+    setFullscreen(prev => !prev);
   }, []);
+
+  useEffect(() => {
+    if (mapReady) {
+      requestAnimationFrame(() => leafletMap.current?.invalidateSize());
+    }
+  }, [fullscreen, mapReady]);
 
   const crimeTypeEntries = useMemo(() => Object.entries(crimeTypeEnum), [crimeTypeEnum]);
 
