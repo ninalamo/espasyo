@@ -119,6 +119,28 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
   useEffect(() => {
     if (!mapReady || !leafletMap.current) return;
+
+    if (!document.getElementById('precinct-label-style')) {
+      const style = document.createElement('style');
+      style.id = 'precinct-label-style';
+      style.textContent = `
+      .precinct-label {
+        background: rgba(255,255,255,0.85) !important;
+        border: none !important;
+        box-shadow: none !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        color: #1a1a2e !important;
+        text-shadow: 0 0 3px #fff, 0 0 3px #fff;
+        padding: 2px 6px !important;
+        border-radius: 3px !important;
+        white-space: nowrap !important;
+      }
+      .precinct-label::before { display: none !important; }
+      `;
+      document.head.appendChild(style);
+    }
+
     fetch('/data/precincts.geojson')
       .then(res => res.json())
       .then(data => {
@@ -129,7 +151,17 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             fill: false,
           }),
           onEachFeature: (feature: any, layer: L.Layer) => {
-            layer.bindTooltip(feature.properties.name, { sticky: true });
+            const bounds = (layer as any).getBounds();
+            const centroid = bounds?.getCenter?.() ?? leafletMap.current!.getCenter();
+            layer.bindTooltip(feature.properties.name, {
+              permanent: true,
+              direction: 'center',
+              className: 'precinct-label',
+            });
+            const tooltip = layer.getTooltip();
+            if (tooltip) {
+              tooltip.setLatLng(centroid);
+            }
           }
         });
       })
