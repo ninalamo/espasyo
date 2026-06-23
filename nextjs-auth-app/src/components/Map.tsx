@@ -312,13 +312,16 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   }, []);
 
   useEffect(() => {
-    if (mapReady) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          leafletMap.current?.invalidateSize();
-        });
-      });
-    }
+    if (!mapReady) return;
+    const retry = () => {
+      const el = mapRef.current;
+      if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) {
+        requestAnimationFrame(retry);
+        return;
+      }
+      leafletMap.current?.invalidateSize();
+    };
+    requestAnimationFrame(() => requestAnimationFrame(retry));
   }, [fullscreen, mapReady]);
 
   const crimeTypeEntries = useMemo(() => Object.entries(crimeTypeEnum), [crimeTypeEnum]);
@@ -341,8 +344,8 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const mapEl = (
     <>
       {hasData ? (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2">
+          <div className={`space-y-4 ${fullscreen ? 'flex-1 min-h-0 flex flex-col' : ''}`}>
+          <div className="flex items-center justify-between gap-2 flex-shrink-0">
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setShowFilters(prev => !prev)}
@@ -399,7 +402,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
           </div>
 
           {showFilters && (
-            <div className="space-y-3">
+            <div className={`space-y-3 ${fullscreen ? 'flex-shrink-0 overflow-y-auto max-h-[40vh]' : ''}`}>
               {compareMode && (
                 <div className="flex gap-4 p-2.5 bg-gray-50 rounded-lg border">
                   <div className="flex-1">
@@ -484,7 +487,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             </div>
           )}
 
-          <div id="map" ref={mapRef} style={{ height: fullscreen ? '100%' : '500px', width: '100%' }} className="rounded-lg border border-gray-200 z-0" />
+          <div id="map" ref={mapRef} style={{ height: fullscreen ? undefined : '500px', width: '100%' }} className={`rounded-lg border border-gray-200 z-0 ${fullscreen ? 'flex-1 min-h-0' : ''}`} />
 
           {modalCases && (
             <MapModal
