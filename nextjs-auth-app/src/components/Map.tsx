@@ -312,14 +312,16 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   }, []);
 
   useEffect(() => {
-    if (!mapReady) return;
+    if (!mapReady || !leafletMap.current) return;
+    let attempts = 0;
+    const maxAttempts = 20;
     const retry = () => {
-      const el = mapRef.current;
-      if (!el || el.offsetWidth === 0 || el.offsetHeight === 0) {
-        requestAnimationFrame(retry);
-        return;
+      attempts++;
+      try {
+        leafletMap.current?.invalidateSize();
+      } catch {
+        if (attempts < maxAttempts) requestAnimationFrame(retry);
       }
-      leafletMap.current?.invalidateSize();
     };
     requestAnimationFrame(() => requestAnimationFrame(retry));
   }, [fullscreen, mapReady]);
