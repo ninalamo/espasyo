@@ -304,27 +304,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     });
   }, [filteredClusters, center, zoom, viewMode, showEnvelope, compareMode, periodBYears, clusterColorsMapping, crimeTypeEnum]);
 
-  const [fullscreen, setFullscreen] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
-
-  const toggleFullscreen = useCallback(() => {
-    setFullscreen(prev => !prev);
-  }, []);
-
-  useEffect(() => {
-    if (!mapReady || !leafletMap.current) return;
-    let attempts = 0;
-    const maxAttempts = 20;
-    const retry = () => {
-      attempts++;
-      try {
-        leafletMap.current?.invalidateSize();
-      } catch {
-        if (attempts < maxAttempts) requestAnimationFrame(retry);
-      }
-    };
-    requestAnimationFrame(() => requestAnimationFrame(retry));
-  }, [fullscreen, mapReady]);
 
   const crimeTypeEntries = useMemo(() => Object.entries(crimeTypeEnum), [crimeTypeEnum]);
 
@@ -346,7 +326,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const mapEl = (
     <>
       {hasData ? (
-          <div className={`space-y-4 ${fullscreen ? 'flex-1 min-h-0 flex flex-col' : ''}`}>
+          <div className="space-y-4">
           <div className="flex items-center justify-between gap-2 flex-shrink-0">
             <div className="flex items-center gap-2">
               <button
@@ -391,20 +371,11 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                   Compare
                 </label>
               </div>
+              </div>
             </div>
-            <button
-              onClick={toggleFullscreen}
-              className="p-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-50 flex-shrink-0"
-              title="Fullscreen"
-            >
-              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-              </svg>
-            </button>
-          </div>
 
           {showFilters && (
-            <div className={`space-y-3 ${fullscreen ? 'flex-shrink-0 overflow-y-auto max-h-[40vh]' : ''}`}>
+            <div className="space-y-3">
               {compareMode && (
                 <div className="flex gap-4 p-2.5 bg-gray-50 rounded-lg border">
                   <div className="flex-1">
@@ -489,7 +460,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
             </div>
           )}
 
-          <div id="map" ref={mapRef} style={{ height: fullscreen ? undefined : '500px', width: '100%' }} className={`rounded-lg border border-gray-200 z-0 ${fullscreen ? 'flex-1 min-h-0' : ''}`} />
+          <div id="map" ref={mapRef} style={{ height: '500px', width: '100%' }} className="rounded-lg border border-gray-200 z-0" />
 
           {modalCases && (
             <MapModal
@@ -549,34 +520,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     </>
   );
 
-  const content = (
-    <div className={fullscreen && hasData ? 'fixed inset-0 z-50 bg-white flex flex-col' : ''}>
-      {fullscreen && hasData && (
-        <div className="flex items-center justify-between px-4 py-2 border-b bg-gray-50 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            {(['points', 'heatmap', 'both'] as ViewMode[]).map(mode => (
-              <button key={mode} onClick={() => setViewMode(mode)}
-                className={`px-2 py-1 text-xs rounded border transition ${viewMode === mode ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300'}`}
-              >{mode === 'points' ? '📍Pts' : mode === 'heatmap' ? '🔥Heat' : 'Both'}</button>
-            ))}
-            <div className="w-px h-4 bg-gray-300 mx-1" />
-            <label className="flex items-center gap-1 text-xs cursor-pointer select-none"><input type="checkbox" checked={showEnvelope} onChange={e => setShowEnvelope(e.target.checked)} className="accent-blue-600" /> Env</label>
-            <label className="flex items-center gap-1 text-xs cursor-pointer select-none"><input type="checkbox" checked={showPrecincts} onChange={e => setShowPrecincts(e.target.checked)} className="accent-blue-600" /> Precincts</label>
-            <label className="flex items-center gap-1 text-xs cursor-pointer select-none"><input type="checkbox" checked={stepwise} onChange={e => { setStepwise(e.target.checked); setPlay(false); }} className="accent-blue-600" /> Trends</label>
-            <label className="flex items-center gap-1 text-xs cursor-pointer select-none"><input type="checkbox" checked={compareMode} onChange={handleCompareToggle} className="accent-purple-600" /> Compare</label>
-          </div>
-          <button onClick={toggleFullscreen} className="p-1.5 bg-white border border-gray-300 rounded-md hover:bg-gray-50" title="Exit fullscreen">
-            <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      )}
-      {fullscreen && hasData ? mapEl : <div className="space-y-4">{mapEl}</div>}
-    </div>
-  );
-
-  return content;
+  return <div className="space-y-4">{mapEl}</div>;
 
 
 };
