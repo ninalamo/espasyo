@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { MapPin, Clock } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
+import turfArea from '@turf/area';
 import { GetPrecinctsDictionary } from '../../constants/consts';
 import { forecastApi } from '../api/utils/forecastApi';
 import withAuth from '../hoc/withAuth';
@@ -26,10 +27,12 @@ interface PrecinctAllocation {
   increasingCount: number;
   decreasingCount: number;
   stableCount: number;
+  areaSqKm: number;
   suggestedOfficers: number;
 }
 
 const MANPOWER_CASES_PER_OFFICER = 15;
+const AREA_WEIGHT_PER_SQKM = 0.15;
 
 const DEFAULT_RULES: RiskRule[] = [
   { riskLevel: 'critical', label: 'Critical', officers: 6 },
@@ -47,7 +50,25 @@ function ManpowerProposalPage() {
   const [loading, setLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState(false);
+  const [precinctAreas, setPrecinctAreas] = useState<Map<number, number>>(new Map());
   const [rules] = useState<RiskRule[]>(DEFAULT_RULES);
+
+  useEffect(() => {
+    fetch('/data/precincts.geojson')
+      .then(res => res.json())
+      .then(data => {
+        const areas = new Map<number, number>();
+        data.features.forEach((f: any) => {
+          const id = f.properties?.id;
+          if (id !== undefined) {
+            const areaSqM = turfArea(f);
+            areas.set(id, Math.round((areaSqM / 10000)) / 100);
+          }
+        });
+        setPrecinctAreas(areas);
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!forecastId) { setLoading(false); return; }
@@ -93,7 +114,10 @@ function ManpowerProposalPage() {
         const avgPerMonth = totalPredicted / monthCount;
         const riskLevel = getOverallRisk(items);
         const rule = getRule(riskLevel);
-        const suggestedOfficers = Math.max(rule.officers, Math.ceil(avgPerMonth / MANPOWER_CASES_PER_OFFICER));
+        const areaSqKm = precinctAreas.get(num) || 0;
+        const baseOfficers = Math.max(rule.officers, Math.ceil(avgPerMonth / MANPOWER_CASES_PER_OFFICER));
+        const coverageMultiplier = 1 + (areaSqKm * AREA_WEIGHT_PER_SQKM);
+        const suggestedOfficers = Math.max(rule.officers, Math.round(baseOfficers * coverageMultiplier));
 
         return {
           precinctNumber: num,
@@ -105,6 +129,7 @@ function ManpowerProposalPage() {
           increasingCount: items.filter(i => i.trend === 'increasing').length,
           decreasingCount: items.filter(i => i.trend === 'decreasing').length,
           stableCount: items.filter(i => i.trend === 'stable').length,
+          areaSqKm,
           suggestedOfficers,
         };
       })
@@ -112,7 +137,7 @@ function ManpowerProposalPage() {
         const order = ['critical', 'high', 'medium', 'low'];
         return order.indexOf(a.riskLevel) - order.indexOf(b.riskLevel);
       });
-  }, [forecastData, rules]);
+  }, [forecastData, rules, precinctAreas]);
 
   const totalOfficers = useMemo(
     () => precinctAllocations.reduce((s, p) => s + p.suggestedOfficers, 0),
@@ -249,6 +274,7 @@ function ManpowerProposalPage() {
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precinct</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Predicted Crimes</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Area (km²)</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Trend</th>
                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Suggested Officers</th>
@@ -267,6 +293,7 @@ function ManpowerProposalPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">{pa.totalPredicted}</td>
+                    <td className="px-4 py-3 text-right text-sm text-gray-600">{pa.areaSqKm > 0 ? pa.areaSqKm.toFixed(2) : '—'}</td>
                     <td className="px-4 py-3 text-center">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getRiskColor(pa.riskLevel)}`}>
                         {pa.riskLevel}
@@ -297,6 +324,11 @@ function ManpowerProposalPage() {
               <tr>
                 <td className="px-4 py-3 text-gray-700">Total</td>
                 <td className="px-4 py-3 text-right text-gray-900">{forecastData.reduce((s, f) => s + f.predictedCount, 0)}</td>
+                <td className="px-4 py-3 text-right text-gray-600">
+                  {precinctAllocations.reduce((s, p) => s + p.areaSqKm, 0) > 0
+                    ? precinctAllocations.reduce((s, p) => s + p.areaSqKm, 0).toFixed(2)
+                    : '—'}
+                </td>
                 <td colSpan={2}></td>
                 <td className="px-4 py-3 text-right text-blue-700">{totalOfficers}</td>
                 <td className="px-4 py-3 text-center text-gray-600">
@@ -316,6 +348,7 @@ function ManpowerProposalPage() {
             <p>
               Each precinct gets a suggested officer count based on its forecast workload: avg monthly predicted cases ÷ {MANPOWER_CASES_PER_OFFICER} cases per officer.
               A risk floor ensures critical/high-risk precincts maintain a minimum staffing level.
+              Territory area adds a coverage multiplier (+{AREA_WEIGHT_PER_SQKM * 100}% per km²) so larger precincts get more roving personnel.
               Officers are split evenly across Morning, Evening, and Night shifts.
             </p>
             <p className="mt-2">
