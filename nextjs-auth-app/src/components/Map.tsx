@@ -313,7 +313,11 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
   useEffect(() => {
     if (mapReady) {
-      requestAnimationFrame(() => leafletMap.current?.invalidateSize());
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          leafletMap.current?.invalidateSize();
+        });
+      });
     }
   }, [fullscreen, mapReady]);
 
