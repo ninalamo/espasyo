@@ -97,7 +97,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     }
 
     setFilteredClusters(filtered);
-  }, [clusters, stepwise, currentStep, selectedMonths, selectedYears, selectedCrimeTypes, compareMode, periodAYears, periodBYears]);
+  }, [clusters, stepwise, currentStep, selectedMonths, selectedYears, selectedCrimeTypes, compareMode, periodAYears, periodBYears, uniqueSteps]);
 
   useEffect(() => {
     if (play && stepwise && uniqueSteps.length > 0) {
@@ -108,7 +108,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       clearInterval(intervalRef.current!);
     }
     return () => clearInterval(intervalRef.current!);
-  }, [play, stepwise]);
+  }, [play, stepwise, uniqueSteps]);
 
   const [mapReady, setMapReady] = useState(false);
 
@@ -247,7 +247,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         });
       }
     });
-  }, [filteredClusters, center, zoom, viewMode, showEnvelope, compareMode, periodBYears]);
+  }, [filteredClusters, center, zoom, viewMode, showEnvelope, compareMode, periodBYears, clusterColorsMapping, crimeTypeEnum]);
 
   const handleCompareToggle = useCallback(() => {
     if (!compareMode) {

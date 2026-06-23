@@ -66,19 +66,16 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const [filteredForecastMapPoints, setFilteredForecastMapPoints] = useState<ForecastMapPoint[]>([]);
 
   const analysisLoaded = clusters.length > 0;
-  const forecastParams: ForecastParams = forecast?.params || {
-    forecastPeriod: 6,
-    model: 'ssa',
-    confidence: 0.95,
-    includeSeasonality: true,
-    weightRecentData: true,
-  };
-
-  useEffect(() => {
-    if (initialId) {
-      loadForecast(initialId);
-    }
-  }, [initialId]);
+  const forecastParams: ForecastParams = useMemo(
+    () => forecast?.params || {
+      forecastPeriod: 6,
+      model: 'ssa',
+      confidence: 0.95,
+      includeSeasonality: true,
+      weightRecentData: true,
+    },
+    [forecast?.params]
+  );
 
   useEffect(() => {
     if (filteredForecastData.length > 0) {
@@ -268,7 +265,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       toast.error(`Failed to save forecast: ${err.message}`);
       return null;
     }
-  }, [forecastData, clusters, activeModelLabel, historicalData]);
+  }, [forecastData, clusters, activeModelLabel, historicalData, forecastMetrics]);
 
   const clearForecast = useCallback(() => {
     setForecast(null);
@@ -285,6 +282,12 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     setFilteredForecastMapPoints([]);
   }, []);
 
+  useEffect(() => {
+    if (initialId) {
+      loadForecast(initialId);
+    }
+  }, [initialId, loadForecast]);
+
   const value = useMemo(() => ({
     loading, forecastId, forecast, clusters, historicalData,
     forecastData, forecastMetrics, extendedForecastData, forecastMapPoints,
@@ -299,6 +302,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     activeModelLabel, dataQuality,
     filters, filteredForecastData, filteredForecastMapPoints,
     analysisLoaded, forecastParams,
+    generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   ]);
 
   return (

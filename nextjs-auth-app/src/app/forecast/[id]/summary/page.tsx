@@ -7,7 +7,7 @@ import { forecastApi } from '../../../api/utils/forecastApi';
 import type { ForecastEvaluationResult } from '../../../../types/forecast/ForecastBaseTypes';
 
 export default function SummaryPage() {
-  const { forecastData, forecastParams, historicalData, forecastMetrics, forecastId } = useForecast();
+  const { forecastData, forecastParams, historicalData, forecastMetrics, forecastId, forecast } = useForecast();
   const [evaluation, setEvaluation] = useState<ForecastEvaluationResult | null>(null);
 
   useEffect(() => {
@@ -23,6 +23,7 @@ export default function SummaryPage() {
       historicalData={historicalData}
       forecastData={forecastData}
       params={forecastParams}
+      createdAt={forecast?.createdAt}
       metrics={forecastMetrics}
       evaluation={evaluation}
     />

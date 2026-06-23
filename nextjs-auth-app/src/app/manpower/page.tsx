@@ -29,11 +29,13 @@ interface PrecinctAllocation {
   suggestedOfficers: number;
 }
 
+const MANPOWER_CASES_PER_OFFICER = 15;
+
 const DEFAULT_RULES: RiskRule[] = [
-  { riskLevel: 'critical', label: 'Critical', officers: 20 },
-  { riskLevel: 'high', label: 'High', officers: 15 },
-  { riskLevel: 'medium', label: 'Medium', officers: 10 },
-  { riskLevel: 'low', label: 'Low', officers: 5 },
+  { riskLevel: 'critical', label: 'Critical', officers: 6 },
+  { riskLevel: 'high', label: 'High', officers: 4 },
+  { riskLevel: 'medium', label: 'Medium', officers: 3 },
+  { riskLevel: 'low', label: 'Low', officers: 2 },
 ];
 
 function ManpowerProposalPage() {
@@ -72,6 +74,9 @@ function ManpowerProposalPage() {
   const precinctAllocations = useMemo((): PrecinctAllocation[] => {
     if (forecastData.length === 0) return [];
 
+    const getRule = (risk: string): RiskRule =>
+      rules.find(r => r.riskLevel === risk) || rules[rules.length - 1];
+
     const byPrecinct = new Map<number, ForecastData[]>();
     for (const f of forecastData) {
       const existing = byPrecinct.get(f.precinct) || [];
@@ -79,13 +84,16 @@ function ManpowerProposalPage() {
       byPrecinct.set(f.precinct, existing);
     }
 
+    const monthCount = new Set(forecastData.map(f => `${f.year}-${f.month}`)).size;
+
     return Array.from(byPrecinct.entries())
       .map(([num, items]) => {
         const name = GetPrecinctsDictionary[num] || `Precinct ${num}`;
         const totalPredicted = items.reduce((s, i) => s + i.predictedCount, 0);
+        const avgPerMonth = totalPredicted / monthCount;
         const riskLevel = getOverallRisk(items);
         const rule = getRule(riskLevel);
-        const suggestedOfficers = Math.max(rule.officers, Math.ceil(totalPredicted / 2));
+        const suggestedOfficers = Math.max(rule.officers, Math.ceil(avgPerMonth / MANPOWER_CASES_PER_OFFICER));
 
         return {
           precinctNumber: num,
@@ -104,7 +112,7 @@ function ManpowerProposalPage() {
         const order = ['critical', 'high', 'medium', 'low'];
         return order.indexOf(a.riskLevel) - order.indexOf(b.riskLevel);
       });
-  }, [forecastData]);
+  }, [forecastData, rules]);
 
   const totalOfficers = useMemo(
     () => precinctAllocations.reduce((s, p) => s + p.suggestedOfficers, 0),
@@ -306,9 +314,9 @@ function ManpowerProposalPage() {
           <div className="text-sm text-blue-800">
             <p className="font-medium mb-1">How allocation is calculated</p>
             <p>
-              Each precinct gets a suggested officer count based on its forecast risk level and predicted crime volume.
-              Critical-risk precincts start at 20 officers, High at 15, Medium at 10, Low at 5,
-              with upward adjustments for high crime volume. Officers are split evenly across Morning, Evening, and Night shifts.
+              Each precinct gets a suggested officer count based on its forecast workload: avg monthly predicted cases ÷ {MANPOWER_CASES_PER_OFFICER} cases per officer.
+              A risk floor ensures critical/high-risk precincts maintain a minimum staffing level.
+              Officers are split evenly across Morning, Evening, and Night shifts.
             </p>
             <p className="mt-2">
               <strong>Published proposals</strong> are saved locally and can be printed.

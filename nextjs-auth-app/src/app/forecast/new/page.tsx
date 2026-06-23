@@ -219,7 +219,7 @@ export default withAuth(function NewForecastPage() {
     } finally {
       setSaveLoading(false);
     }
-  }, [forecastName, forecastParams, forecastData, clusters, historicalData, activeModelLabel, router]);
+  }, [forecastName, forecastParams, forecastData, forecastMetrics, clusters, historicalData, activeModelLabel, router]);
 
   const dataLoaded = analysisLoaded && clusters.length > 0;
 
