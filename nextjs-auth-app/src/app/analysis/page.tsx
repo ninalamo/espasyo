@@ -24,7 +24,7 @@ const AnalysisPage = () => {
   const [loading, setLoading] = useState(false);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [mapKey, setMapKey] = useState(0);
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(["Latitude", "Longitude"]);
   const [lastAnalysisParams, setLastAnalysisParams] = useState<any>(null);
 
   const [numberOfClusters, setNumberOfClusters] = useState(3);

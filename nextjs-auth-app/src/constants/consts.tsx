@@ -38,6 +38,7 @@ export const PrecinctGuidToNumberMap: Record<string, number> = {
 };
 
 export const CrimeTypesDictionary: Record<number, string> = {
+  [-1]: "All Types",
   0: "Arson", 1: "Assault", 2: "Burglary", 3: "Corruption", 4: "Counterfeiting",
   5: "Cyber Crime", 6: "Domestic Violence", 7: "Drug Trafficking", 8: "Embezzlement", 9: "Extortion",
   10: "Fraud", 11: "Human Trafficking", 12: "Homicide", 13: "Illegal Possession Of Firearms",
