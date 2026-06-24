@@ -14,7 +14,7 @@ const ForecastSummaryReport: React.FC<Props> = ({ historicalData, forecastData }
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-2">Forecast Summary Report</h2>
         <p className="text-gray-600 mb-6">
-          Predicted crime counts by precinct, trend analysis, and risk assessment based on SSA forecasting.
+          Predicted crime counts by precinct, trend analysis, and risk assessment based on Singular Spectrum Analysis.
         </p>
         <ForecastSummary
           historicalData={historicalData}

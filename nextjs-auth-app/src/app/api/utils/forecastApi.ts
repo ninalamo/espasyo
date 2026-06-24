@@ -1,5 +1,32 @@
 import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
 
+const FORECAST_NAMES_KEY = 'forecastCustomNames';
+
+function getStoredNames(): Record<string, string> {
+  if (typeof window === 'undefined') return {};
+  try {
+    return JSON.parse(localStorage.getItem(FORECAST_NAMES_KEY) || '{}');
+  } catch { return {}; }
+}
+
+function storeName(id: string, name: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const all = getStoredNames();
+    all[id] = name;
+    localStorage.setItem(FORECAST_NAMES_KEY, JSON.stringify(all));
+  } catch {}
+}
+
+function removeStoredName(id: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const all = getStoredNames();
+    delete all[id];
+    localStorage.setItem(FORECAST_NAMES_KEY, JSON.stringify(all));
+  } catch {}
+}
+
 /* Mapping: Barangay enum int → name (matches backend seed data) */
 const BARANGAY_INT_TO_NAME: Record<number, string> = {
   0: 'Alabang', 1: 'Bayanan', 2: 'Buli', 3: 'Cupang',
@@ -33,6 +60,7 @@ interface ForecastRunResult {
   status: string;
   totalSeries: number;
   generatedById: string;
+  name?: string;
 }
 
 interface GetForecastRunsResponse {
@@ -84,13 +112,14 @@ class ForecastApiService {
 
   async list(): Promise<ForecastSummaryCard[]> {
     const response = await this.fetchApi<GetForecastRunsResponse>('/ForecastRun');
+    const storedNames = getStoredNames();
     return response.runs.map(r => ({
       id: r.id,
-      name: `${r.precinctName} - ${r.modelType}`,
+      name: r.name || storedNames[r.id] || `${r.precinctName}`,
       createdAt: r.runAt,
       forecastPeriod: r.horizon,
       totalPredictions: r.totalSeries,
-      activeModel: r.modelType,
+      activeModel: r.modelType === 'SSA' ? 'ML.NET' : r.modelType,
       precinctCount: 1,
       crimeTypeCount: 0,
     }));
@@ -102,10 +131,11 @@ class ForecastApiService {
 
       const precincts = [...new Set(results.map(r => BARANGAY_NAME_TO_INT[r.precinct] ?? 0))];
       const crimeTypes = [...new Set(results.map(r => CRIMETYPE_NAME_TO_INT[r.crimeType] ?? 0))];
+      const storedNames = getStoredNames();
 
       return {
         id,
-        name: `Forecast ${id.slice(0, 8)}`,
+        name: storedNames[id] || `Forecast ${id.slice(0, 8)}`,
         createdAt: new Date().toISOString(),
         forecastPeriod: 6,
         predictions: results.map(r => ({
@@ -128,7 +158,7 @@ class ForecastApiService {
         metadata: {
           totalClusters: 0,
           totalPredictions: results.length,
-          activeModel: 'SSA',
+          activeModel: 'ML.NET',
           precincts,
           crimeTypes,
         },
@@ -163,6 +193,8 @@ class ForecastApiService {
             generatedById: data.generatedById ?? '',
           }),
         });
+
+        storeName(response.id, response.name);
 
         return {
           id: response.id,
@@ -201,6 +233,7 @@ class ForecastApiService {
             horizon: data.params.forecastPeriod,
             confidenceLevel: data.params.confidence,
             modelType: 'SSA',
+            name: data.name,
             includeSeasonality: data.params.includeSeasonality,
             weightRecentData: data.params.weightRecentData,
             generatedById: data.generatedById ?? '',
@@ -219,6 +252,8 @@ class ForecastApiService {
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
         }));
+
+        storeName(mlResponse.id, data.name);
 
         return {
           id: mlResponse.id,

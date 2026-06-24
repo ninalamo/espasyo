@@ -144,7 +144,7 @@ export default withAuth(function NewForecastPage() {
 
       if (!response?.series) throw new Error('Invalid API response');
 
-      setActiveModelLabel('SSA (ML.NET)');
+      setActiveModelLabel('ML.NET');
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
@@ -180,7 +180,12 @@ export default withAuth(function NewForecastPage() {
   };
 
   const handleSave = useCallback(async () => {
-    const name = `${forecastName.trim() || `Forecast ${format(new Date(), 'yyyy-MM-dd HHmm')}`}${buildNameSuffix(forecastData)}`;
+    if (!forecastName.trim()) {
+      toast.error('Please enter a forecast name before saving');
+      return;
+    }
+    const name = `${forecastName.trim()}${buildNameSuffix(forecastData)}`;
+    console.log('/forecast/new',name);
     setSaveLoading(true);
     try {
       const session = await getSession();
@@ -349,7 +354,7 @@ export default withAuth(function NewForecastPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
               <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">
-                SSA (Singular Spectrum Analysis) — <span className="text-gray-500">statistical time-series decomposition via ML.NET</span>
+                Singular Spectrum Analysis — <span className="text-gray-500">statistical time-series decomposition via ML.NET</span>
               </div>
             </div>
 

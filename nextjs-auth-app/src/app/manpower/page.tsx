@@ -385,7 +385,7 @@ function ManpowerProposalPage() {
                     </td>
                     <td className="px-4 py-3 text-right font-bold text-gray-900">{pa.suggestedOfficers}</td>
                     <td className="px-4 py-3 text-center text-sm text-gray-600">
-                      M {s} &middot; E {s} &middot; N {n}
+                      Morning {s} &middot; Afternoon {s} &middot; Evening {n}
                     </td>
                   </tr>
                 );
@@ -398,7 +398,7 @@ function ManpowerProposalPage() {
                 <td></td>
                 <td className="px-4 py-3 text-right text-gray-900">{totalOfficers}</td>
                 <td className="px-4 py-3 text-center text-sm text-gray-600">
-                  M {perShift} &middot; E {perShift} &middot; N {nightShift}
+                  Morning {perShift} &middot; Afternoon {perShift} &middot; Evening {nightShift}
                 </td>
               </tr>
             </tfoot>

@@ -95,7 +95,7 @@ const DataQualityModal: React.FC<DataQualityModalProps> = ({
             <div className="space-y-2 text-sm text-green-800">
               <div className="flex justify-between">
                 <span>Model Type:</span>
-                <span className="font-semibold">SSA</span>
+                <span className="font-semibold">Singular Spectrum Analysis</span>
               </div>
               <div className="flex justify-between">
                 <span>Forecast Horizon:</span>
