@@ -27,6 +27,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
     // Overall statistics
     const totalPredicted = forecastData.reduce((sum, f) => sum + f.predictedCount, 0);
+    const avgMonthly = Math.round(totalPredicted / params.forecastPeriod);
     const avgConfidence = forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length;
     const withBounds = forecastData.filter(f => f.lowerBound != null && f.upperBound != null);
     const hasPredictionIntervals = withBounds.length > 0;
@@ -110,6 +111,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
     return {
       totalPredicted,
+      avgMonthly,
       avgConfidence,
       hasPredictionIntervals,
       avgIntervalWidth,
@@ -166,6 +168,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="ml-4">
               <p className="text-sm font-medium text-blue-800">Total Predicted Cases</p>
               <p className="text-2xl font-bold text-blue-900">{summary.totalPredicted.toLocaleString()}</p>
+              <p className="text-xs text-blue-600 mt-1">~{summary.avgMonthly.toLocaleString()}/month avg</p>
             </div>
           </div>
         </div>
