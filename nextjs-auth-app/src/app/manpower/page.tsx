@@ -1,40 +1,30 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MapPin, Clock } from 'lucide-react';
+import { MapPin, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
-import turfArea from '@turf/area';
-import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
+import { GetPrecinctsDictionary } from '../../constants/consts';
 import { forecastApi } from '../api/utils/forecastApi';
 import withAuth from '../hoc/withAuth';
-import type { ForecastData, ForecastSummaryCard } from '../../types/forecast/ForecastBaseTypes';
-
-interface RiskRule {
-  riskLevel: string;
-  label: string;
-  officers: number;
-}
+import { Skeleton, CardSkeleton, TableSkeleton } from '../../components/ui/skeleton';
+import type { ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
 interface PrecinctAllocation {
   precinctNumber: number;
   precinctName: string;
   avgMonthlyCrimes: number;
+  totalPredicted: number;
   riskLevel: string;
-  highRiskCount: number;
-  criticalRiskCount: number;
   increasingCount: number;
   decreasingCount: number;
-  stableCount: number;
-  areaSqKm: number;
   suggestedOfficers: number;
-  rangeLow: number;
-  rangeHigh: number;
+  trend: 'up' | 'down' | 'stable';
 }
 
-const PATROL_HOURS_PER_MONTH = 22 * 8;
 const OFFICERS_PER_SQKM = 1.5;
+const PATROL_DEMAND = 40;
 
 const CRIME_SEVERITY_WEIGHTS: Record<number, number> = {
   0: 5,  1: 4,  2: 3,  3: 2,  4: 2,
@@ -43,12 +33,16 @@ const CRIME_SEVERITY_WEIGHTS: Record<number, number> = {
   15: 5, 16: 5, 17: 5, 18: 2, 19: 2,
 };
 
-const DEFAULT_RULES: RiskRule[] = [
-  { riskLevel: 'critical', label: 'Critical', officers: 6 },
-  { riskLevel: 'high', label: 'High', officers: 4 },
-  { riskLevel: 'medium', label: 'Medium', officers: 3 },
-  { riskLevel: 'low', label: 'Low', officers: 2 },
-];
+const RISK_BASELINE: Record<string, number> = {
+  critical: 6, high: 4, medium: 3, low: 2,
+};
+
+const RISK_COLORS: Record<string, string> = {
+  critical: 'bg-red-100 text-red-800 border-red-300',
+  high: 'bg-orange-100 text-orange-800 border-orange-300',
+  medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  low: 'bg-green-100 text-green-800 border-green-300',
+};
 
 function ManpowerProposalPage() {
   const searchParams = useSearchParams();
@@ -57,11 +51,7 @@ function ManpowerProposalPage() {
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [forecastName, setForecastName] = useState('');
   const [loading, setLoading] = useState(true);
-  const [publishing, setPublishing] = useState(false);
-  const [published, setPublished] = useState(false);
-  const [patrolDemand, setPatrolDemand] = useState(40);
   const [precinctAreas, setPrecinctAreas] = useState<Map<number, number>>(new Map());
-  const [rules] = useState<RiskRule[]>(DEFAULT_RULES);
 
   useEffect(() => {
     fetch('/data/precincts.geojson')
@@ -71,11 +61,13 @@ function ManpowerProposalPage() {
         data.features.forEach((f: any) => {
           const id = f.properties?.id;
           if (id !== undefined) {
-            const areaSqM = turfArea(f);
-            areas.set(id, Math.round((areaSqM / 10000)) / 100);
+            import('@turf/area').then(mod => {
+              const areaSqM = mod.default(f);
+              areas.set(id, Math.round((areaSqM / 10000)) / 100);
+              setPrecinctAreas(new Map(areas));
+            });
           }
         });
-        setPrecinctAreas(areas);
       })
       .catch(() => {});
   }, []);
@@ -99,14 +91,8 @@ function ManpowerProposalPage() {
     return 'low';
   };
 
-  const getRule = (risk: string): RiskRule =>
-    rules.find(r => r.riskLevel === risk) || rules[rules.length - 1];
-
   const precinctAllocations = useMemo((): PrecinctAllocation[] => {
     if (forecastData.length === 0) return [];
-
-    const getRule = (risk: string): RiskRule =>
-      rules.find(r => r.riskLevel === risk) || rules[rules.length - 1];
 
     const byPrecinct = new Map<number, ForecastData[]>();
     for (const f of forecastData) {
@@ -123,89 +109,99 @@ function ManpowerProposalPage() {
         const totalPredicted = items.reduce((s, i) => s + i.predictedCount, 0);
         const avgPerMonth = totalPredicted / monthCount;
         const riskLevel = getOverallRisk(avgPerMonth);
-        const rule = getRule(riskLevel);
         const areaSqKm = precinctAreas.get(num) || 0;
         const weightedScore = items.reduce((s, i) => s + i.predictedCount * (CRIME_SEVERITY_WEIGHTS[i.crimeType] ?? 1), 0);
         const monthlyWeighted = weightedScore / monthCount;
-        const patrolUnits = monthlyWeighted / patrolDemand;
+        const patrolUnits = monthlyWeighted / PATROL_DEMAND;
         const areaUnits = areaSqKm * OFFICERS_PER_SQKM;
-        const suggestedOfficers = Math.max(rule.officers, Math.round(patrolUnits + areaUnits));
+        const suggestedOfficers = Math.max(RISK_BASELINE[riskLevel], Math.round(patrolUnits + areaUnits));
 
-        const rangeLow = Math.max(rule.officers, Math.round((monthlyWeighted / (patrolDemand + 20)) + areaUnits));
-        const rangeHigh = Math.max(rule.officers, Math.round((monthlyWeighted / (patrolDemand - 20)) + areaUnits));
+        const inc = items.filter(i => i.trend === 'increasing').length;
+        const dec = items.filter(i => i.trend === 'decreasing').length;
+        const trend: 'up' | 'down' | 'stable' = inc > dec ? 'up' : dec > inc ? 'down' : 'stable';
 
         return {
           precinctNumber: num,
           precinctName: name,
           avgMonthlyCrimes: Math.round(avgPerMonth),
+          totalPredicted,
           riskLevel,
-          highRiskCount: items.filter(i => i.riskLevel === 'high').length,
-          criticalRiskCount: items.filter(i => i.riskLevel === 'critical').length,
-          increasingCount: items.filter(i => i.trend === 'increasing').length,
-          decreasingCount: items.filter(i => i.trend === 'decreasing').length,
-          stableCount: items.filter(i => i.trend === 'stable').length,
-          areaSqKm,
+          increasingCount: inc,
+          decreasingCount: dec,
           suggestedOfficers,
-          rangeLow,
-          rangeHigh,
+          trend,
         };
       })
       .sort((a, b) => {
         const order = ['critical', 'high', 'medium', 'low'];
         return order.indexOf(a.riskLevel) - order.indexOf(b.riskLevel);
       });
-  }, [forecastData, rules, precinctAreas, patrolDemand]);
+  }, [forecastData, precinctAreas]);
 
   const totalOfficers = useMemo(
     () => precinctAllocations.reduce((s, p) => s + p.suggestedOfficers, 0),
     [precinctAllocations]
   );
 
-  const publishProposal = useCallback(() => {
-    setPublishing(true);
-    try {
-      const proposal = {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        forecastId,
-        forecastName,
-        rules,
-        allocations: precinctAllocations,
-        totalSuggestedOfficers: totalOfficers,
-      };
-      const existing = JSON.parse(localStorage.getItem('manpowerProposals') || '[]');
-      existing.push(proposal);
-      localStorage.setItem('manpowerProposals', JSON.stringify(existing));
-      setPublished(true);
-      toast.success('Manpower proposal published!');
-    } catch {
-      toast.error('Failed to publish proposal');
-    } finally {
-      setPublishing(false);
-    }
-  }, [forecastId, forecastName, rules, precinctAllocations, totalOfficers]);
+  const totalMonthlyCrimes = useMemo(
+    () => precinctAllocations.reduce((s, p) => s + p.avgMonthlyCrimes, 0),
+    [precinctAllocations]
+  );
 
-  const handlePrint = useCallback(() => window.print(), []);
+  const maxOfficers = useMemo(
+    () => Math.max(...precinctAllocations.map(p => p.suggestedOfficers), 1),
+    [precinctAllocations]
+  );
 
-  const getRiskColor = (risk: string) => {
-    switch (risk) {
-      case 'critical': return 'bg-red-100 text-red-800 border-red-200';
-      case 'high': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'medium': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      default: return 'bg-green-100 text-green-800 border-green-200';
-    }
-  };
+  const riskCounts = useMemo(() => {
+    const counts = { critical: 0, high: 0, medium: 0, low: 0 };
+    precinctAllocations.forEach(p => { counts[p.riskLevel as keyof typeof counts]++; });
+    return counts;
+  }, [precinctAllocations]);
 
-  const getTrendIcon = (inc: number, dec: number) => {
-    if (inc > dec) return <span className="text-red-500">📈</span>;
-    if (dec > inc) return <span className="text-green-500">📉</span>;
-    return <span className="text-yellow-500">📊</span>;
-  };
+  const exportCsv = useCallback(() => {
+    const rows = precinctAllocations.map(pa => [
+      pa.precinctName,
+      pa.avgMonthlyCrimes,
+      pa.totalPredicted,
+      pa.riskLevel,
+      pa.suggestedOfficers,
+      pa.trend === 'up' ? 'Increasing' : pa.trend === 'down' ? 'Decreasing' : 'Stable',
+    ]);
+    const csv = [
+      ['Precinct', 'Avg Crimes/Month', 'Total Predicted', 'Risk Level', 'Suggested Officers', 'Trend'],
+      ...rows,
+    ].map(r => r.join(',')).join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `manpower-allocation-${forecastName.replace(/[^a-z0-9]/gi, '_') || 'plan'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [precinctAllocations, forecastName]);
+
+  const perShift = Math.round(totalOfficers / 3);
+  const nightShift = totalOfficers - perShift * 2;
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500" />
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Skeleton className="h-10 w-48" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <Skeleton className="h-48 w-full rounded" />
+        </div>
+        <TableSkeleton rows={10} />
       </div>
     );
   }
@@ -216,7 +212,7 @@ function ManpowerProposalPage() {
         <div className="text-center max-w-md">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Manpower Allocation</h1>
           <p className="text-gray-600 mb-6">
-            Please access this page through the <strong>Trend Analysis</strong> page of a specific forecast to ensure the allocation is based on the correct forecast data.
+            Go to a forecast and click <strong>Build Manpower Plan</strong> to generate an allocation based on predicted crime data.
           </p>
           <Link href="/forecast" className="text-blue-600 hover:text-blue-800 underline">
             ← Go to Forecasts
@@ -242,134 +238,154 @@ function ManpowerProposalPage() {
 
   return (
     <div className="p-6 space-y-6">
+      {/* Header */}
       <div className="flex justify-between items-start no-print">
         <div>
-          <Link href="/forecast" className="text-blue-600 hover:text-blue-800 text-sm flex items-center mb-2">
-            ← Back to Forecasts
+          <Link href={`/forecast/${forecastId}/overview`} className="text-blue-600 hover:text-blue-800 text-sm flex items-center mb-2">
+            ← Back to Forecast
           </Link>
-          <h1 className="text-2xl font-bold text-gray-900">Manpower Allocation Proposal</h1>
-          <p className="text-gray-600 mt-1">
-            Based on forecast: <strong>{forecastName}</strong>
+          <h1 className="text-2xl font-bold text-gray-900">Manpower Allocation Plan</h1>
+          <p className="text-gray-500 mt-1">
+            Based on <strong>{forecastName}</strong> &middot; {new Date().toLocaleDateString()}
           </p>
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={handlePrint}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 text-sm"
+          <Link
+            href="/manpower/faq"
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-600 hover:bg-gray-50 flex items-center gap-2 text-sm"
           >
-            🖨️ Print
+            FAQ
+          </Link>
+          <button
+            onClick={exportCsv}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
+          >
+            Export as CSV
           </button>
-          {!published ? (
-            <button
-              onClick={publishProposal}
-              disabled={publishing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 text-sm"
-            >
-              {publishing ? 'Publishing...' : '📋 Publish Proposal'}
-            </button>
-          ) : (
-            <span className="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
-              ✅ Published
-            </span>
-          )}
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 p-4 flex items-center gap-4 no-print">
-        <div className="flex items-center gap-2">
-          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">Patrol capacity:</label>
-          <input
-            type="range"
-            min={10}
-            max={200}
-            step={5}
-            value={patrolDemand}
-            onChange={(e) => setPatrolDemand(parseInt(e.target.value))}
-            className="w-32"
-          />
-          <span className="text-sm font-semibold text-blue-700 w-10">{patrolDemand}</span>
-          <span className="text-xs text-gray-500">weighted units per officer / month</span>
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <Users className="w-8 h-8 text-blue-600" />
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{totalOfficers}</div>
+              <div className="text-xs text-gray-500">Total Officers</div>
+            </div>
+          </div>
         </div>
-        <div className="text-xs text-gray-400 border-l border-gray-200 pl-4">
-          8h patrol · 22 days/mo = {PATROL_HOURS_PER_MONTH}h available
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <MapPin className="w-8 h-8 text-green-600" />
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{precinctAllocations.length}</div>
+              <div className="text-xs text-gray-500">Precincts Covered</div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 no-print">
-        <div className="flex items-start gap-2">
-          <svg className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.865-.833-2.635 0L4.178 16.5c-.77.833.192 2.5 1.732 2.5z" />
-          </svg>
-          <div className="text-sm text-amber-800">
-            <p className="font-medium mb-1">Exploratory guideline — not a validated staffing model</p>
-            <p className="text-amber-700">
-              The constants used (weighted units per officer, officers per km², baseline counts) are estimates and have not been validated against historical patrol data. Ranges reflect sensitivity to the patrol capacity slider. Use this as a starting point for discussion, not a definitive staffing requirement. See Precinct Management page for actual allocation records.
-            </p>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <TrendingUp className="w-8 h-8 text-purple-600" />
+            <div>
+              <div className="text-2xl font-bold text-gray-900">{totalMonthlyCrimes}</div>
+              <div className="text-xs text-gray-500">Predicted Crimes / Month</div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="w-8 h-8 text-red-600" />
+            <div>
+              <div className="text-2xl font-bold text-gray-900">
+                {riskCounts.critical + riskCounts.high}
+                <span className="text-sm font-normal text-gray-500 ml-1">
+                  / {precinctAllocations.length}
+                </span>
+              </div>
+              <div className="text-xs text-gray-500">High & Critical Risk</div>
+            </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-800">
-            Suggested Officer Allocation
-            <span className="text-sm font-normal text-gray-500 ml-2">
-              ({precinctAllocations.length} precincts, {precinctAllocations.reduce((s, p) => s + p.rangeLow, 0)}–{precinctAllocations.reduce((s, p) => s + p.rangeHigh, 0)} total officers)
-            </span>
-          </h2>
+      {/* Allocation bar chart */}
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Officer Distribution by Precinct</h3>
+        <div className="space-y-2">
+          {precinctAllocations.map(pa => {
+            const pct = (pa.suggestedOfficers / maxOfficers) * 100;
+            const barColor =
+              pa.riskLevel === 'critical' ? 'bg-red-500' :
+              pa.riskLevel === 'high' ? 'bg-orange-500' :
+              pa.riskLevel === 'medium' ? 'bg-yellow-500' : 'bg-green-500';
+            return (
+              <div key={pa.precinctNumber} className="flex items-center gap-3 text-sm">
+                <span className="w-28 text-right text-gray-700 truncate" title={pa.precinctName}>
+                  {pa.precinctName}
+                </span>
+                <div className="flex-1 h-4 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${barColor}`}
+                    style={{ width: `${Math.max(pct, 4)}%` }}
+                  />
+                </div>
+                <span className="w-8 text-right font-semibold text-gray-900">{pa.suggestedOfficers}</span>
+              </div>
+            );
+          })}
         </div>
+      </div>
 
+      {/* Allocation table */}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precinct</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Avg Monthly Crimes</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Area (km²)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Predicted Crimes / Month</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Risk</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Trend</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Suggested Range</th>
-                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Per Shift (Morning / Evening / Night)</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Officers</th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Shift Distribution</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {precinctAllocations.map((pa) => {
-                const perShift = Math.round(pa.suggestedOfficers / 3);
+              {precinctAllocations.map(pa => {
+                const s = Math.round(pa.suggestedOfficers / 3);
+                const n = pa.suggestedOfficers - s * 2;
+                const maxCrimes = Math.max(...precinctAllocations.map(p => p.avgMonthlyCrimes), 1);
+                const crimeBarPct = (pa.avgMonthlyCrimes / maxCrimes) * 100;
                 return (
                   <tr key={pa.precinctNumber} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-blue-600" />
+                        <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0" />
                         <span className="font-medium text-gray-900">{pa.precinctName}</span>
+                        {pa.trend === 'up' && <span className="text-red-500 text-xs">↑</span>}
+                        {pa.trend === 'down' && <span className="text-green-500 text-xs">↓</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{pa.avgMonthlyCrimes}</td>
-                    <td className="px-4 py-3 text-right text-sm text-gray-600">{pa.areaSqKm > 0 ? pa.areaSqKm.toFixed(2) : '—'}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-blue-500"
+                            style={{ width: `${crimeBarPct}%` }}
+                          />
+                        </div>
+                        <span className="font-semibold text-gray-900 w-10 text-right">{pa.avgMonthlyCrimes}</span>
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${getRiskColor(pa.riskLevel)}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${RISK_COLORS[pa.riskLevel]}`}>
                         {pa.riskLevel}
                       </span>
-                      <div className="text-xs text-gray-500 mt-0.5 space-x-1">
-                        {pa.criticalRiskCount > 0 && <span className="text-red-600">{pa.criticalRiskCount} critical</span>}
-                        {pa.criticalRiskCount > 0 && pa.highRiskCount > 0 && <span>·</span>}
-                        {pa.highRiskCount > 0 && <span className="text-orange-600">{pa.highRiskCount} high</span>}
-                      </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5 text-sm">
-                        {getTrendIcon(pa.increasingCount, pa.decreasingCount)}
-                        <span className="text-red-600"><span className="text-xs">↑</span>{pa.increasingCount}</span>
-                        <span className="text-green-600"><span className="text-xs">↓</span>{pa.decreasingCount}</span>
-                      </div>
-                    </td>
-                     <td className="px-4 py-3 text-right font-bold text-blue-700">
-                       {pa.rangeLow}–{pa.rangeHigh}
-                       <span className="text-xs font-normal text-gray-400 ml-1">({pa.suggestedOfficers})</span>
-                     </td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-600 whitespace-nowrap">
-                      <span>☀️{perShift}</span> <span className="text-gray-300">|</span>
-                      <span>🌆{perShift}</span> <span className="text-gray-300">|</span>
-                      <span>🌙{pa.suggestedOfficers - perShift * 2}</span>
+                    <td className="px-4 py-3 text-right font-bold text-gray-900">{pa.suggestedOfficers}</td>
+                    <td className="px-4 py-3 text-center text-sm text-gray-600">
+                      M {s} &middot; E {s} &middot; N {n}
                     </td>
                   </tr>
                 );
@@ -378,49 +394,15 @@ function ManpowerProposalPage() {
             <tfoot className="bg-gray-50 font-semibold">
               <tr>
                 <td className="px-4 py-3 text-gray-700">Total</td>
-                <td className="px-4 py-3 text-right text-gray-900">{precinctAllocations.reduce((s, p) => s + p.avgMonthlyCrimes, 0)}</td>
-                <td className="px-4 py-3 text-right text-gray-600">
-                  {precinctAllocations.reduce((s, p) => s + p.areaSqKm, 0) > 0
-                    ? precinctAllocations.reduce((s, p) => s + p.areaSqKm, 0).toFixed(2)
-                    : '—'}
-                </td>
-                <td colSpan={2}></td>
-                <td className="px-4 py-3 text-right text-blue-700">
-                  {precinctAllocations.reduce((s, p) => s + p.rangeLow, 0)}–{precinctAllocations.reduce((s, p) => s + p.rangeHigh, 0)}
-                  <span className="text-xs font-normal text-gray-400 ml-1">({totalOfficers})</span>
-                </td>
-                <td className="px-4 py-3 text-center text-gray-600 whitespace-nowrap">
-                  <span>☀️{Math.round(totalOfficers / 3)}</span> <span className="text-gray-300">|</span>
-                  <span>🌆{Math.round(totalOfficers / 3)}</span> <span className="text-gray-300">|</span>
-                  <span>🌙{totalOfficers - Math.round(totalOfficers / 3) * 2}</span>
+                <td className="px-4 py-3 text-right text-gray-900">{totalMonthlyCrimes}</td>
+                <td></td>
+                <td className="px-4 py-3 text-right text-gray-900">{totalOfficers}</td>
+                <td className="px-4 py-3 text-center text-sm text-gray-600">
+                  M {perShift} &middot; E {perShift} &middot; N {nightShift}
                 </td>
               </tr>
             </tfoot>
           </table>
-        </div>
-      </div>
-
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 no-print">
-        <div className="flex items-start gap-2">
-          <Clock className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div className="text-sm text-blue-800 space-y-2">
-            <p className="font-medium">How each precinct&apos;s officer count is decided</p>
-            <ol className="list-decimal list-inside space-y-1 text-blue-700">
-              <li><strong>Crime severity:</strong> violent crimes (murder, robbery, etc.) are weighted 5×, property crimes (theft, fraud) weighted 2×, so high-risk areas get more patrols</li>
-              <li><strong>Patrol demand:</strong> weighted monthly crimes ÷ {patrolDemand} demand units per officer</li>
-              <li><strong>Area coverage:</strong> +{OFFICERS_PER_SQKM} officers per square kilometre to cover the whole barangay</li>
-              <li><strong>Baseline:</strong> each precinct gets at least 2–6 officers depending on its risk severity</li>
-            </ol>
-            <p className="text-blue-600">
-              The final number is split across three shifts <strong>Morning</strong> ☀️, <strong>Evening</strong> 🌆, and <strong>Night</strong> 🌙.
-            </p>
-            <p className="mt-2 text-blue-600">
-              <strong>Note on risk:</strong> This page computes precinct-level risk using monthly crime-rate thresholds (≥50=critical, ≥25=high, ≥10=medium). The backend SSA model assigns per-prediction risk independently as % deviation from historical average — these two risk assessments may differ for the same precinct.
-            </p>
-            <p className="mt-2">
-              <strong>Published proposals</strong> are saved locally and can be printed.
-            </p>
-          </div>
         </div>
       </div>
 
@@ -434,4 +416,12 @@ function ManpowerProposalPage() {
   );
 }
 
-export default withAuth(ManpowerProposalPage);
+function ManpowerPage() {
+  return (
+    <Suspense fallback={<div className="p-6 space-y-6"><div className="flex justify-between items-center"><div className="space-y-2"><Skeleton className="h-8 w-64" /><Skeleton className="h-4 w-96" /></div><Skeleton className="h-10 w-48" /></div><div className="grid grid-cols-1 md:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}</div><div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"><Skeleton className="h-48 w-full rounded" /></div><TableSkeleton rows={10} /></div>}>
+      <ManpowerProposalPage />
+    </Suspense>
+  );
+}
+
+export default withAuth(ManpowerPage);

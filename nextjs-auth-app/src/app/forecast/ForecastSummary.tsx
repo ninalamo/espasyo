@@ -27,6 +27,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
     // Overall statistics
     const totalPredicted = forecastData.reduce((sum, f) => sum + f.predictedCount, 0);
+    const avgMonthly = Math.round(totalPredicted / params.forecastPeriod);
     const avgConfidence = forecastData.reduce((sum, f) => sum + f.confidence, 0) / forecastData.length;
     const withBounds = forecastData.filter(f => f.lowerBound != null && f.upperBound != null);
     const hasPredictionIntervals = withBounds.length > 0;
@@ -110,6 +111,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
     return {
       totalPredicted,
+      avgMonthly,
       avgConfidence,
       hasPredictionIntervals,
       avgIntervalWidth,
@@ -166,6 +168,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="ml-4">
               <p className="text-sm font-medium text-blue-800">Total Predicted Cases</p>
               <p className="text-2xl font-bold text-blue-900">{summary.totalPredicted.toLocaleString()}</p>
+              <p className="text-xs text-blue-600 mt-1">~{summary.avgMonthly.toLocaleString()}/month avg</p>
             </div>
           </div>
         </div>
@@ -401,7 +404,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
                 color: 'bg-red-500', 
                 textColor: 'text-red-600',
                 count: summary.riskLevels.critical,
-                description: `Predictions >150% of historical average (${summary.riskLevels.critical} cases exceed normal patterns significantly)`
+                description: `Significantly exceeds historical average (${summary.riskLevels.critical} predictions)`
               },
               { 
                 key: 'high', 
@@ -409,7 +412,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
                 color: 'bg-orange-500', 
                 textColor: 'text-orange-600',
                 count: summary.riskLevels.high,
-                description: `Predictions 120-150% of historical average (${summary.riskLevels.high} cases show notable increases)`
+                description: `Notably above historical average (${summary.riskLevels.high} predictions)`
               },
               { 
                 key: 'medium', 
@@ -417,7 +420,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
                 color: 'bg-yellow-500', 
                 textColor: 'text-yellow-600',
                 count: summary.riskLevels.medium,
-                description: `Predictions 80-120% of historical average (${summary.riskLevels.medium} cases within normal range)`
+                description: `Close to historical average (${summary.riskLevels.medium} predictions)`
               },
               { 
                 key: 'low', 
@@ -425,7 +428,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
                 color: 'bg-green-500', 
                 textColor: 'text-green-600',
                 count: summary.riskLevels.low,
-                description: `Predictions <80% of historical average (${summary.riskLevels.low} cases show decreasing patterns)`
+                description: `Below historical average (${summary.riskLevels.low} predictions)`
               }
             ].map(risk => (
               <div key={risk.key} className="border border-gray-100 rounded p-3">
@@ -450,8 +453,8 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
           <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
             <div className="text-sm text-blue-800">
               <strong>Risk Level Determination:</strong> Each prediction is compared to the historical average 
-              for that specific precinct and crime type. The risk level is automatically assigned based on 
-              the configured thresholds.
+              for that specific precinct and crime type. Thresholds are computed dynamically from historical 
+              crime patterns rather than using fixed cutoffs.
             </div>
           </div>
         </div>
@@ -471,13 +474,9 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
           {/* Risk Level Explanation */}
           <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded">
             <div className="text-sm text-amber-800">
-              <strong>Risk Level Determination:</strong> Each forecast period is classified based on how much it exceeds historical averages.
-              <div className="mt-2 space-y-1">
-                <div>• <strong className="text-red-700">Critical:</strong> Forecasts &gt;150% of historical average</div>
-                <div>• <strong className="text-orange-700">High:</strong> Forecasts 120-150% of historical average</div>
-                <div>• <strong className="text-yellow-700">Medium:</strong> Forecasts 80-120% of historical average</div>
-                <div>• <strong className="text-green-700">Low:</strong> Forecasts ≤80% of historical average</div>
-              </div>
+              <strong>Risk Level Determination:</strong> Each forecast period is classified relative to the historical average.
+              Thresholds are computed dynamically from historical data patterns rather than using fixed cutoffs,
+              so the same percentage deviation may be classified differently depending on precinct and crime type volatility.
             </div>
           </div>
 

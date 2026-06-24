@@ -8,6 +8,7 @@ import withAuth from "../../hoc/withAuth"; // Higher-order component for authent
 import { apiService } from "../../api/utils/apiService"; // API service for HTTP requests
 import { validateIncident } from "../../api/utils/validators/createIncidentValidator"; // Custom validation function
 import { fetchCachedData } from "../../api/utils/fetchCachedData";
+import { FormSkeleton } from "../../../components/ui/skeleton";
 
 // Import precinct types
 import { PrecinctDto } from '../../../types/PrecinctDto';
@@ -190,7 +191,7 @@ const AddCrimePage = () => {
       <h1 className="text-2xl font-semibold mb-4">Add New Crime Record</h1>
       {/* Display a loading message, error message, or the form based on state */}
       {isLoading ? (
-        <div>Loading dropdown options...</div>
+        <FormSkeleton />
       ) : error ? (
         <div className="text-red-500">{error}</div>
       ) : (

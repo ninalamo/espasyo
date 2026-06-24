@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { CrimeDetailDto } from '../../../types/crime-record/CrimeDetailDto';
 import {apiService} from '../../api/utils/apiService';
+import { DetailSkeleton } from '../../../components/ui/skeleton';
 import withAuth from '../../hoc/withAuth';
 
 const CrimeDetailsPage = () => {
@@ -35,8 +36,8 @@ const CrimeDetailsPage = () => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen text-gray-700">
-        <h1 className="text-xl font-semibold mb-4">Loading Crime Record...</h1>
+      <div className="h-full p-6 overflow-auto">
+        <DetailSkeleton />
       </div>
     );
   }

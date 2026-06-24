@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { 
+import {
   Users, 
   MapPin, 
   Edit3, 
@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { manpowerApi, ManpowerAllocation, CreateManpowerRequest } from '../../utils/manpowerApi';
+import { Skeleton, CardSkeleton, TableSkeleton } from '../../components/ui/skeleton';
 
 // Precinct options will be loaded from API
 
@@ -255,10 +256,21 @@ export default function PrecinctsPage() {
 
   if (loading) {
     return (
-      <div className="p-6">
-        <div className="flex items-center justify-center h-96">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500"></div>
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-24" />
+            <Skeleton className="h-10 w-36" />
+          </div>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+        <TableSkeleton rows={10} />
       </div>
     );
   }

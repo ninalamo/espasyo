@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import withAuth from '../hoc/withAuth';
 import dynamic from 'next/dynamic';
 import { apiService } from '../api/utils/apiService';
@@ -487,6 +488,16 @@ const AnalysisPage = () => {
                 <div className="text-sm text-gray-500">
                   Generated {clusters.length} clusters • {clusters.reduce((sum, c) => sum + (c.clusterCount || 0), 0)} total cases
                 </div>
+                <Link
+                  href="/forecast/new"
+                  className="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-md hover:bg-indigo-200 transition text-sm flex items-center"
+                  title="Use these clusters for forecasting"
+                >
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                  Use for Forecasting
+                </Link>
                 <button
                   onClick={clearAnalysisData}
                   className="bg-red-100 text-red-700 px-3 py-1 rounded-md hover:bg-red-200 transition text-sm flex items-center"

@@ -5,13 +5,11 @@ import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type {
   ForecastData,
-  ForecastFilterState,
   HistoricalData,
   ForecastSnapshot,
   ForecastParams,
   ForecastMetrics,
 } from '../../types/forecast/ForecastBaseTypes';
-import { initialForecastFilterState } from '../../types/forecast/ForecastBaseTypes';
 import type { ExtendedForecastData, ForecastMapPoint } from '../../types/forecast/ExtendedForecastTypes';
 import { forecastApi } from '../api/utils/forecastApi';
 import { apiService } from '../api/utils/apiService';
@@ -31,14 +29,8 @@ interface ForecastContextValue {
   forecastMapPoints: ForecastMapPoint[];
   activeModelLabel: string;
   dataQuality: any;
-  filters: ForecastFilterState;
-  filteredForecastData: ForecastData[];
-  filteredForecastMapPoints: ForecastMapPoint[];
   analysisLoaded: boolean;
   forecastParams: ForecastParams;
-
-  setFilters: (f: ForecastFilterState) => void;
-  setFilteredForecastData: (d: ForecastData[]) => void;
   generateForecast: (clustersData: Cluster[], params: ForecastParams) => Promise<ForecastData[]>;
   saveCurrentForecast: (name: string) => Promise<string | null>;
   loadForecast: (id: string) => Promise<void>;
@@ -61,9 +53,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const [forecastMapPoints, setForecastMapPoints] = useState<ForecastMapPoint[]>([]);
   const [activeModelLabel, setActiveModelLabel] = useState('');
   const [dataQuality, setDataQuality] = useState<any>(null);
-  const [filters, setFilters] = useState<ForecastFilterState>(initialForecastFilterState);
-  const [filteredForecastData, setFilteredForecastData] = useState<ForecastData[]>([]);
-  const [filteredForecastMapPoints, setFilteredForecastMapPoints] = useState<ForecastMapPoint[]>([]);
 
   const analysisLoaded = clusters.length > 0;
   const forecastParams: ForecastParams = useMemo(
@@ -77,18 +66,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     [forecast?.params]
   );
 
-  useEffect(() => {
-    if (filteredForecastData.length > 0) {
-      const forecastKeySet = new Set(filteredForecastData.map(f => `${f.precinct}-${f.crimeType}-${f.year}-${f.month}`));
-      const filtered = forecastMapPoints.filter(p =>
-        forecastKeySet.has(`${p.precinct}-${p.crimeType}-${p.forecastPeriod}`)
-      );
-      setFilteredForecastMapPoints(filtered);
-    } else {
-      setFilteredForecastMapPoints(forecastMapPoints);
-    }
-  }, [filteredForecastData, forecastMapPoints]);
-
   const loadForecast = useCallback(async (id: string) => {
     setLoading(true);
     try {
@@ -98,7 +75,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setHistoricalData(data.historicalData || []);
       setForecastData(data.predictions || []);
       setForecastMetrics(data.metrics ?? null);
-      setFilteredForecastData(data.predictions || []);
 
       const mapPoints = (data.predictions || []).map(f => {
         const precinctCoords: Record<number, { lat: number; lng: number }> = {
@@ -119,11 +95,10 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         };
       });
       setForecastMapPoints(mapPoints);
-      setFilteredForecastMapPoints(mapPoints);
 
       toast.success(`Loaded forecast: ${data.name}`);
-    } catch {
-      toast.error(`Failed to load forecast ${id}`);
+    } catch (err) {
+      toast.error(`Failed to load forecast: ${err instanceof Error ? err.message : id}`);
     } finally {
       setLoading(false);
     }
@@ -182,7 +157,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       );
 
       setForecastData(predictions);
-      setFilteredForecastData(predictions);
 
       const mapPoints = predictions.map(f => {
         const precinctCoords: Record<number, { lat: number; lng: number }> = {
@@ -203,7 +177,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         };
       });
       setForecastMapPoints(mapPoints);
-      setFilteredForecastMapPoints(mapPoints);
 
       return predictions;
     } catch (err: any) {
@@ -273,8 +246,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     setForecastMapPoints([]);
     setActiveModelLabel('');
     setDataQuality(null);
-    setFilteredForecastData([]);
-    setFilteredForecastMapPoints([]);
   }, []);
 
   useEffect(() => {
@@ -287,15 +258,12 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     loading, forecastId, forecast, clusters, historicalData,
     forecastData, forecastMetrics, extendedForecastData, forecastMapPoints,
     activeModelLabel, dataQuality,
-    filters, filteredForecastData, filteredForecastMapPoints,
     analysisLoaded, forecastParams,
-    setFilters, setFilteredForecastData,
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   }), [
     loading, forecastId, forecast, clusters, historicalData,
     forecastData, forecastMetrics, extendedForecastData, forecastMapPoints,
     activeModelLabel, dataQuality,
-    filters, filteredForecastData, filteredForecastMapPoints,
     analysisLoaded, forecastParams,
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   ]);
