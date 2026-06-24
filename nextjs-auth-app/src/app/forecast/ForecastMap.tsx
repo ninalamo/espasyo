@@ -49,7 +49,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
   // Filter state
   const [filters, setFilters] = useState<ForecastMapFilters>(DEFAULT_FORECAST_FILTERS);
   const [showPoints, setShowPoints] = useState(true);
-  const [showHeatmap, setShowHeatmap] = useState(true);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const [showPrecincts, setShowPrecincts] = useState(false);
   const [colorBy, setColorBy] = useState<'risk' | 'reliability'>('risk');
   
@@ -340,26 +340,35 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
     if (loading) return;
 
     if (showHeatmap && filteredPoints.length > 0) {
-      const heatData = filteredPoints.map(point => [
-        point.latitude, 
-        point.longitude, 
-        Math.log(point.predictedCount + 1) * point.reliability
-      ] as [number, number, number]);
+      try {
+        const container = leafletMap.current.getContainer();
+        if (container.offsetWidth === 0 || container.offsetHeight === 0) {
+          console.warn('Map container not yet sized, skipping heatmap');
+        } else {
+          const heatData = filteredPoints.map(point => [
+            point.latitude, 
+            point.longitude, 
+            Math.log(point.predictedCount + 1) * point.reliability
+          ] as [number, number, number]);
 
-      heatLayerRef.current = (L as any).heatLayer(heatData, {
-        radius: 20,
-        blur: 15,
-        maxZoom: zoom,
-        gradient: {
-          0.2: "rgba(0,255,0,0.3)",
-          0.4: "rgba(173,255,47,0.4)", 
-          0.6: "rgba(255,255,0,0.5)",
-          0.8: "rgba(255,165,0,0.7)",
-          1.0: "rgba(255,0,0,0.9)"
+          heatLayerRef.current = (L as any).heatLayer(heatData, {
+            radius: 20,
+            blur: 15,
+            maxZoom: zoom,
+            gradient: {
+              0.2: "rgba(0,255,0,0.3)",
+              0.4: "rgba(173,255,47,0.4)", 
+              0.6: "rgba(255,255,0,0.5)",
+              0.8: "rgba(255,165,0,0.7)",
+              1.0: "rgba(255,0,0,0.9)"
+            }
+          });
+          
+          leafletMap.current.addLayer(heatLayerRef.current);
         }
-      });
-      
-      leafletMap.current.addLayer(heatLayerRef.current);
+      } catch (e) {
+        console.warn('Failed to render heatmap layer:', e);
+      }
     }
 
     if (showPoints) {

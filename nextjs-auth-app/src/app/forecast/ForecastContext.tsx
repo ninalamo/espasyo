@@ -99,8 +99,8 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setFilteredForecastMapPoints(mapPoints);
 
       toast.success(`Loaded forecast: ${data.name}`);
-    } catch {
-      toast.error(`Failed to load forecast ${id}`);
+    } catch (err) {
+      toast.error(`Failed to load forecast: ${err instanceof Error ? err.message : id}`);
     } finally {
       setLoading(false);
     }
