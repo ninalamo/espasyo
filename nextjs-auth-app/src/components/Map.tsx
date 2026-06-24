@@ -235,7 +235,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       if (showHeatLayer && cluster.clusterItems.length > 3) {
         try {
           const container = leafletMap.current?.getContainer();
-          if (container && (container.offsetWidth === 0 || container.offsetHeight === 0)) continue;
+          if (container && (container.offsetWidth === 0 || container.offsetHeight === 0)) return;
           const heatData = cluster.clusterItems.map(i => [i.latitude, i.longitude, 1]);
           const heatLayer = (L as any).heatLayer(heatData, {
             radius: 25, blur: 20, maxZoom: zoom,
