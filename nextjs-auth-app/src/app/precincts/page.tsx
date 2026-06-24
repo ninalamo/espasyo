@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Users, 
   MapPin, 
@@ -10,11 +10,36 @@ import {
   Plus,
   RefreshCw,
   Clock,
-  Calendar
+  Calendar,
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { manpowerApi, ManpowerAllocation, CreateManpowerRequest } from '../../utils/manpowerApi';
+import { forecastApi } from '../api/utils/forecastApi';
+import { GetPrecinctsDictionary, PrecinctGuidToNumberMap } from '../../constants/consts';
 import { Skeleton, CardSkeleton, TableSkeleton } from '../../components/ui/skeleton';
+
+const OFFICERS_PER_SQKM = 1.5;
+const PATROL_DEMAND = 40;
+
+const CRIME_SEVERITY_WEIGHTS: Record<number, number> = {
+  0: 5,  1: 4,  2: 3,  3: 2,  4: 2,
+  5: 3,  6: 4,  7: 4,  8: 2,  9: 4,
+  10: 2, 11: 5, 12: 5, 13: 5, 14: 5,
+  15: 5, 16: 5, 17: 5, 18: 2, 19: 2,
+};
+
+const RISK_BASELINE: Record<string, number> = {
+  critical: 6, high: 4, medium: 3, low: 2,
+};
+
+function getOverallRisk(avgPerMonth: number): string {
+  if (avgPerMonth >= 50) return 'critical';
+  if (avgPerMonth >= 25) return 'high';
+  if (avgPerMonth >= 10) return 'medium';
+  return 'low';
+}
 
 // Precinct options will be loaded from API
 
@@ -37,7 +62,12 @@ export default function PrecinctsPage() {
     headCount: 5,
     shift: 'Morning'
   });
-  const [showPerShift, setShowPerShift] = useState(true); // Toggle for per-shift vs totaled view
+  const [showPerShift, setShowPerShift] = useState(true);
+  const [forecasts, setForecasts] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedForecastId, setSelectedForecastId] = useState('');
+  const [suggestedByPrecinct, setSuggestedByPrecinct] = useState<Map<string, number>>(new Map());
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [precinctAreas, setPrecinctAreas] = useState<Map<number, number>>(new Map());
 
   const fetchPrecincts = useCallback(async () => {
     try {
@@ -69,7 +99,71 @@ export default function PrecinctsPage() {
   useEffect(() => {
     fetchPrecincts();
     fetchManpowerAllocations();
+    forecastApi.list().then(list => setForecasts(list)).catch(() => {});
+    fetch('/data/precincts.geojson')
+      .then(res => res.json())
+      .then(data => {
+        const areas = new Map<number, number>();
+        data.features.forEach((f: any) => {
+          const id = f.properties?.id;
+          if (id !== undefined) {
+            import('@turf/area').then(mod => {
+              const areaSqM = mod.default(f);
+              areas.set(id, Math.round((areaSqM / 10000)) / 100);
+              setPrecinctAreas(new Map(areas));
+            });
+          }
+        });
+      })
+      .catch(() => {});
   }, [fetchPrecincts, fetchManpowerAllocations]);
+
+  const precinctNumberToId = useMemo(() => {
+    const map = new Map<number, string>();
+    for (const [id, num] of Object.entries(PrecinctGuidToNumberMap)) {
+      map.set(num, id);
+    }
+    return map;
+  }, []);
+
+  useEffect(() => {
+    if (!selectedForecastId) return;
+    setLoadingSuggestions(true);
+    (async () => {
+      try {
+        const snapshot = await forecastApi.getById(selectedForecastId);
+        const predictions = snapshot.predictions || [];
+        const byPrecinct = new Map<number, typeof predictions>();
+        for (const p of predictions) {
+          const existing = byPrecinct.get(p.precinct) || [];
+          existing.push(p);
+          byPrecinct.set(p.precinct, existing);
+        }
+        const monthCount = new Set(predictions.map((p: any) => `${p.year}-${p.month}`)).size;
+        const suggested = new Map<string, number>();
+        byPrecinct.forEach((items, num) => {
+          const totalPredicted = items.reduce((s: number, i: any) => s + i.predictedCount, 0);
+          const avgPerMonth = totalPredicted / monthCount;
+          const riskLevel = getOverallRisk(avgPerMonth);
+          const areaSqKm = precinctAreas.get(num) || 0;
+          const weightedScore = items.reduce((s: number, i: any) =>
+            s + i.predictedCount * (CRIME_SEVERITY_WEIGHTS[i.crimeType] ?? 1), 0);
+          const monthlyWeighted = weightedScore / monthCount;
+          const patrolUnits = monthlyWeighted / PATROL_DEMAND;
+          const areaUnits = areaSqKm * OFFICERS_PER_SQKM;
+          const suggestedOfficers = Math.max(RISK_BASELINE[riskLevel], Math.round(patrolUnits + areaUnits));
+          const precId = precinctNumberToId.get(num);
+          if (precId) suggested.set(precId, suggestedOfficers);
+        });
+        setSuggestedByPrecinct(suggested);
+        toast.success(`Suggestions loaded from "${snapshot.name}"`);
+      } catch {
+        toast.error('Failed to load forecast suggestions');
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    })();
+  }, [selectedForecastId, precinctAreas, precinctNumberToId]);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -281,9 +375,23 @@ export default function PrecinctsPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Precinct Manpower Management</h1>
-          <p className="text-gray-600">Manage officer allocations across precincts</p>
+          <p className="text-gray-600">View, add, and edit actual officer allocations per shift. Load forecast suggestions to compare recommended vs actual staffing.</p>
         </div>
         <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-purple-600" />
+            <select
+              value={selectedForecastId}
+              onChange={(e) => setSelectedForecastId(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">No forecast selected</option>
+              {forecasts.map((f) => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+            {loadingSuggestions && <span className="text-xs text-gray-500 animate-pulse">Loading...</span>}
+          </div>
           {/* View Toggle */}
           <div className="flex items-center gap-2">
             <input
@@ -467,9 +575,19 @@ export default function PrecinctsPage() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Precinct
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Officers
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actual
                 </th>
+                {!showPerShift && selectedForecastId && (
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Suggested
+                  </th>
+                )}
+                {!showPerShift && selectedForecastId && (
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Gap
+                  </th>
+                )}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   {showPerShift ? 'Shift' : 'Shifts'}
                 </th>
@@ -510,8 +628,8 @@ export default function PrecinctsPage() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <div className="flex items-center justify-end">
                       <Users className="w-4 h-4 text-gray-400 mr-2" />
                       {editingId === allocation.id ? (
                         <input
@@ -523,15 +641,38 @@ export default function PrecinctsPage() {
                             ...prev, 
                             headCount: parseInt(e.target.value) 
                           }))}
-                          className="w-20 border border-gray-300 rounded px-2 py-1 text-sm"
+                          className="w-20 border border-gray-300 rounded px-2 py-1 text-sm text-right"
                         />
                       ) : (
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-sm font-semibold text-gray-900">
                           {allocation.headCount}
                         </span>
                       )}
                     </div>
                   </td>
+                  {!showPerShift && selectedForecastId && (() => {
+                    const suggested = suggestedByPrecinct.get(allocation.precinctId) ?? null;
+                    return (
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                        {suggested !== null ? suggested : <span className="text-gray-400">—</span>}
+                      </td>
+                    );
+                  })()}
+                  {!showPerShift && selectedForecastId && (() => {
+                    const suggested = suggestedByPrecinct.get(allocation.precinctId) ?? null;
+                    const actual = allocation.headCount || 0;
+                    const gap = suggested !== null ? actual - suggested : null;
+                    if (gap === null) {
+                      return <td className="px-6 py-4 whitespace-nowrap text-right text-sm text-gray-400">—</td>;
+                    }
+                    const color = gap === 0 ? 'text-gray-500' : gap > 0 ? 'text-green-600' : 'text-red-600';
+                    const label = gap === 0 ? 'OK' : gap > 0 ? `+${gap}` : `${gap}`;
+                    return (
+                      <td className={`px-6 py-4 whitespace-nowrap text-right text-sm font-semibold ${color}`}>
+                        {label}
+                      </td>
+                    );
+                  })()}
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {editingId === allocation.id ? (
                       <select

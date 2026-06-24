@@ -8,7 +8,7 @@ import InfoBadge from '../../components/InfoBadge';
 import DataQualityModal from './modals/DataQualityModal';
 import type { HistoricalData, ForecastData, ForecastParams, ForecastMetrics, ForecastEvaluationResult } from '../../types/forecast/ForecastBaseTypes';
 
-const MODEL_LABEL = 'SSA (Singular Spectrum Analysis)';
+const MODEL_LABEL = 'Singular Spectrum Analysis';
 
 interface Props {
   historicalData: HistoricalData[];

@@ -136,7 +136,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
       if (!response?.series) throw new Error('Invalid API response');
 
-      setActiveModelLabel('SSA (ML.NET)');
+      setActiveModelLabel('ML.NET');
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
