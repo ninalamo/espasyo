@@ -50,8 +50,6 @@ function ManpowerProposalPage() {
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [forecastName, setForecastName] = useState('');
   const [loading, setLoading] = useState(true);
-  const [publishing, setPublishing] = useState(false);
-  const [published, setPublished] = useState(false);
   const [precinctAreas, setPrecinctAreas] = useState<Map<number, number>>(new Map());
 
   useEffect(() => {
@@ -160,30 +158,28 @@ function ManpowerProposalPage() {
     return counts;
   }, [precinctAllocations]);
 
-  const publishProposal = useCallback(() => {
-    setPublishing(true);
-    try {
-      const proposal = {
-        id: crypto.randomUUID(),
-        createdAt: new Date().toISOString(),
-        forecastId,
-        forecastName,
-        allocations: precinctAllocations,
-        totalSuggestedOfficers: totalOfficers,
-      };
-      const existing = JSON.parse(localStorage.getItem('manpowerProposals') || '[]');
-      existing.push(proposal);
-      localStorage.setItem('manpowerProposals', JSON.stringify(existing));
-      setPublished(true);
-      toast.success('Manpower proposal published!');
-    } catch {
-      toast.error('Failed to publish proposal');
-    } finally {
-      setPublishing(false);
-    }
-  }, [forecastId, forecastName, precinctAllocations, totalOfficers]);
+  const exportCsv = useCallback(() => {
+    const rows = precinctAllocations.map(pa => [
+      pa.precinctName,
+      pa.avgMonthlyCrimes,
+      pa.totalPredicted,
+      pa.riskLevel,
+      pa.suggestedOfficers,
+      pa.trend === 'up' ? 'Increasing' : pa.trend === 'down' ? 'Decreasing' : 'Stable',
+    ]);
+    const csv = [
+      ['Precinct', 'Avg Crimes/Month', 'Total Predicted', 'Risk Level', 'Suggested Officers', 'Trend'],
+      ...rows,
+    ].map(r => r.join(',')).join('\n');
 
-  const handlePrint = useCallback(() => window.print(), []);
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `manpower-allocation-${forecastName.replace(/[^a-z0-9]/gi, '_') || 'plan'}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, [precinctAllocations, forecastName]);
 
   const perShift = Math.round(totalOfficers / 3);
   const nightShift = totalOfficers - perShift * 2;
@@ -247,24 +243,11 @@ function ManpowerProposalPage() {
             FAQ
           </Link>
           <button
-            onClick={handlePrint}
-            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2 text-sm"
+            onClick={exportCsv}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
           >
-            Print
+            Export as CSV
           </button>
-          {!published ? (
-            <button
-              onClick={publishProposal}
-              disabled={publishing}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2 text-sm"
-            >
-              {publishing ? 'Publishing...' : 'Publish Plan'}
-            </button>
-          ) : (
-            <span className="px-4 py-2 bg-green-100 text-green-800 rounded-lg text-sm font-medium">
-              Published
-            </span>
-          )}
         </div>
       </div>
 
