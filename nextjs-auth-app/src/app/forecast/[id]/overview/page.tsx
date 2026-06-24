@@ -6,7 +6,7 @@ import { useForecast } from '../../ForecastContext';
 import ForecastSummary from '../../ForecastSummary';
 import TrendAnalysis from '../../TrendAnalysis';
 import { forecastApi } from '../../../api/utils/forecastApi';
-import { Skeleton, CardSkeleton, ChartSkeleton } from '../../../components/ui/skeleton';
+import { Skeleton, CardSkeleton, ChartSkeleton } from '../../../../components/ui/skeleton';
 import type { ForecastEvaluationResult } from '../../../../types/forecast/ForecastBaseTypes';
 
 export default function OverviewPage() {
