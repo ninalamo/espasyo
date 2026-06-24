@@ -75,7 +75,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setHistoricalData(data.historicalData || []);
       setForecastData(data.predictions || []);
       setForecastMetrics(data.metrics ?? null);
-      setFilteredForecastData(data.predictions || []);
 
       const mapPoints = (data.predictions || []).map(f => {
         const precinctCoords: Record<number, { lat: number; lng: number }> = {
@@ -96,7 +95,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         };
       });
       setForecastMapPoints(mapPoints);
-      setFilteredForecastMapPoints(mapPoints);
 
       toast.success(`Loaded forecast: ${data.name}`);
     } catch (err) {
@@ -159,7 +157,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       );
 
       setForecastData(predictions);
-      setFilteredForecastData(predictions);
 
       const mapPoints = predictions.map(f => {
         const precinctCoords: Record<number, { lat: number; lng: number }> = {
@@ -180,7 +177,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         };
       });
       setForecastMapPoints(mapPoints);
-      setFilteredForecastMapPoints(mapPoints);
 
       return predictions;
     } catch (err: any) {
@@ -250,8 +246,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     setForecastMapPoints([]);
     setActiveModelLabel('');
     setDataQuality(null);
-    setFilteredForecastData([]);
-    setFilteredForecastMapPoints([]);
   }, []);
 
   useEffect(() => {
