@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MapPin, Users, TrendingUp, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
@@ -419,4 +419,12 @@ function ManpowerProposalPage() {
   );
 }
 
-export default withAuth(ManpowerProposalPage);
+function ManpowerPage() {
+  return (
+    <Suspense fallback={<div className="p-6 flex items-center justify-center h-96"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500" /></div>}>
+      <ManpowerProposalPage />
+    </Suspense>
+  );
+}
+
+export default withAuth(ManpowerPage);
