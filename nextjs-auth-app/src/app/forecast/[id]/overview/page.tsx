@@ -9,7 +9,7 @@ import { forecastApi } from '../../../api/utils/forecastApi';
 import type { ForecastEvaluationResult } from '../../../../types/forecast/ForecastBaseTypes';
 
 export default function OverviewPage() {
-  const { forecastData, filteredForecastData, forecastParams, historicalData, forecastMetrics, forecastId, forecast } = useForecast();
+  const { forecastData, forecastParams, historicalData, forecastMetrics, forecastId, forecast } = useForecast();
   const [evaluation, setEvaluation] = useState<ForecastEvaluationResult | null>(null);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export default function OverviewPage() {
         <h2 className="text-xl font-semibold text-gray-800 mb-4">Trend Analysis</h2>
         <TrendAnalysis
           historicalData={historicalData}
-          forecastData={filteredForecastData}
+          forecastData={forecastData}
           forecastId={forecastId}
         />
       </div>

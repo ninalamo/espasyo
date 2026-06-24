@@ -5,8 +5,6 @@ import { useParams, usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ToastContainer } from 'react-toastify';
 import { ForecastProvider, useForecast } from '../ForecastContext';
-import ForecastFilters, { ForecastFilterState } from '../ForecastFilters';
-import type { ForecastData } from '../../../types/forecast/ForecastBaseTypes';
 
 const TAB_NAV = [
   { key: 'overview', label: 'Overview', icon: '📊' },
@@ -17,7 +15,7 @@ function ForecastDetailInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const params = useParams();
   const forecastCtx = useForecast();
-  const { forecastData, filteredForecastData, filters, setFilters, setFilteredForecastData, loading } = forecastCtx;
+  const { forecastData, loading } = forecastCtx;
 
   const currentTab = TAB_NAV.find(t => pathname.includes(`/${t.key}`))?.key || 'overview';
   const forecastId = params.id as string;
@@ -56,18 +54,6 @@ function ForecastDetailInner({ children }: { children: React.ReactNode }) {
             );
           })}
         </div>
-
-        {/* Filters */}
-        {forecastData.length > 0 && (
-          <div className="px-6 pt-4">
-            <ForecastFilters
-              forecastData={forecastData}
-              filters={filters}
-              onFiltersChange={setFilters}
-              onFilteredDataChange={setFilteredForecastData}
-            />
-          </div>
-        )}
 
         {/* Content */}
         <div className="p-6">
