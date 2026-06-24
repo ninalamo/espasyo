@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 import { GetPrecinctsDictionary } from '../../constants/consts';
 import { forecastApi } from '../api/utils/forecastApi';
 import withAuth from '../hoc/withAuth';
+import { Skeleton, CardSkeleton, TableSkeleton } from '../../components/ui/skeleton';
 import type { ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
 interface PrecinctAllocation {
@@ -186,8 +187,21 @@ function ManpowerProposalPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500" />
+      <div className="p-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-64" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <Skeleton className="h-10 w-48" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <Skeleton className="h-48 w-full rounded" />
+        </div>
+        <TableSkeleton rows={10} />
       </div>
     );
   }
@@ -404,7 +418,7 @@ function ManpowerProposalPage() {
 
 function ManpowerPage() {
   return (
-    <Suspense fallback={<div className="p-6 flex items-center justify-center h-96"><div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-500" /></div>}>
+    <Suspense fallback={<div className="p-6 space-y-6"><div className="flex justify-between items-center"><div className="space-y-2"><Skeleton className="h-8 w-64" /><Skeleton className="h-4 w-96" /></div><Skeleton className="h-10 w-48" /></div><div className="grid grid-cols-1 md:grid-cols-4 gap-4">{Array.from({ length: 4 }).map((_, i) => <CardSkeleton key={i} />)}</div><div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6"><Skeleton className="h-48 w-full rounded" /></div><TableSkeleton rows={10} /></div>}>
       <ManpowerProposalPage />
     </Suspense>
   );

@@ -2,6 +2,7 @@ import { format } from 'date-fns';
 import { useState } from 'react';
 import { IncidentDto } from "../../types/crime-record/IncidentDto";
 import CrimeDetailModal from '../../components/CrimeDetailModal';
+import { TableSkeleton } from '../../components/ui/skeleton';
 
 interface CrimeTableProps {
   crimeRecords: IncidentDto[];
@@ -33,11 +34,7 @@ const CrimeTable: React.FC<CrimeTableProps> = ({
     setSelectedIncident(null);
   };
   if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-40">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
-      </div>
-    );
+    return <TableSkeleton rows={10} />;
   }
 
   if (error) {

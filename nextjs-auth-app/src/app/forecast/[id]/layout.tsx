@@ -1,7 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useParams, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ToastContainer } from 'react-toastify';
 import { ForecastProvider, useForecast } from '../ForecastContext';
@@ -14,8 +13,7 @@ const TAB_NAV = [
 function ForecastDetailInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const params = useParams();
-  const forecastCtx = useForecast();
-  const { forecastData, loading } = forecastCtx;
+  useForecast();
 
   const currentTab = TAB_NAV.find(t => pathname.includes(`/${t.key}`))?.key || 'overview';
   const forecastId = params.id as string;
@@ -57,16 +55,7 @@ function ForecastDetailInner({ children }: { children: React.ReactNode }) {
 
         {/* Content */}
         <div className="p-6">
-          {loading ? (
-            <div className="flex justify-center py-12">
-              <svg className="animate-spin h-8 w-8 text-indigo-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-            </div>
-          ) : (
-            children
-          )}
+          {children}
         </div>
       </div>
     </div>

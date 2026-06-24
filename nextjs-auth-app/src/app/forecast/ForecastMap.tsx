@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 import dynamic from 'next/dynamic';
 import 'leaflet/dist/leaflet.css';
 import { CrimeTypesDictionary, GetPrecinctsDictionary } from '../../constants/consts';
+import { Skeleton } from '../../components/ui/skeleton';
 import { 
   ForecastMapPoint, 
   ForecastMapFilters, 
@@ -12,6 +13,39 @@ import {
   RISK_LEVEL_COLORS,
   RELIABILITY_THRESHOLDS
 } from '../../types/forecast/ExtendedForecastTypes';
+
+function MapSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-7 w-16" />
+          </div>
+        ))}
+      </div>
+      <div className="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+        <div className="flex gap-4">
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-5 w-24" />
+          <Skeleton className="h-5 w-28" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
+        </div>
+      </div>
+      <Skeleton className="h-[500px] w-full rounded-lg" />
+      <div className="flex gap-4">
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-4 w-40" />
+      </div>
+    </div>
+  );
+}
 
 interface ForecastMapProps {
   center: [number, number];
@@ -459,7 +493,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  if (!isClient || !L || loading) {
+  if (!isClient || !L) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
@@ -467,10 +501,14 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="text-gray-600">{!isClient || !L ? 'Loading map components...' : 'Loading forecast map...'}</p>
+          <p className="text-gray-600">Loading map components...</p>
         </div>
       </div>
     );
+  }
+
+  if (loading) {
+    return <MapSkeleton />;
   }
 
   if (forecastPoints.length === 0) {

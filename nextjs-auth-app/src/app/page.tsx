@@ -7,6 +7,7 @@ import { format, subDays, startOfDay } from 'date-fns';
 import withAuth from './hoc/withAuth';
 import { apiService } from './api/utils/apiService';
 import { IncidentDto } from '../types/crime-record/IncidentDto';
+import { Skeleton } from '../components/ui/skeleton';
 
 interface PeriodComparison {
   current: number;
@@ -200,9 +201,27 @@ const Home = () => {
           </div>
           
           {dashboardStats.isLoading ? (
-            <div className="p-6">
-              <div className="flex justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-600 border-t-transparent"></div>
+            <div className="p-6 space-y-6">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="bg-white border border-gray-200 rounded-lg p-4 space-y-2">
+                    <Skeleton className="h-8 w-16 mx-auto" />
+                    <Skeleton className="h-4 w-20 mx-auto" />
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <div key={i} className="space-y-3">
+                    <Skeleton className="h-5 w-24" />
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <div key={j} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                        <Skeleton className="h-4 w-24" />
+                        <Skeleton className="h-4 w-16" />
+                      </div>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
           ) : (

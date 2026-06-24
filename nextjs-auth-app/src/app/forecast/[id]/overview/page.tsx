@@ -31,8 +31,8 @@ export default function OverviewPage() {
           </div>
           <Skeleton className="h-12 w-48 rounded-lg" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {Array.from({ length: 5 }).map((_, i) => <CardSkeleton key={i} />)}
         </div>
         <ChartSkeleton />
       </div>
