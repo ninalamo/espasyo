@@ -6,10 +6,11 @@ import { useForecast } from '../../ForecastContext';
 import ForecastSummary from '../../ForecastSummary';
 import TrendAnalysis from '../../TrendAnalysis';
 import { forecastApi } from '../../../api/utils/forecastApi';
+import { Skeleton, CardSkeleton, ChartSkeleton } from '../../../components/ui/skeleton';
 import type { ForecastEvaluationResult } from '../../../../types/forecast/ForecastBaseTypes';
 
 export default function OverviewPage() {
-  const { forecastData, forecastParams, historicalData, forecastMetrics, forecastId, forecast } = useForecast();
+  const { forecastData, forecastParams, historicalData, forecastMetrics, forecastId, forecast, loading } = useForecast();
   const [evaluation, setEvaluation] = useState<ForecastEvaluationResult | null>(null);
 
   useEffect(() => {
@@ -20,10 +21,20 @@ export default function OverviewPage() {
     }
   }, [forecastId]);
 
-  if (forecastData.length === 0) {
+  if (loading || forecastData.length === 0) {
     return (
-      <div className="text-center text-gray-500 py-8">
-        No forecast data available.
+      <div className="space-y-8">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-48" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <Skeleton className="h-12 w-48 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {Array.from({ length: 3 }).map((_, i) => <CardSkeleton key={i} />)}
+        </div>
+        <ChartSkeleton />
       </div>
     );
   }
