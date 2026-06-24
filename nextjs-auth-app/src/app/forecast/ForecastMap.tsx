@@ -398,7 +398,16 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
             }
           });
           
-          leafletMap.current.addLayer(heatLayerRef.current);
+          const layer = heatLayerRef.current;
+          requestAnimationFrame(() => {
+            try {
+              if (leafletMap.current && layer && heatLayerRef.current === layer) {
+                leafletMap.current.addLayer(layer);
+              }
+            } catch (e) {
+              console.warn('Failed to add heatmap layer to map:', e);
+            }
+          });
         }
       } catch (e) {
         console.warn('Failed to render heatmap layer:', e);
