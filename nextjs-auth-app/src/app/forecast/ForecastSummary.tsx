@@ -137,15 +137,15 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
   return (
     <div className="space-y-6">
       {/* Calculation Basis and Methodology */}
-      <Link href="/methodology" className="block bg-blue-50 border border-blue-200 rounded-lg p-4 hover:bg-blue-100 transition">
+      <Link href="/methodology" className="block bg-ubuntu-50 border border-blue-200 rounded-lg p-4 hover:bg-blue-100 transition">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-ubuntu-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
               <h4 className="font-medium text-blue-800">How These Numbers Are Calculated</h4>
-              <p className="text-sm text-blue-600 mt-1">
+              <p className="text-sm text-ubuntu-600 mt-1">
                 View methodology documentation → risk classification formulas, trend methods, and data sources.
               </p>
             </div>
@@ -158,9 +158,9 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+        <div className="bg-gradient-to-r from-ubuntu-50 to-aubergine-50 p-4 rounded-lg border border-ubuntu-200">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-600 rounded-lg">
+            <div className="p-2 bg-ubuntu-500 rounded-lg">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
@@ -168,7 +168,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             <div className="ml-4">
               <p className="text-sm font-medium text-blue-800">Total Predicted Cases</p>
               <p className="text-2xl font-bold text-blue-900">{summary.totalPredicted.toLocaleString()}</p>
-              <p className="text-xs text-blue-600 mt-1">~{summary.avgMonthly.toLocaleString()}/month avg</p>
+              <p className="text-xs text-ubuntu-600 mt-1">~{summary.avgMonthly.toLocaleString()}/month avg</p>
             </div>
           </div>
         </div>
@@ -301,7 +301,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
         {/* Trend Distribution */}
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mr-2 text-ubuntu-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
             </svg>
             Trend Analysis Results
@@ -450,7 +450,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             ))}
           </div>
           
-          <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+          <div className="mt-4 p-3 bg-ubuntu-50 rounded border border-blue-200">
             <div className="text-sm text-blue-800">
               <strong>Risk Level Determination:</strong> Each prediction is compared to the historical average 
               for that specific precinct and crime type. Thresholds are computed dynamically from historical 
@@ -586,7 +586,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
                             </div>
                           )}
                           
-                          <div className="bg-blue-50 border border-blue-200 rounded p-2">
+                          <div className="bg-ubuntu-50 border border-blue-200 rounded p-2">
                             <div className="text-xs text-blue-800">
                               <strong>Note:</strong> Risk levels are calculated by comparing predicted crime counts to historical averages for the same precinct and crime types. 
                               Higher numbers indicate periods requiring more resources and attention.

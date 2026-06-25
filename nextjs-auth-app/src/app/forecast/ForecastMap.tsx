@@ -59,8 +59,8 @@ interface InterpolatedPoint extends ForecastMapPoint {
 }
 
 const PRECINCT_COLORS = [
-  '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
-  '#911eb4', '#42d4f4', '#f032e6', '#bfef45',
+  '#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFE8A1', '#E8BAFF',
+  '#FFD9BA', '#A1FFE8', '#FFC3E0', '#D4BAFF',
 ];
 
 const ForecastMap: React.FC<ForecastMapProps> = ({ 
@@ -320,9 +320,10 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
       .then(data => {
         precinctLayerRef.current = L.geoJSON(data, {
           style: (feature: any) => ({
-            color: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
-            weight: 2.5,
-            fill: false,
+            color: '#666',
+            weight: 2,
+            fillColor: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
+            fillOpacity: 0.35,
           }),
         });
 
@@ -398,7 +399,16 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
             }
           });
           
-          leafletMap.current.addLayer(heatLayerRef.current);
+          const layer = heatLayerRef.current;
+          requestAnimationFrame(() => {
+            try {
+              if (leafletMap.current && layer && heatLayerRef.current === layer) {
+                leafletMap.current.addLayer(layer);
+              }
+            } catch (e) {
+              console.warn('Failed to add heatmap layer to map:', e);
+            }
+          });
         }
       } catch (e) {
         console.warn('Failed to render heatmap layer:', e);
@@ -538,9 +548,9 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
     <div className="space-y-4">
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+        <div className="bg-ubuntu-50 p-4 rounded-lg border border-blue-200">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-600 rounded-lg">
+            <div className="p-2 bg-ubuntu-500 rounded-lg">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7" />
               </svg>
@@ -696,7 +706,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
                   }}
                   className={`text-xs px-2 py-1 rounded border ${
                     filters.riskLevels.includes(level)
-                      ? 'bg-blue-600 text-white border-blue-600'
+                      ? 'bg-ubuntu-500 text-white border-ubuntu-500'
                       : 'bg-white text-gray-700 border-gray-300'
                   }`}
                 >
@@ -725,7 +735,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
                 className={`flex items-center px-3 py-1.5 rounded text-sm font-medium transition ${
                   isPlaying 
                     ? 'bg-red-100 text-red-700 border border-red-300' 
-                    : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
+                    : 'bg-blue-100 text-ubuntu-700 border border-blue-300 hover:bg-blue-200'
                 }`}
                 title={isPlaying ? 'Pause animation' : showAnimSlider ? 'Resume animation' : 'Start time animation'}
               >

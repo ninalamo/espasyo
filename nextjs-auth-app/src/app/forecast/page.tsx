@@ -45,7 +45,7 @@ function ForecastDashboard() {
         </div>
         <Link
           href="/forecast/new"
-          className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-6 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition flex items-center font-medium shadow-lg"
+          className="bg-gradient-to-r from-ubuntu-500 to-aubergine-600 text-white px-6 py-3 rounded-lg hover:from-ubuntu-700 hover:to-aubergine-800 transition flex items-center font-medium shadow-lg"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -92,7 +92,7 @@ function ForecastDashboard() {
               </Link>
               <Link
                 href="/analysis"
-                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                className="inline-flex items-center px-6 py-3 bg-ubuntu-500 text-white rounded-lg hover:bg-ubuntu-700 transition font-medium"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -123,7 +123,7 @@ function ForecastDashboard() {
                 <div className="flex items-center gap-2">
                   <Link
                     href={`/forecast/${f.id}/summary`}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition text-sm"
+                    className="bg-ubuntu-500 text-white px-4 py-2 rounded-md hover:bg-ubuntu-700 transition text-sm"
                   >
                     View
                   </Link>

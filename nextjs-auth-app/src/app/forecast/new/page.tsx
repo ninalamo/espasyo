@@ -232,7 +232,7 @@ export default withAuth(function NewForecastPage() {
       <ToastContainer />
 
       <div className="mb-6">
-        <Link href="/forecast" className="text-blue-600 hover:text-blue-800 text-sm flex items-center mb-4">
+        <Link href="/forecast" className="text-ubuntu-600 hover:text-blue-800 text-sm flex items-center mb-4">
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -387,7 +387,7 @@ export default withAuth(function NewForecastPage() {
             </button>
             <button
               onClick={handleGenerate}
-              className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-8 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition font-medium shadow-lg"
+              className="bg-gradient-to-r from-ubuntu-500 to-aubergine-600 text-white px-8 py-3 rounded-lg hover:from-ubuntu-700 hover:to-aubergine-800 transition font-medium shadow-lg"
             >
               Generate Forecast
             </button>
@@ -419,9 +419,9 @@ export default withAuth(function NewForecastPage() {
                 <div className="text-2xl font-bold text-indigo-700">{forecastData.length}</div>
                 <div className="text-xs text-indigo-600">Predictions</div>
               </div>
-              <div className="bg-blue-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-blue-700">{new Set(forecastData.map(f => `${f.year}-${f.month}`)).size}</div>
-                <div className="text-xs text-blue-600">Months</div>
+              <div className="bg-ubuntu-50 rounded-lg p-4 text-center">
+                <div className="text-2xl font-bold text-ubuntu-700">{new Set(forecastData.map(f => `${f.year}-${f.month}`)).size}</div>
+                <div className="text-xs text-ubuntu-600">Months</div>
               </div>
               <div className="bg-purple-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-purple-700">{new Set(forecastData.map(f => f.precinct)).size}</div>
@@ -486,7 +486,7 @@ export default withAuth(function NewForecastPage() {
             <input
               type="file" accept=".json,application/json"
               onChange={handleFileUpload}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-ubuntu-50 file:text-ubuntu-700 hover:file:bg-blue-100"
             />
             <div className="flex justify-end mt-4">
               <button onClick={() => { setShowUploadModal(false); setUploadError(null); }} className="px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition">

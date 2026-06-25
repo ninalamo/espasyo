@@ -245,7 +245,7 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
                           </span>
                         )}
                         {precinct.suggestedOfficers && (
-                          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
+                          <span className="px-2 py-1 text-xs bg-blue-100 text-ubuntu-700 rounded">
                             👮 {precinct.suggestedOfficers}
                           </span>
                         )}
@@ -269,11 +269,11 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
       )}
 
       {(selectedPrecinct !== null || selectedCrimeType !== null) && (
-        <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2">
+        <div className="flex items-center gap-2 text-sm text-ubuntu-700 bg-ubuntu-50 border border-blue-200 rounded-lg px-4 py-2">
           <span>🔍 Showing trends for <strong>{selectedPrecinct !== null ? GetPrecinctsDictionary[selectedPrecinct] : ''}{selectedCrimeType !== null ? CrimeTypesDictionary[selectedCrimeType] : ''}</strong></span>
           <button
             onClick={() => { setSelectedPrecinct(null); setSelectedCrimeType(null); }}
-            className="ml-2 text-blue-600 hover:text-blue-800 underline"
+            className="ml-2 text-ubuntu-600 hover:text-blue-800 underline"
           >
             Clear
           </button>
@@ -284,7 +284,7 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
         {/* Precinct Trends */}
         <div className="bg-white p-6 rounded-lg border border-gray-200">
           <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mr-2 text-ubuntu-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -310,7 +310,7 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
                     onClick={() => setSelectedPrecinct(isSelected ? null : precinct.id)}
                     className={`p-3 rounded-lg border cursor-pointer transition ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                        ? 'border-blue-500 bg-ubuntu-50 ring-2 ring-blue-200'
                         : getTrendColor(precinct.increasing, precinct.decreasing, precinct.stable)
                     }`}
                   >
@@ -319,7 +319,7 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
                         <div className="flex items-center gap-2">
                           <span className="font-medium truncate">{precinct.name}</span>
                           {precinct.suggestedOfficers && (
-                            <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded flex-shrink-0" title={`Suggested officers: ~${precinct.avgPerMonth} monthly cases ÷ ${MANPOWER_CASES_PER_OFFICER} per officer`}>
+                            <span className="text-xs bg-blue-100 text-ubuntu-700 px-1.5 py-0.5 rounded flex-shrink-0" title={`Suggested officers: ~${precinct.avgPerMonth} monthly cases ÷ ${MANPOWER_CASES_PER_OFFICER} per officer`}>
                               👮 {precinct.suggestedOfficers}
                             </span>
                           )}
@@ -343,7 +343,7 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
           <div className="mt-3 text-xs text-gray-500">
             Click a precinct to see its crime type breakdown &nbsp;·&nbsp; 👮 = suggested officers
           </div>
-          <a href={forecastId ? `/manpower?forecastId=${forecastId}` : '/manpower'} className="mt-2 inline-block text-xs text-blue-600 hover:text-blue-800">
+          <a href={forecastId ? `/manpower?forecastId=${forecastId}` : '/manpower'} className="mt-2 inline-block text-xs text-ubuntu-600 hover:text-blue-800">
             → View on Manpower Allocation page
           </a>
         </div>
@@ -380,7 +380,7 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
                     onClick={() => setSelectedCrimeType(isSelected ? null : crime.id)}
                     className={`p-3 rounded-lg border cursor-pointer transition ${
                       isSelected
-                        ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                        ? 'border-blue-500 bg-ubuntu-50 ring-2 ring-blue-200'
                         : getTrendColor(crime.increasing, crime.decreasing, crime.stable)
                     }`}
                   >
@@ -471,15 +471,15 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
       )}
 
       {/* Methodology and Data Information */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div className="bg-ubuntu-50 border border-blue-200 rounded-lg p-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <svg className="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 text-ubuntu-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <div>
               <h4 className="font-medium text-blue-800">Understanding the Analysis</h4>
-              <p className="text-sm text-blue-600 mt-1">
+              <p className="text-sm text-ubuntu-600 mt-1">
                 Learn about trend indicators, calculation methods, data sources, and important limitations.
               </p>
             </div>

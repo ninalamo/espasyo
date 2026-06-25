@@ -58,7 +58,7 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams }) => 
                             key={tab.key}
                             className={({ selected }) =>
                                 selected
-                                    ? 'flex-1 py-3 px-4 text-sm font-medium text-blue-700 bg-white border-b-2 border-blue-600 focus:outline-none'
+                                    ? 'flex-1 py-3 px-4 text-sm font-medium text-ubuntu-700 bg-white border-b-2 border-ubuntu-500 focus:outline-none'
                                     : 'flex-1 py-3 px-4 text-sm font-medium text-gray-600 hover:text-gray-800 hover:bg-gray-100 focus:outline-none'
                             }
                         >

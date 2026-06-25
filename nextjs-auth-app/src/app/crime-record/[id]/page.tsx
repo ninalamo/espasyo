@@ -47,7 +47,7 @@ const CrimeDetailsPage = () => {
       <div className="flex flex-col items-center justify-center min-h-screen text-gray-700">
         <h1 className="text-xl font-semibold mb-4">Crime Record Not Found</h1>
         <Link href="/crime-record">
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition">
+          <button className="bg-ubuntu-500 text-white px-4 py-2 rounded-md hover:bg-ubuntu-700 transition">
             Back to List
           </button>
         </Link>

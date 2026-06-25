@@ -18,9 +18,9 @@ const ForecastDocumentation: React.FC = () => {
       case 'overview':
         return (
           <div className="space-y-6">
-            <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+            <div className="bg-ubuntu-50 p-6 rounded-lg border border-blue-200">
               <h3 className="text-xl font-semibold text-blue-800 mb-4">Crime Forecasting System Overview</h3>
-              <p className="text-blue-700 mb-4">
+              <p className="text-ubuntu-700 mb-4">
                 This forecasting system predicts future crime patterns by analyzing trends in historical incident data.
                 The system uses Singular Spectrum Analysis (SSA) — a time series decomposition method — combined with
                 K-Means clustering to identify crime hotspots and generate risk assessments.
@@ -28,7 +28,7 @@ const ForecastDocumentation: React.FC = () => {
 
               <div>
                 <h4 className="font-medium text-blue-800 mb-3">Key Capabilities</h4>
-                <ul className="space-y-2 text-sm text-blue-700">
+                <ul className="space-y-2 text-sm text-ubuntu-700">
                   <li>• Predicts crime patterns up to 12 months ahead</li>
                   <li>• Analyzes trends by precinct and crime type</li>
                   <li>• Identifies high-risk areas and forecast periods</li>
@@ -315,7 +315,7 @@ const ForecastDocumentation: React.FC = () => {
       case 'interpretation':
         return (
           <div className="space-y-6">
-            <div className="bg-blue-50 p-6 rounded-lg border border-blue-200">
+            <div className="bg-ubuntu-50 p-6 rounded-lg border border-blue-200">
               <h3 className="text-xl font-semibold text-blue-800 mb-4">How to Interpret and Use Forecasts</h3>
 
               <div className="space-y-6">
@@ -324,7 +324,7 @@ const ForecastDocumentation: React.FC = () => {
                   <h4 className="text-lg font-medium text-gray-800 mb-4">Understanding Confidence Levels</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h5 className="font-medium text-blue-700 mb-3">Confidence Interpretation Guide</h5>
+                      <h5 className="font-medium text-ubuntu-700 mb-3">Confidence Interpretation Guide</h5>
                       <div className="space-y-3">
                         <div className="flex items-center justify-between p-3 bg-green-50 rounded">
                           <span className="font-medium">90%+ Confidence</span>
@@ -346,17 +346,17 @@ const ForecastDocumentation: React.FC = () => {
                     </div>
 
                     <div>
-                      <h5 className="font-medium text-blue-700 mb-3">Recommended Use Cases</h5>
+                      <h5 className="font-medium text-ubuntu-700 mb-3">Recommended Use Cases</h5>
                       <div className="space-y-3 text-sm">
-                        <div className="p-3 bg-blue-50 rounded">
+                        <div className="p-3 bg-ubuntu-50 rounded">
                           <strong>Strategic Planning (6-12 months):</strong>
                           <br />Budget allocation, resource planning, policy development
                         </div>
-                        <div className="p-3 bg-blue-50 rounded">
+                        <div className="p-3 bg-ubuntu-50 rounded">
                           <strong>Tactical Planning (3-6 months):</strong>
                           <br />Shift scheduling, patrol routes, equipment deployment
                         </div>
-                        <div className="p-3 bg-blue-50 rounded">
+                        <div className="p-3 bg-ubuntu-50 rounded">
                           <strong>Operational Planning (1-3 months):</strong>
                           <br />Daily operations, immediate resource allocation, crisis response
                         </div>
@@ -447,27 +447,27 @@ const ForecastDocumentation: React.FC = () => {
                 <div className="bg-white p-6 rounded border">
                   <h4 className="text-lg font-medium text-gray-800 mb-4">Decision-Making Framework</h4>
                   <div className="space-y-4">
-                    <div className="p-4 bg-blue-50 rounded">
+                    <div className="p-4 bg-ubuntu-50 rounded">
                       <h5 className="font-medium text-blue-800 mb-2">Step 1: Assess Data Quality</h5>
-                      <p className="text-sm text-blue-700">
+                      <p className="text-sm text-ubuntu-700">
                         Check the data quality score, sample size, and time coverage. Scores above 80 indicate high reliability.
                       </p>
                     </div>
-                    <div className="p-4 bg-blue-50 rounded">
+                    <div className="p-4 bg-ubuntu-50 rounded">
                       <h5 className="font-medium text-blue-800 mb-2">Step 2: Evaluate Confidence Levels</h5>
-                      <p className="text-sm text-blue-700">
+                      <p className="text-sm text-ubuntu-700">
                         Focus on predictions with confidence levels appropriate for your decision timeline and risk tolerance.
                       </p>
                     </div>
-                    <div className="p-4 bg-blue-50 rounded">
+                    <div className="p-4 bg-ubuntu-50 rounded">
                       <h5 className="font-medium text-blue-800 mb-2">Step 3: Consider External Factors</h5>
-                      <p className="text-sm text-blue-700">
+                      <p className="text-sm text-ubuntu-700">
                         Identify any external factors not captured by the model that might affect future crime patterns.
                       </p>
                     </div>
-                    <div className="p-4 bg-blue-50 rounded">
+                    <div className="p-4 bg-ubuntu-50 rounded">
                       <h5 className="font-medium text-blue-800 mb-2">Step 4: Plan for Uncertainty</h5>
-                      <p className="text-sm text-blue-700">
+                      <p className="text-sm text-ubuntu-700">
                         Build flexibility into plans to account for forecast uncertainty and unexpected changes.
                       </p>
                     </div>

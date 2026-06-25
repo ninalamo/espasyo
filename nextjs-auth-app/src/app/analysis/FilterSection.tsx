@@ -115,14 +115,14 @@ const FilterSection = ({ selectedFeatures, onFilterChange }: FilterSectionProps)
           <button
             type="button"
             onClick={() => setIsExpanded(!isExpanded)}
-            className="text-blue-600 hover:text-blue-800 transition text-xs focus:outline-none"
+            className="text-ubuntu-600 hover:text-blue-800 transition text-xs focus:outline-none"
           >
             {isExpanded ? "Hide Filters ▲" : "Show Filters ▼"}
           </button>
           <button
             type="button"
             onClick={() => setRefreshKey((prev) => prev + 1)}
-            className="text-blue-600 underline hover:text-blue-800 transition text-xs focus:outline-none"
+            className="text-ubuntu-600 underline hover:text-blue-800 transition text-xs focus:outline-none"
           >
             Refresh
           </button>

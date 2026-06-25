@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
-import * as turf from '@turf/turf';
 import { Cluster } from '../types/analysis/ClusterDto';
 import { CrimeTypesDictionary } from '../constants/consts';
 import MapModal from './MapModal';
@@ -19,8 +18,8 @@ interface MapProps {
 type ViewMode = 'points' | 'heatmap' | 'both';
 
 const PRECINCT_COLORS = [
-  '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
-  '#911eb4', '#42d4f4', '#f032e6', '#bfef45',
+  '#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFE8A1', '#E8BAFF',
+  '#FFD9BA', '#A1FFE8', '#FFC3E0', '#D4BAFF',
 ];
 
 const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping }) => {
@@ -28,14 +27,12 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const leafletMap = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const heatLayersRef = useRef<L.LayerGroup | null>(null);
-  const envelopeLayersRef = useRef<L.LayerGroup | null>(null);
   const precinctLayerRef = useRef<L.GeoJSON | null>(null);
   const precinctLabelLayerRef = useRef<L.LayerGroup | null>(null);
 
   const crimeTypeEnum = CrimeTypesDictionary;
 
   const [viewMode, setViewMode] = useState<ViewMode>('both');
-  const [showEnvelope, setShowEnvelope] = useState(true);
   const [showPrecincts, setShowPrecincts] = useState(false);
 
   const [stepwise, setStepwise] = useState(false);
@@ -156,9 +153,10 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       .then(data => {
         precinctLayerRef.current = L.geoJSON(data, {
           style: (feature) => ({
-            color: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
-            weight: 2.5,
-            fill: false,
+            color: '#666',
+            weight: 2,
+            fillColor: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
+            fillOpacity: 0.35,
           }),
         });
 
@@ -206,31 +204,18 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       }).addTo(leafletMap.current);
       markersLayerRef.current = L.layerGroup().addTo(leafletMap.current);
       heatLayersRef.current = L.layerGroup().addTo(leafletMap.current);
-      envelopeLayersRef.current = L.layerGroup().addTo(leafletMap.current);
       precinctLabelLayerRef.current = L.layerGroup();
       setMapReady(true);
     }
 
     markersLayerRef.current?.clearLayers();
     heatLayersRef.current?.clearLayers();
-    envelopeLayersRef.current?.clearLayers();
 
     const showPointsLayer = viewMode === 'points' || viewMode === 'both';
     const showHeatLayer = viewMode === 'heatmap' || viewMode === 'both';
 
     filteredClusters.forEach(cluster => {
       const clusterColor = clusterColorsMapping[cluster.clusterId] || "#D3D3D3";
-
-      if (showEnvelope && cluster.clusterItems.length > 2) {
-        const points = cluster.clusterItems.map(i => [i.latitude, i.longitude] as [number, number]);
-        const fc = turf.featureCollection(points.map(pt => turf.point([pt[1], pt[0]])));
-        const hull = turf.convex(fc) || turf.bboxPolygon(turf.bbox(fc));
-        const buffered = turf.buffer(hull, 0.3, { units: 'kilometers' });
-        if (!buffered) return;
-        const coords = buffered.geometry.coordinates[0];
-        const latLngs = coords.map(c => [c[1], c[0]] as [number, number]);
-        L.polygon(latLngs, { stroke: false, fillColor: clusterColor, fillOpacity: 0.3 }).addTo(envelopeLayersRef.current!);
-      }
 
       if (showHeatLayer && cluster.clusterItems.length > 3) {
         try {
@@ -308,7 +293,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         });
       }
     });
-  }, [filteredClusters, center, zoom, viewMode, showEnvelope, compareMode, periodBYears, clusterColorsMapping, crimeTypeEnum]);
+  }, [filteredClusters, center, zoom, viewMode, compareMode, periodBYears, clusterColorsMapping, crimeTypeEnum]);
 
   const [showFilters, setShowFilters] = useState(true);
 
@@ -351,7 +336,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                     onClick={() => setViewMode(mode)}
                     className={`px-2 py-1 text-xs rounded border transition ${
                       viewMode === mode
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-ubuntu-500 text-white border-ubuntu-500'
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                     }`}
                   >
@@ -360,10 +345,6 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                 ))}
               </div>
               <div className="flex items-center gap-2 border-l border-gray-200 pl-2">
-                <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
-                  <input type="checkbox" checked={showEnvelope} onChange={e => setShowEnvelope(e.target.checked)} className="accent-blue-600" />
-                  Env
-                </label>
                 <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
                   <input type="checkbox" checked={showPrecincts} onChange={e => setShowPrecincts(e.target.checked)} className="accent-blue-600" />
                   Precincts
@@ -385,13 +366,13 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
               {compareMode && (
                 <div className="flex gap-4 p-2.5 bg-gray-50 rounded-lg border">
                   <div className="flex-1">
-                    <span className="text-xs font-medium text-blue-700">Period A (Blue)</span>
+                    <span className="text-xs font-medium text-ubuntu-700">Period A (Blue)</span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {uniqueYears.map(y => (
                         <button
                           key={y}
                           onClick={() => setPeriodAYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
-                          className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                          className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
                         >{y}</button>
                       ))}
                     </div>
@@ -414,11 +395,11 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
               {stepwise && (
                 <div className="flex items-center justify-between gap-2 p-2.5 bg-gray-50 rounded-lg border">
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => setPlay(!play)} className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700">{play ? '⏸' : '▶'} {play ? 'Pause' : 'Play'}</button>
+                    <button onClick={() => setPlay(!play)} className="px-3 py-1 text-xs font-medium bg-ubuntu-500 text-white rounded hover:bg-ubuntu-700">{play ? '⏸' : '▶'} {play ? 'Pause' : 'Play'}</button>
                     <button onClick={() => setCurrentStep(p => Math.max(p - 1, 0))} className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50">◀</button>
                     <button onClick={() => setCurrentStep(p => Math.min(p + 1, uniqueSteps.length - 1))} className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50">▶</button>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                  <span className="px-3 py-1 rounded-full bg-blue-100 text-ubuntu-700 text-xs font-semibold">
                     {(() => { const [y, m] = uniqueSteps[currentStep].split('-').map(Number); return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short' }).format(new Date(y, m - 1)); })()}
                   </span>
                 </div>
@@ -432,14 +413,14 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                       const m = i + 1;
                       return (
                         <button key={m} onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
-                          className={`px-2 py-0.5 border rounded text-xs ${selectedMonths.includes(m) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                          className={`px-2 py-0.5 border rounded text-xs ${selectedMonths.includes(m) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
                         >{m}</button>
                       );
                     })}
                     <span className="text-xs font-medium text-gray-600 ml-1">Year:</span>
                     {uniqueYears.map(y => (
                       <button key={y} onClick={() => setSelectedYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
-                        className={`px-2 py-0.5 border rounded text-xs ${selectedYears.includes(y) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                        className={`px-2 py-0.5 border rounded text-xs ${selectedYears.includes(y) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
                       >{y}</button>
                     ))}
                   </div>
@@ -450,7 +431,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                         const crimeId = parseInt(id);
                         return (
                           <button key={id} onClick={() => setSelectedCrimeTypes(prev => prev.includes(crimeId) ? prev.filter(x => x !== crimeId) : [...prev, crimeId])}
-                            className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(crimeId) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                            className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(crimeId) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
                           >{label}</button>
                         );
                       })}

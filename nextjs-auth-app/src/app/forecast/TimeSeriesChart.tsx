@@ -291,7 +291,7 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
           ) : (
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
-                <svg className="animate-spin h-8 w-8 mx-auto mb-2 text-blue-600" fill="none" viewBox="0 0 24 24">
+                <svg className="animate-spin h-8 w-8 mx-auto mb-2 text-ubuntu-600" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -303,12 +303,12 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+        <div className="bg-ubuntu-50 p-4 rounded-lg border border-blue-200">
           <div className="flex items-center">
-            <div className="w-4 h-4 bg-blue-500 rounded mr-3"></div>
+            <div className="w-4 h-4 bg-ubuntu-500 rounded mr-3"></div>
             <div>
               <p className="font-medium text-blue-900">Historical Data</p>
-              <p className="text-sm text-blue-700">Actual recorded crime incidents</p>
+              <p className="text-sm text-ubuntu-700">Actual recorded crime incidents</p>
             </div>
           </div>
         </div>

@@ -153,7 +153,7 @@ const CrimeDetailModal: React.FC<CrimeDetailModalProps> = ({ isOpen, onClose, in
         <div className="flex justify-end p-6 border-t border-gray-200 bg-gray-50 rounded-b-lg">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            className="px-4 py-2 bg-ubuntu-500 text-white rounded-md hover:bg-ubuntu-700 transition"
           >
             Close
           </button>

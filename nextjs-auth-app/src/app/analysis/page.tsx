@@ -24,10 +24,10 @@ const AnalysisPage = () => {
   const [loading, setLoading] = useState(false);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [mapKey, setMapKey] = useState(0);
-  const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+  const [selectedFeatures, setSelectedFeatures] = useState<string[]>(["Latitude", "Longitude"]);
   const [lastAnalysisParams, setLastAnalysisParams] = useState<any>(null);
 
-  const [numberOfClusters, setNumberOfClusters] = useState(3);
+  const [numberOfClusters, setNumberOfClusters] = useState(0);
   const [numberOfRuns, setNumberOfRuns] = useState(1);
 
   // Load existing analysis data from localStorage on component mount
@@ -82,10 +82,6 @@ const AnalysisPage = () => {
     }
     if (!selectedFeatures || selectedFeatures.length === 0) {
       toast.error("Please select a feature.");
-      return;
-    }
-    if (numberOfClusters < 3 || numberOfClusters > 10) {
-      toast.error("Number of clusters must be between 3 and 10.");
       return;
     }
     if (numberOfRuns < 1 || numberOfRuns > 10) {
@@ -347,7 +343,7 @@ const AnalysisPage = () => {
         </div>
         
         {analysisSummary && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 min-w-fit">
+            <div className="bg-gradient-to-r from-ubuntu-50 to-aubergine-50 border border-ubuntu-200 rounded-lg p-4 min-w-fit">
             <h3 className="font-semibold text-blue-800 mb-2 flex items-center">
               <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -380,7 +376,7 @@ const AnalysisPage = () => {
             <div className="mt-3 flex gap-2">
               <button
                 onClick={downloadAnalysisReport}
-                className="flex-1 bg-blue-600 text-white text-sm px-3 py-2 rounded-md hover:bg-blue-700 transition flex items-center justify-center"
+                className="flex-1 bg-ubuntu-500 text-white text-sm px-3 py-2 rounded-md hover:bg-ubuntu-700 transition flex items-center justify-center"
                 title="Download analysis report (Markdown)"
               >
                 <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -427,7 +423,7 @@ const AnalysisPage = () => {
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="px-6 py-4 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mr-2 text-ubuntu-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
@@ -449,7 +445,7 @@ const AnalysisPage = () => {
           <div className="flex justify-end pt-4 border-t border-gray-200">
             <button
               onClick={handleFilter}
-              className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center font-medium shadow-lg hover:shadow-xl"
+              className="bg-gradient-to-r from-ubuntu-500 to-ubuntu-700 text-white px-8 py-3 rounded-lg hover:from-ubuntu-700 hover:to-aubergine-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center font-medium shadow-lg hover:shadow-xl"
               disabled={loading}
             >
               {loading ? (

@@ -3,14 +3,14 @@
 @import 'tailwindcss/utilities';
 
 :root {
-  --background: #ffffff;
+  --background: #fef2e8;
   --foreground: #171717;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #240d19;
+    --foreground: #f5f0f6;
   }
 }
 
@@ -19,10 +19,36 @@ body {
   height: 100%;
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Ubuntu', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* Ensure full height for dashboard layout */
 #__next {
   height: 100%;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f5f0f6;
+}
+::-webkit-scrollbar-thumb {
+  background: #cdb5d2;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ae8bb6;
+}
+
+*:focus-visible {
+  outline: 2px solid #E95420;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+::selection {
+  background: #E95420;
+  color: white;
 }

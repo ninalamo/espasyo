@@ -1,6 +1,7 @@
 import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
 
 const FORECAST_NAMES_KEY = 'forecastCustomNames';
+const FORECAST_CACHE_KEY = 'forecastLocalCache';
 
 function getStoredNames(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -25,6 +26,39 @@ function removeStoredName(id: string): void {
     delete all[id];
     localStorage.setItem(FORECAST_NAMES_KEY, JSON.stringify(all));
   } catch {}
+}
+
+/* Local cache: persists multi-barangay forecasts when the snapshot API is unavailable */
+function getLocalCache(): ForecastSnapshot[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    return JSON.parse(localStorage.getItem(FORECAST_CACHE_KEY) || '[]');
+  } catch { return []; }
+}
+
+function setLocalCache(snapshots: ForecastSnapshot[]): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(FORECAST_CACHE_KEY, JSON.stringify(snapshots));
+  } catch {}
+}
+
+function addToLocalCache(snapshot: ForecastSnapshot): void {
+  const cache = getLocalCache().filter(s => s.id !== snapshot.id);
+  cache.push(snapshot);
+  setLocalCache(cache);
+}
+
+function removeFromLocalCache(id: string): void {
+  setLocalCache(getLocalCache().filter(s => s.id !== id));
+}
+
+function generateId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = (Math.random() * 16) | 0;
+    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+  });
 }
 
 /* Mapping: Barangay enum int → name (matches backend seed data) */
@@ -111,9 +145,13 @@ class ForecastApiService {
   }
 
   async list(): Promise<ForecastSummaryCard[]> {
-    const response = await this.fetchApi<GetForecastRunsResponse>('/ForecastRun');
+    const [response, localCache] = await Promise.all([
+      this.fetchApi<GetForecastRunsResponse>('/ForecastRun'),
+      Promise.resolve(getLocalCache()),
+    ]);
     const storedNames = getStoredNames();
-    return response.runs.map(r => ({
+
+    const backendCards = response.runs.map(r => ({
       id: r.id,
       name: r.name || storedNames[r.id] || `${r.precinctName}`,
       createdAt: r.runAt,
@@ -123,9 +161,26 @@ class ForecastApiService {
       precinctCount: 1,
       crimeTypeCount: 0,
     }));
+
+    const localCards: ForecastSummaryCard[] = localCache.map(s => ({
+      id: s.id,
+      name: s.name || storedNames[s.id] || `Forecast ${s.id.slice(0, 8)}`,
+      createdAt: s.createdAt,
+      forecastPeriod: s.forecastPeriod,
+      totalPredictions: s.metadata?.totalPredictions || s.predictions.length,
+      activeModel: s.metadata?.activeModel || 'ML.NET',
+      precinctCount: s.metadata?.precincts?.length || [...new Set(s.predictions.map(p => p.precinct))].length,
+      crimeTypeCount: s.metadata?.crimeTypes?.length || [...new Set(s.predictions.map(p => p.crimeType))].length,
+    }));
+
+    const localIds = new Set(localCards.map(c => c.id));
+    return [...backendCards.filter(c => !localIds.has(c.id)), ...localCards];
   }
 
   async getById(id: string): Promise<ForecastSnapshot> {
+    const local = getLocalCache().find(s => s.id === id);
+    if (local) return local;
+
     try {
       const results = await this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`);
 
@@ -196,7 +251,7 @@ class ForecastApiService {
 
         storeName(response.id, response.name);
 
-        return {
+        const snapshot: ForecastSnapshot = {
           id: response.id,
           name: response.name,
           createdAt: response.createdAt,
@@ -212,37 +267,68 @@ class ForecastApiService {
           },
           historicalData: data.historicalData,
         };
+        addToLocalCache(snapshot);
+        return snapshot;
       } catch (error) {
-        console.warn('Snapshot endpoint unavailable, falling back to ML endpoint:', error);
+        console.warn('Snapshot endpoint unavailable, saving locally:', error);
       }
+
+      const localId = generateId();
+      const snapshot: ForecastSnapshot = {
+        id: localId,
+        name: data.name,
+        createdAt: new Date().toISOString(),
+        forecastPeriod: data.forecastPeriod,
+        predictions: data.predictions,
+        metrics: data.metrics ?? null,
+        params: data.params,
+        metadata: {
+          ...data.metadata,
+          totalPredictions: data.predictions.length,
+          precincts: [...new Set(data.predictions.map(f => f.precinct))],
+          crimeTypes: [...new Set(data.predictions.map(f => f.crimeType))],
+        },
+        historicalData: data.historicalData,
+      };
+      storeName(localId, data.name);
+      addToLocalCache(snapshot);
+      return snapshot;
     }
 
     if (data.clusterData?.length) {
       try {
-        const precincts = await this.fetchApi<Array<{ id: string; name: string; code: string }>>('/manpower/precincts');
-        const firstItem = data.clusterData[0]?.clusterItems[0];
-        const precinctName = firstItem != null ? BARANGAY_INT_TO_NAME[firstItem.precinct] : '';
-        const matched = precincts.find(p => p.name === precinctName);
-        const precinctId = matched?.id ?? '00000000-0000-0000-0000-000000000000';
+        const precinctList = await this.fetchApi<Array<{ id: string; name: string; code: string }>>('/manpower/precincts');
+        const cd = data.clusterData!;
+        const uniquePrecincts = [...new Set(cd.flatMap(c => c.clusterItems.map(i => i.precinct)))];
 
-        const mlResponse = await this.fetchApi<{ id: string }>('/ForecastRun', {
-          method: 'POST',
-          body: JSON.stringify({
-            clusterData: data.clusterData,
-            precinctId,
-            horizon: data.params.forecastPeriod,
-            confidenceLevel: data.params.confidence,
-            modelType: 'SSA',
-            name: data.name,
-            includeSeasonality: data.params.includeSeasonality,
-            weightRecentData: data.params.weightRecentData,
-            generatedById: data.generatedById ?? '',
-          }),
-        });
+        const allResults = await Promise.all(uniquePrecincts.map(async (precinctNum) => {
+          const precinctName = BARANGAY_INT_TO_NAME[precinctNum];
+          const matched = precinctList.find(p => p.name === precinctName);
+          const precinctId = matched?.id ?? '00000000-0000-0000-0000-000000000000';
 
-        const results = await this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${mlResponse.id}/results`);
+          const mlResponse = await this.fetchApi<{ id: string }>('/ForecastRun', {
+            method: 'POST',
+            body: JSON.stringify({
+              clusterData: cd.map(c => ({
+                clusterId: c.clusterId,
+                clusterItems: c.clusterItems.filter(i => i.precinct === precinctNum),
+                clusterCount: c.clusterItems.filter(i => i.precinct === precinctNum).length,
+              })).filter(c => c.clusterItems.length > 0),
+              precinctId,
+              horizon: data.params.forecastPeriod,
+              confidenceLevel: data.params.confidence,
+              modelType: 'SSA',
+              name: data.name,
+              includeSeasonality: data.params.includeSeasonality,
+              weightRecentData: data.params.weightRecentData,
+              generatedById: data.generatedById ?? '',
+            }),
+          });
 
-        const predictions: ForecastData[] = results.map(r => ({
+          return this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${mlResponse.id}/results`);
+        }));
+
+        const predictions: ForecastData[] = allResults.flat().map(r => ({
           year: r.year,
           month: r.month,
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
@@ -253,15 +339,16 @@ class ForecastApiService {
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
         }));
 
-        storeName(mlResponse.id, data.name);
+        const localId = generateId();
+        storeName(localId, data.name);
 
-        return {
-          id: mlResponse.id,
+        const snapshot: ForecastSnapshot = {
+          id: localId,
           name: data.name,
           createdAt: new Date().toISOString(),
           forecastPeriod: data.forecastPeriod,
           predictions,
-          metrics: data.metrics,
+          metrics: data.metrics ?? null,
           params: data.params,
           metadata: {
             ...data.metadata,
@@ -271,6 +358,8 @@ class ForecastApiService {
           },
           historicalData: data.historicalData,
         };
+        addToLocalCache(snapshot);
+        return snapshot;
       } catch {
         throw new Error('Failed to save forecast via ML endpoint');
       }
@@ -280,7 +369,12 @@ class ForecastApiService {
   }
 
   async delete(id: string): Promise<void> {
-    await this.fetchApi<void>(`/ForecastRun/${id}`, { method: 'DELETE' });
+    removeFromLocalCache(id);
+    try {
+      await this.fetchApi<void>(`/ForecastRun/${id}`, { method: 'DELETE' });
+    } catch {
+      // Local-only forecast; nothing to delete on backend
+    }
   }
 
   async evaluate(id: string): Promise<ForecastEvaluationResult> {

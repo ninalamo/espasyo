@@ -36,7 +36,7 @@ const faqs = [
 export default function ManpowerFaqPage() {
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <Link href="/manpower" className="text-blue-600 hover:text-blue-800 text-sm flex items-center">
+      <Link href="/manpower" className="text-ubuntu-600 hover:text-blue-800 text-sm flex items-center">
         ← Back to Manpower Plan
       </Link>
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useCallback, useEffect, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import type {
@@ -53,6 +53,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const [forecastMapPoints, setForecastMapPoints] = useState<ForecastMapPoint[]>([]);
   const [activeModelLabel, setActiveModelLabel] = useState('');
   const [dataQuality, setDataQuality] = useState<any>(null);
+  const loadingRef = useRef<string | null>(null);
 
   const analysisLoaded = clusters.length > 0;
   const forecastParams: ForecastParams = useMemo(
@@ -67,6 +68,8 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   );
 
   const loadForecast = useCallback(async (id: string) => {
+    if (id === loadingRef.current) return;
+    loadingRef.current = id;
     setLoading(true);
     try {
       const data = await forecastApi.getById(id);
@@ -98,6 +101,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
       toast.success(`Loaded forecast: ${data.name}`);
     } catch (err) {
+      loadingRef.current = null;
       toast.error(`Failed to load forecast: ${err instanceof Error ? err.message : id}`);
     } finally {
       setLoading(false);

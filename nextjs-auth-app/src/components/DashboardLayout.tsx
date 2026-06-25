@@ -155,21 +155,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   };
 
   return (
-    <div className="h-screen flex bg-gray-50">
+    <div className="h-screen flex bg-ubuntu-50">
       {/* Sidebar */}
-      <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden bg-white shadow-lg flex flex-col`}>
+      <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden bg-aubergine-900 shadow-xl flex flex-col`}>
         {/* Sidebar Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-6 border-b border-aubergine-700">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-xl font-bold text-gray-900">ESPASYO</h1>
-              <p className="text-sm text-gray-500">Crime Analysis Platform</p>
+              <h1 className="text-xl font-bold text-white tracking-tight">ESPASYO</h1>
+              <p className="text-sm text-ubuntu-300">Crime Analysis Platform</p>
             </div>
           </div>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 p-4 space-y-2">
+        <nav className="flex-1 p-3 space-y-1">
           {navigationGroups.map((group, index) => {
             if (group.type === 'single' && group.item) {
               const item = group.item;
@@ -180,16 +180,17 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center px-4 py-3 rounded-lg transition-colors group ${
+                  prefetch={true}
+                  className={`flex items-center px-4 py-3 rounded-lg transition-all group ${
                     isActive
-                      ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                      : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                      ? 'bg-ubuntu-500 text-white shadow-md'
+                      : 'text-aubergine-200 hover:bg-aubergine-700 hover:text-white'
                   }`}
                 >
-                  <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-blue-700' : 'text-gray-500'}`} />
+                  <Icon className={`w-5 h-5 mr-3 ${isActive ? 'text-white' : 'text-aubergine-300'}`} />
                   <div className="flex-1">
                     <div className="text-sm font-medium">{item.name}</div>
-                    <div className="text-xs text-gray-500">{item.description}</div>
+                    <div className={`text-xs ${isActive ? 'text-ubuntu-200' : 'text-aubergine-400'}`}>{item.description}</div>
                   </div>
                 </Link>
               );
@@ -204,46 +205,45 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     onClick={() => toggleDropdown(dropdown.name)}
                     className={`w-full flex items-center justify-between px-4 py-3 rounded-lg transition-colors ${
                       isAnyChildActive
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                        ? 'bg-ubuntu-500 text-white'
+                        : 'text-aubergine-200 hover:bg-aubergine-700 hover:text-white'
                     }`}
                   >
                     <div className="flex items-center">
-                      <FileText className={`w-5 h-5 mr-3 ${isAnyChildActive ? 'text-blue-700' : 'text-gray-500'}`} />
+                      <FileText className={`w-5 h-5 mr-3 ${isAnyChildActive ? 'text-white' : 'text-aubergine-300'}`} />
                       <div className="text-left">
                         <div className="text-sm font-medium">{dropdown.name}</div>
-                        <div className="text-xs text-gray-500">Manage records</div>
+                        <div className={`text-xs ${isAnyChildActive ? 'text-ubuntu-200' : 'text-aubergine-400'}`}>Manage records</div>
                       </div>
                     </div>
                     <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                   </button>
                   
-                  {isOpen && (
-                    <div className="ml-8 space-y-1">
-                      {dropdown.items.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = pathname === item.href;
-                        
-                        return (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm ${
-                              isActive
-                                ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
-                                : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
-                            }`}
-                          >
-                            <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-blue-700' : 'text-gray-400'}`} />
-                            <div>
-                              <div className="font-medium">{item.name}</div>
-                              <div className="text-xs text-gray-500">{item.description}</div>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <div className={`ml-6 space-y-1 ${isOpen ? '' : 'hidden'}`}>
+                    {dropdown.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = pathname === item.href;
+                      
+                      return (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          prefetch={true}
+                          className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm ${
+                            isActive
+                              ? 'bg-ubuntu-500 text-white'
+                              : 'text-aubergine-300 hover:bg-aubergine-700 hover:text-white'
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-white' : 'text-aubergine-400'}`} />
+                          <div>
+                            <div className="font-medium">{item.name}</div>
+                            <div className={`text-xs ${isActive ? 'text-ubuntu-200' : 'text-aubergine-500'}`}>{item.description}</div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             }
@@ -253,32 +253,32 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
         {/* User Profile Section */}
         {session && (
-          <div className="border-t border-gray-200 p-4">
+          <div className="border-t border-aubergine-700 p-3">
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
-                className="w-full flex items-center px-4 py-3 rounded-lg hover:bg-gray-100 transition-colors"
+                className="w-full flex items-center px-4 py-3 rounded-lg hover:bg-aubergine-700 transition-colors"
               >
-                <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center mr-3">
+                <div className="w-8 h-8 bg-ubuntu-500 rounded-full flex items-center justify-center mr-3">
                   <User className="w-4 h-4 text-white" />
                 </div>
                 <div className="flex-1 text-left">
-                  <div className="text-sm font-medium text-gray-900">
+                  <div className="text-sm font-medium text-white">
                     {session.user?.name || 'User'}
                   </div>
-                  <div className="text-xs text-gray-500">
+                  <div className="text-xs text-aubergine-400">
                     {session.user?.email}
                   </div>
                 </div>
-                <ChevronDown className="w-4 h-4 text-gray-500" />
+                <ChevronDown className="w-4 h-4 text-aubergine-400" />
               </button>
 
               {/* User Dropdown */}
               {isUserDropdownOpen && (
-                <div className="absolute bottom-full left-0 right-0 mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
+                <div className="absolute bottom-full left-0 right-0 mb-2 bg-aubergine-800 rounded-lg shadow-xl border border-aubergine-600 py-2">
                   <button
                     onClick={handleSignOut}
-                    className="w-full flex items-center px-4 py-2 text-left text-gray-700 hover:bg-gray-100 transition-colors"
+                    className="w-full flex items-center px-4 py-2 text-left text-aubergine-200 hover:bg-aubergine-700 transition-colors"
                   >
                     <LogOut className="w-4 h-4 mr-3" />
                     <span className="text-sm">Sign out</span>
@@ -291,14 +291,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <header className="bg-white shadow-sm border-b-2 border-ubuntu-500 px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors"
+                className="p-2 rounded-lg text-aubergine-500 hover:bg-ubuntu-50 transition-colors"
               >
                 {isSidebarOpen ? (
                   <X className="w-5 h-5" />
@@ -307,26 +307,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 )}
               </button>
               
-              <div className="ml-4">
-                <h2 className="text-lg font-semibold text-gray-900">
+              <div className="ml-4 truncate">
+                <h2 className="text-lg font-semibold text-aubergine-900 truncate">
                   {getCurrentPageInfo().name}
                 </h2>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-aubergine-500 truncate">
                   {getCurrentPageInfo().description}
                 </p>
               </div>
-            </div>
-
-            {/* Quick Actions or Additional Controls */}
-            <div className="flex items-center space-x-2">
-              {/* Add any quick action buttons here */}
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto">
-          <div className="h-full">
+        <main className="flex-1 overflow-auto bg-ubuntu-50">
+          <div className="min-h-full">
             {children}
           </div>
         </main>
@@ -335,7 +330,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-50 md:hidden"
+          className="fixed inset-0 bg-black bg-opacity-60 z-50 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
