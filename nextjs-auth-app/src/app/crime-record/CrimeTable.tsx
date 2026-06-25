@@ -77,7 +77,7 @@ const CrimeTable: React.FC<CrimeTableProps> = ({
                 <td className="border p-2">
                   <button 
                     onClick={() => handleViewDetails(record)}
-                    className="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition"
+                    className="bg-ubuntu-500 text-white px-3 py-1 rounded-md hover:bg-ubuntu-600 transition"
                   >
                     View
                   </button>

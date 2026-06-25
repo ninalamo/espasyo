@@ -28,7 +28,7 @@ export default function Navbar() {
     }, []);
 
     return (
-        <nav className="bg-blue-600 text-white py-4 shadow-md">
+        <nav className="bg-ubuntu-500 text-white py-4 shadow-md">
             <div className="container mx-auto flex justify-between items-center px-6">
                 <h1 className="text-xl font-semibold">Crime Reporting Tool</h1>
 

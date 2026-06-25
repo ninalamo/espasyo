@@ -547,9 +547,9 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
     <div className="space-y-4">
       {/* Summary Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+        <div className="bg-ubuntu-50 p-4 rounded-lg border border-blue-200">
           <div className="flex items-center">
-            <div className="p-2 bg-blue-600 rounded-lg">
+            <div className="p-2 bg-ubuntu-500 rounded-lg">
               <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7" />
               </svg>
@@ -705,7 +705,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
                   }}
                   className={`text-xs px-2 py-1 rounded border ${
                     filters.riskLevels.includes(level)
-                      ? 'bg-blue-600 text-white border-blue-600'
+                      ? 'bg-ubuntu-500 text-white border-ubuntu-500'
                       : 'bg-white text-gray-700 border-gray-300'
                   }`}
                 >
@@ -734,7 +734,7 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
                 className={`flex items-center px-3 py-1.5 rounded text-sm font-medium transition ${
                   isPlaying 
                     ? 'bg-red-100 text-red-700 border border-red-300' 
-                    : 'bg-blue-100 text-blue-700 border border-blue-300 hover:bg-blue-200'
+                    : 'bg-blue-100 text-ubuntu-700 border border-blue-300 hover:bg-blue-200'
                 }`}
                 title={isPlaying ? 'Pause animation' : showAnimSlider ? 'Resume animation' : 'Start time animation'}
               >

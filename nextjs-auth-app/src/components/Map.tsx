@@ -351,7 +351,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                     onClick={() => setViewMode(mode)}
                     className={`px-2 py-1 text-xs rounded border transition ${
                       viewMode === mode
-                        ? 'bg-blue-600 text-white border-blue-600'
+                        ? 'bg-ubuntu-500 text-white border-ubuntu-500'
                         : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
                     }`}
                   >
@@ -385,13 +385,13 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
               {compareMode && (
                 <div className="flex gap-4 p-2.5 bg-gray-50 rounded-lg border">
                   <div className="flex-1">
-                    <span className="text-xs font-medium text-blue-700">Period A (Blue)</span>
+                    <span className="text-xs font-medium text-ubuntu-700">Period A (Blue)</span>
                     <div className="flex flex-wrap gap-1 mt-1">
                       {uniqueYears.map(y => (
                         <button
                           key={y}
                           onClick={() => setPeriodAYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
-                          className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                          className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
                         >{y}</button>
                       ))}
                     </div>
@@ -414,11 +414,11 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
               {stepwise && (
                 <div className="flex items-center justify-between gap-2 p-2.5 bg-gray-50 rounded-lg border">
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => setPlay(!play)} className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded hover:bg-blue-700">{play ? '⏸' : '▶'} {play ? 'Pause' : 'Play'}</button>
+                    <button onClick={() => setPlay(!play)} className="px-3 py-1 text-xs font-medium bg-ubuntu-500 text-white rounded hover:bg-ubuntu-700">{play ? '⏸' : '▶'} {play ? 'Pause' : 'Play'}</button>
                     <button onClick={() => setCurrentStep(p => Math.max(p - 1, 0))} className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50">◀</button>
                     <button onClick={() => setCurrentStep(p => Math.min(p + 1, uniqueSteps.length - 1))} className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50">▶</button>
                   </div>
-                  <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-xs font-semibold">
+                  <span className="px-3 py-1 rounded-full bg-blue-100 text-ubuntu-700 text-xs font-semibold">
                     {(() => { const [y, m] = uniqueSteps[currentStep].split('-').map(Number); return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short' }).format(new Date(y, m - 1)); })()}
                   </span>
                 </div>
@@ -432,14 +432,14 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                       const m = i + 1;
                       return (
                         <button key={m} onClick={() => setSelectedMonths(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m])}
-                          className={`px-2 py-0.5 border rounded text-xs ${selectedMonths.includes(m) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                          className={`px-2 py-0.5 border rounded text-xs ${selectedMonths.includes(m) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
                         >{m}</button>
                       );
                     })}
                     <span className="text-xs font-medium text-gray-600 ml-1">Year:</span>
                     {uniqueYears.map(y => (
                       <button key={y} onClick={() => setSelectedYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
-                        className={`px-2 py-0.5 border rounded text-xs ${selectedYears.includes(y) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                        className={`px-2 py-0.5 border rounded text-xs ${selectedYears.includes(y) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
                       >{y}</button>
                     ))}
                   </div>
@@ -450,7 +450,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                         const crimeId = parseInt(id);
                         return (
                           <button key={id} onClick={() => setSelectedCrimeTypes(prev => prev.includes(crimeId) ? prev.filter(x => x !== crimeId) : [...prev, crimeId])}
-                            className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(crimeId) ? 'bg-blue-600 text-white' : 'bg-white'}`}
+                            className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(crimeId) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
                           >{label}</button>
                         );
                       })}

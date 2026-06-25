@@ -270,7 +270,7 @@ export default function PrecinctsPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="flex items-center">
-            <Users className="w-8 h-8 text-blue-600" />
+            <Users className="w-8 h-8 text-ubuntu-600" />
             <div className="ml-4">
               <h3 className="text-lg font-semibold text-gray-900">{getTotalOfficers()}</h3>
               <p className="text-sm text-gray-600">Total Officers Allocated</p>
@@ -338,7 +338,7 @@ export default function PrecinctsPage() {
                   <tr key={precinct.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <MapPin className="w-5 h-5 text-blue-600 mr-2 shrink-0" />
+                        <MapPin className="w-5 h-5 text-ubuntu-600 mr-2 shrink-0" />
                         <div className="text-sm font-medium text-gray-900">
                           {precinct.name} ({precinct.code})
                         </div>
@@ -398,7 +398,7 @@ export default function PrecinctsPage() {
                       ) : (
                         <button
                           onClick={() => handleEdit(precinct.id, headCount)}
-                          className="text-blue-600 hover:text-blue-900"
+                          className="text-ubuntu-600 hover:text-blue-900"
                           title="Edit allocation"
                         >
                           <Edit3 className="w-4 h-4" />

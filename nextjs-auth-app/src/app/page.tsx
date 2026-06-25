@@ -228,9 +228,9 @@ const Home = () => {
             <div className="p-6">
               {/* Key Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                  <div className="text-2xl font-bold text-blue-600">{dashboardStats.totalIncidents.toLocaleString()}</div>
-                  <div className="text-sm text-blue-700">Total Incidents</div>
+                <div className="bg-ubuntu-50 border border-blue-200 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-ubuntu-600">{dashboardStats.totalIncidents.toLocaleString()}</div>
+                  <div className="text-sm text-ubuntu-700">Total Incidents</div>
                 </div>
 
                 <StatCard
@@ -261,7 +261,7 @@ const Home = () => {
                     {dashboardStats.crimeTypeBreakdown.slice(0, 5).map((item, index) => (
                       <div key={item.type} className="flex items-center justify-between p-2 bg-gray-50 rounded">
                         <div className="flex items-center">
-                          <div className="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                          <div className="w-3 h-3 rounded-full bg-ubuntu-500 mr-2"></div>
                           <span className="text-sm">{item.type}</span>
                         </div>
                         <div className="text-sm font-medium">{item.count} ({item.percentage}%)</div>
@@ -319,12 +319,12 @@ const Home = () => {
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition group">
               <div className="flex items-center">
                 <div className="p-3 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition">
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-6 h-6 text-ubuntu-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
                 </div>
                 <div className="ml-4">
-                  <h3 className="text-lg font-medium text-gray-900 group-hover:text-blue-600 transition">Manage Records</h3>
+                  <h3 className="text-lg font-medium text-gray-900 group-hover:text-ubuntu-600 transition">Manage Records</h3>
                   <p className="text-sm text-gray-500">Add, view, and manage crime records</p>
                 </div>
               </div>
@@ -389,7 +389,7 @@ const Home = () => {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="px-6 py-4 border-b border-gray-200">
             <h2 className="text-lg font-semibold text-gray-800 flex items-center">
-              <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 mr-2 text-ubuntu-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               System Information
@@ -436,10 +436,10 @@ const Home = () => {
               
               <div>
                 <h4 className="font-medium text-gray-800 mb-3">Coverage Area</h4>
-                <div className="bg-blue-50 rounded-lg p-4">
+                <div className="bg-ubuntu-50 rounded-lg p-4">
                   <div className="text-lg font-medium text-blue-800">Muntinlupa City</div>
-                  <div className="text-sm text-blue-600 mt-1">9 Barangays Covered:</div>
-                  <div className="text-xs text-blue-600 mt-2">
+                  <div className="text-sm text-ubuntu-600 mt-1">9 Barangays Covered:</div>
+                  <div className="text-xs text-ubuntu-600 mt-2">
                     Alabang, Ayala Alabang, Bayanan, Buli, Cupang, Poblacion, Putatan, Sucat, Tunasan
                   </div>
                 </div>

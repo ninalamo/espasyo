@@ -130,9 +130,9 @@ const BulkUploadPage = () => {
         <h1 className="text-2xl font-semibold mb-6">Bulk Upload Crime Records</h1>
 
         {/* Instructions */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
+        <div className="bg-ubuntu-50 border border-blue-200 rounded-lg p-6 mb-6">
           <h2 className="text-lg font-medium text-blue-800 mb-3">Instructions</h2>
-          <div className="space-y-2 text-blue-700">
+          <div className="space-y-2 text-ubuntu-700">
             <p>1. Download the CSV template and fill in your incident data</p>
             <p>2. Ensure all required fields are filled (address, severity, crimeType, motive, policeDistrict, weather, timeStamp)</p>
             <p>3. CASE-ID will be generated automatically - do not include it</p>
@@ -141,7 +141,7 @@ const BulkUploadPage = () => {
           </div>
           <button
             onClick={downloadTemplate}
-            className="mt-4 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+            className="mt-4 bg-ubuntu-500 text-white px-4 py-2 rounded-md hover:bg-ubuntu-700 transition"
           >
             Download CSV Template
           </button>
@@ -157,7 +157,7 @@ const BulkUploadPage = () => {
                 type="file"
                 accept=".csv,text/csv"
                 onChange={handleFileSelect}
-                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-ubuntu-50 file:text-ubuntu-700 hover:file:bg-blue-100"
                 disabled={uploadProgress.step === 'processing' || uploadProgress.step === 'uploading'}
               />
             </div>
@@ -200,7 +200,7 @@ const BulkUploadPage = () => {
 
               <button
                 onClick={() => router.push('/crime-record')}
-                className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                className="px-6 py-2 bg-ubuntu-500 text-white rounded-md hover:bg-ubuntu-700"
               >
                 Back to Records
               </button>
@@ -217,7 +217,7 @@ const BulkUploadPage = () => {
             </div>
             <div className="w-full bg-gray-200 rounded-full h-2">
               <div 
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                className="bg-ubuntu-500 h-2 rounded-full transition-all duration-300"
                 style={{ width: `${uploadProgress.progress}%` }}
               />
             </div>

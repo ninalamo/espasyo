@@ -292,7 +292,7 @@ function ManpowerProposalPage() {
           <p className="text-gray-600 mb-6">
             Go to a forecast and click <strong>Build Manpower Plan</strong> to generate an allocation based on predicted crime data.
           </p>
-          <Link href="/forecast" className="text-blue-600 hover:text-blue-800 underline">
+          <Link href="/forecast" className="text-ubuntu-600 hover:text-blue-800 underline">
             ← Go to Forecasts
           </Link>
         </div>
@@ -303,7 +303,7 @@ function ManpowerProposalPage() {
   if (forecastData.length === 0) {
     return (
       <div className="p-6 space-y-6">
-        <Link href="/forecast" className="text-blue-600 hover:text-blue-800 text-sm flex items-center">
+        <Link href="/forecast" className="text-ubuntu-600 hover:text-blue-800 text-sm flex items-center">
           ← Back to Forecasts
         </Link>
         <div className="text-center py-12">
@@ -319,7 +319,7 @@ function ManpowerProposalPage() {
       {/* Header */}
       <div className="flex justify-between items-start no-print">
         <div>
-          <Link href={`/forecast/${forecastId}/overview`} className="text-blue-600 hover:text-blue-800 text-sm flex items-center mb-2">
+          <Link href={`/forecast/${forecastId}/overview`} className="text-ubuntu-600 hover:text-blue-800 text-sm flex items-center mb-2">
             ← Back to Forecast
           </Link>
           <h1 className="text-2xl font-bold text-gray-900">Manpower Allocation Plan</h1>
@@ -457,7 +457,7 @@ function ManpowerProposalPage() {
       <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
-            <Users className="w-8 h-8 text-blue-600" />
+            <Users className="w-8 h-8 text-ubuntu-600" />
             <div>
               <div className="text-2xl font-bold text-gray-900">{totalOfficers}</div>
               <div className="text-xs text-gray-500">Total Officers</div>
@@ -591,7 +591,7 @@ function ManpowerProposalPage() {
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <ChevronDown className={`w-3 h-3 text-gray-400 transition ${isExpanded ? 'rotate-180' : ''}`} />
-                          <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          <MapPin className="w-4 h-4 text-ubuntu-600 flex-shrink-0" />
                           <span className="font-medium text-gray-900">{pa.precinctName}</span>
                           {pa.trend === 'up' && <span className="text-red-500 text-xs">↑</span>}
                           {pa.trend === 'down' && <span className="text-green-500 text-xs">↓</span>}
@@ -608,7 +608,7 @@ function ManpowerProposalPage() {
                         <div className="flex items-center justify-end gap-2">
                           <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-blue-500"
+                              className="h-full rounded-full bg-ubuntu-500"
                               style={{ width: `${crimeBarPct}%` }}
                             />
                           </div>

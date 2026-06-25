@@ -54,7 +54,7 @@ const StaticMultiSelectDropdown = ({
       </div>
       <button
         onClick={() => setSelected([])}
-        className="text-blue-600 underline hover:text-blue-800 text-xs"
+        className="text-ubuntu-600 underline hover:text-blue-800 text-xs"
       >
         Clear
       </button>

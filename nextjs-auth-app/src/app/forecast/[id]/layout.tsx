@@ -23,7 +23,7 @@ function ForecastDetailInner({ children }: { children: React.ReactNode }) {
       <ToastContainer />
 
       <div className="flex items-center justify-between mb-2">
-        <Link href="/forecast" className="text-blue-600 hover:text-blue-800 text-sm flex items-center">
+        <Link href="/forecast" className="text-ubuntu-600 hover:text-blue-800 text-sm flex items-center">
           <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
@@ -42,7 +42,7 @@ function ForecastDetailInner({ children }: { children: React.ReactNode }) {
                 href={`/forecast/${forecastId}/${tab.key}`}
                 className={`flex-1 py-3 px-4 text-sm font-medium text-center transition ${
                   isActive
-                    ? 'text-blue-700 bg-white border-b-2 border-blue-600'
+                    ? 'text-ubuntu-700 bg-white border-b-2 border-ubuntu-500'
                     : 'text-gray-600 hover:text-gray-800 hover:bg-gray-100'
                 }`}
               >

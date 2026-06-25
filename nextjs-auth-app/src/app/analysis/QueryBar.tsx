@@ -48,7 +48,7 @@ const QueryBar = ({
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="text-blue-600 hover:text-blue-800 transition text-xs focus:outline-none"
+          className="text-ubuntu-600 hover:text-blue-800 transition text-xs focus:outline-none"
         >
           {isExpanded ? "Hide Query Parameters ▲" : "Show Query Parameters ▼"}
         </button>

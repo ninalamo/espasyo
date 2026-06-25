@@ -165,7 +165,7 @@ const ClusterDataTable: React.FC<Props> = ({ clusters }) => {
                 <button
                   key={m}
                   onClick={() => toggleMonth(m)}
-                  className={`px-2 py-1 border rounded text-sm ${monthFilter.includes(m) ? 'bg-blue-600 text-white' : ''}`}
+                  className={`px-2 py-1 border rounded text-sm ${monthFilter.includes(m) ? 'bg-ubuntu-500 text-white' : ''}`}
                 >
                   {m}
                 </button>
@@ -180,7 +180,7 @@ const ClusterDataTable: React.FC<Props> = ({ clusters }) => {
                 <button
                   key={y}
                   onClick={() => toggleYear(y)}
-                  className={`px-2 py-1 border rounded text-sm ${yearFilter.includes(y) ? 'bg-blue-600 text-white' : ''}`}
+                  className={`px-2 py-1 border rounded text-sm ${yearFilter.includes(y) ? 'bg-ubuntu-500 text-white' : ''}`}
                 >
                   {y}
                 </button>
