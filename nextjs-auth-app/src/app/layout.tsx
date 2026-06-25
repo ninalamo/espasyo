@@ -1,19 +1,15 @@
-'use client';
-
-import { SessionProvider } from 'next-auth/react';
 import '../app/globals.css';
-import DashboardLayout from '../components/DashboardLayout';
-import { usePathname } from 'next/navigation';
-import { ReactNode } from 'react';
+import ClientLayout from './client-layout';
 
-interface RootLayoutProps {
-  children: ReactNode;
-}
+export const metadata = {
+  title: 'ESPASYO - Crime Analysis Platform',
+  description: 'Crime analysis and forecasting platform',
+  icons: {
+    icon: '/favicon.ico',
+  },
+};
 
-export default function RootLayout({ children }: RootLayoutProps) {
-  const pathname = usePathname();
-  const isLoginPage = pathname === '/login';
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
@@ -22,19 +18,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
         <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet" />
       </head>
       <body className="font-ubuntu bg-ubuntu-50 text-gray-900">
-        <SessionProvider>
-          {isLoginPage ? (
-            // Login page with simple layout
-            <main className="min-h-screen flex items-center justify-center">
-              {children}
-            </main>
-          ) : (
-            // All other pages with dashboard layout
-            <DashboardLayout>
-              {children}
-            </DashboardLayout>
-          )}
-        </SessionProvider>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );
