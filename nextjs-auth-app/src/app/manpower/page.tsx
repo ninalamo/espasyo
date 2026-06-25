@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
+import { useState, useEffect, useMemo, useCallback, Suspense, Fragment } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { MapPin, Users, TrendingUp, AlertTriangle, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
@@ -83,6 +83,7 @@ function ManpowerProposalPage() {
   const [precinctAreas, setPrecinctAreas] = useState<Map<number, number>>(new Map());
   const [settings, setSettings] = useState<DeploymentSettings>(loadSettings);
   const [showSettings, setShowSettings] = useState(false);
+  const [expandedPrecinct, setExpandedPrecinct] = useState<number | null>(null);
 
   useEffect(() => {
     fetch('/data/precincts.geojson')
@@ -505,41 +506,140 @@ function ManpowerProposalPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {precinctAllocations.map(pa => {
+                const isExpanded = expandedPrecinct === pa.precinctNumber;
                 const s = Math.round(pa.suggestedOfficers / 3);
                 const n = pa.suggestedOfficers - s * 2;
                 const maxCrimes = Math.max(...precinctAllocations.map(p => p.avgMonthlyCrimes), 1);
                 const crimeBarPct = (pa.avgMonthlyCrimes / maxCrimes) * 100;
+
+                const precinctForecasts = forecastData.filter(f => f.precinct === pa.precinctNumber);
+                const byCrimeType = new Map<number, ForecastData[]>();
+                for (const f of precinctForecasts) {
+                  const arr = byCrimeType.get(f.crimeType) || [];
+                  arr.push(f);
+                  byCrimeType.set(f.crimeType, arr);
+                }
+                const areaSqKm = precinctAreas.get(pa.precinctNumber) || 0;
+                const monthCount = new Set(forecastData.map(f => `${f.year}-${f.month}`)).size;
+                const { severityWeights, patrolDemand, officersPerSqKm, riskBaseline } = settings;
+
                 return (
-                  <tr key={pa.precinctNumber} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                        <span className="font-medium text-gray-900">{pa.precinctName}</span>
-                        {pa.trend === 'up' && <span className="text-red-500 text-xs">↑</span>}
-                        {pa.trend === 'down' && <span className="text-green-500 text-xs">↓</span>}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-2">
-                        <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-blue-500"
-                            style={{ width: `${crimeBarPct}%` }}
-                          />
+                  <Fragment key={pa.precinctNumber}>
+                    <tr
+                      onClick={() => setExpandedPrecinct(isExpanded ? null : pa.precinctNumber)}
+                      className="hover:bg-gray-50 cursor-pointer"
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <ChevronDown className={`w-3 h-3 text-gray-400 transition ${isExpanded ? 'rotate-180' : ''}`} />
+                          <MapPin className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                          <span className="font-medium text-gray-900">{pa.precinctName}</span>
+                          {pa.trend === 'up' && <span className="text-red-500 text-xs">↑</span>}
+                          {pa.trend === 'down' && <span className="text-green-500 text-xs">↓</span>}
                         </div>
-                        <span className="font-semibold text-gray-900 w-10 text-right">{pa.avgMonthlyCrimes}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${RISK_COLORS[pa.riskLevel]}`}>
-                        {pa.riskLevel}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-right font-bold text-gray-900">{pa.suggestedOfficers}</td>
-                    <td className="px-4 py-3 text-center text-sm text-gray-600">
-                      Morning {s} &middot; Afternoon {s} &middot; Evening {n}
-                    </td>
-                  </tr>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-2">
+                          <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full bg-blue-500"
+                              style={{ width: `${crimeBarPct}%` }}
+                            />
+                          </div>
+                          <span className="font-semibold text-gray-900 w-10 text-right">{pa.avgMonthlyCrimes}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${RISK_COLORS[pa.riskLevel]}`}>
+                          {pa.riskLevel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right font-bold text-gray-900">{pa.suggestedOfficers}</td>
+                      <td className="px-4 py-3 text-center text-sm text-gray-600">
+                        Morning {s} &middot; Afternoon {s} &middot; Evening {n}
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={5} className="px-6 py-4 bg-gray-50">
+                          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 text-sm">
+
+                            {/* Crime type breakdown */}
+                            <div>
+                              <h4 className="font-semibold text-gray-800 mb-2">Crime Type Breakdown</h4>
+                              <table className="w-full text-xs">
+                                <thead>
+                                  <tr className="text-gray-500 border-b">
+                                    <th className="text-left py-1 pr-2">Crime Type</th>
+                                    <th className="text-right px-2">Predicted</th>
+                                    <th className="text-right px-2">Weight</th>
+                                    <th className="text-right pl-2">Contribution</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {Array.from(byCrimeType.entries())
+                                    .sort(([, a], [, b]) => b.reduce((s, f) => s + f.predictedCount, 0) - a.reduce((s, f) => s + f.predictedCount, 0))
+                                    .map(([ct, items]) => {
+                                      const totalPred = items.reduce((s, f) => s + f.predictedCount, 0);
+                                      const avgPerM = totalPred / monthCount;
+                                      const w = severityWeights[ct] ?? 1;
+                                      return (
+                                        <tr key={ct} className="border-b border-gray-100">
+                                          <td className="py-1 pr-2 text-gray-700">{CrimeTypesDictionary[ct] || `Type ${ct}`}</td>
+                                          <td className="text-right px-2">{Math.round(avgPerM)}/mo</td>
+                                          <td className="text-right px-2">×{w}</td>
+                                          <td className="text-right pl-2 font-medium">{Math.round(avgPerM * w)}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                </tbody>
+                              </table>
+                            </div>
+
+                            {/* Formula walkthrough */}
+                            <div>
+                              <h4 className="font-semibold text-gray-800 mb-2">Calculation</h4>
+                              <div className="space-y-2 text-xs text-gray-600">
+                                <p><strong>Weighted score:</strong> {Math.round(Array.from(byCrimeType.entries()).reduce((s, [ct, items]) => s + (items.reduce((s2, f) => s2 + f.predictedCount, 0) / monthCount) * (severityWeights[ct] ?? 1), 0))}/mo</p>
+                                <p className="pl-3 text-gray-500">÷ patrol demand ({patrolDemand}) → <strong>{Math.round((Array.from(byCrimeType.entries()).reduce((s, [ct, items]) => s + (items.reduce((s2, f) => s2 + f.predictedCount, 0) / monthCount) * (severityWeights[ct] ?? 1), 0)) / patrolDemand * 10) / 10}</strong> patrol units</p>
+                                <p><strong>Area:</strong> {areaSqKm} km² × {officersPerSqKm} officers/km² → <strong>{(areaSqKm * officersPerSqKm).toFixed(1)}</strong> area units</p>
+                                <p><strong>Risk baseline:</strong> {riskBaseline[pa.riskLevel as keyof typeof riskBaseline]} officers (minimum for {pa.riskLevel} risk)</p>
+                                <div className="pt-2 border-t font-medium text-gray-800">
+                                  Total = max({riskBaseline[pa.riskLevel as keyof typeof riskBaseline]}, round({Math.round((Array.from(byCrimeType.entries()).reduce((s, [ct, items]) => s + (items.reduce((s2, f) => s2 + f.predictedCount, 0) / monthCount) * (severityWeights[ct] ?? 1), 0)) / patrolDemand * 10) / 10} + {(areaSqKm * officersPerSqKm).toFixed(1)})) = <strong className="text-lg">{pa.suggestedOfficers}</strong>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Trend detail */}
+                            <div>
+                              <h4 className="font-semibold text-gray-800 mb-2">Trend Detail</h4>
+                              <div className="space-y-2 text-xs">
+                                <p><span className="text-red-600">▲ Increasing:</span> {pa.increasingCount} series</p>
+                                <p><span className="text-green-600">▼ Decreasing:</span> {pa.decreasingCount} series</p>
+                                <p><span className="text-gray-500">― Stable:</span> {precinctForecasts.filter(f => f.trend === 'stable').length} series</p>
+                                <div className="pt-2 border-t">
+                                  {Array.from(byCrimeType.entries())
+                                    .sort(([, a], [, b]) => b.filter(f => f.trend === 'increasing').length - a.filter(f => f.trend === 'increasing').length)
+                                    .slice(0, 5)
+                                    .map(([ct, items]) => {
+                                      const inc = items.filter(f => f.trend === 'increasing').length;
+                                      const dec = items.filter(f => f.trend === 'decreasing').length;
+                                      if (inc === 0 && dec === 0) return null;
+                                      return (
+                                        <p key={ct} className="text-gray-600">
+                                          {CrimeTypesDictionary[ct] || `Type ${ct}`}: {inc > 0 && <span className="text-red-500">+{inc}</span>}{inc > 0 && dec > 0 && ' '}{dec > 0 && <span className="text-green-500">-{dec}</span>}
+                                        </p>
+                                      );
+                                    })}
+                                </div>
+                              </div>
+                            </div>
+
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
