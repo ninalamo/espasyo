@@ -387,7 +387,7 @@ export default withAuth(function NewForecastPage() {
             </button>
             <button
               onClick={handleGenerate}
-              className="bg-gradient-to-r from-ubuntu-500 to-aubergine-600 text-white px-8 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition font-medium shadow-lg"
+              className="bg-gradient-to-r from-ubuntu-500 to-aubergine-600 text-white px-8 py-3 rounded-lg hover:from-ubuntu-700 hover:to-aubergine-800 transition font-medium shadow-lg"
             >
               Generate Forecast
             </button>

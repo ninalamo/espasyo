@@ -158,7 +158,7 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+        <div className="bg-gradient-to-r from-ubuntu-50 to-aubergine-50 p-4 rounded-lg border border-ubuntu-200">
           <div className="flex items-center">
             <div className="p-2 bg-ubuntu-500 rounded-lg">
               <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

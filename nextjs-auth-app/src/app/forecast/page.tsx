@@ -45,7 +45,7 @@ function ForecastDashboard() {
         </div>
         <Link
           href="/forecast/new"
-          className="bg-gradient-to-r from-ubuntu-500 to-aubergine-600 text-white px-6 py-3 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition flex items-center font-medium shadow-lg"
+          className="bg-gradient-to-r from-ubuntu-500 to-aubergine-600 text-white px-6 py-3 rounded-lg hover:from-ubuntu-700 hover:to-aubergine-800 transition flex items-center font-medium shadow-lg"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

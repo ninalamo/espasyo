@@ -28,22 +28,22 @@ export default function Navbar() {
     }, []);
 
     return (
-        <nav className="bg-ubuntu-500 text-white py-4 shadow-md">
-            <div className="container mx-auto flex justify-between items-center px-6">
-                <h1 className="text-xl font-semibold">Crime Reporting Tool</h1>
+        <nav className="bg-aubergine-900 text-white py-3 shadow-md">
+            <div className="flex justify-between items-center px-6">
+                <h1 className="text-xl font-bold tracking-tight">ESPASYO</h1>
 
                 <div className="flex items-center gap-6">
                     {/* Navigation Links */}
-                    <Link href="/" className="hover:underline">
+                    <Link href="/" className="text-aubergine-200 hover:text-white transition-colors text-sm font-medium">
                         Home
                     </Link>
-                    <Link href="/crime-record" className="hover:underline">
+                    <Link href="/crime-record" className="text-aubergine-200 hover:text-white transition-colors text-sm font-medium">
                         Crime Records
                     </Link>
-                    <Link href="/analysis" className="hover:underline">
+                    <Link href="/analysis" className="text-aubergine-200 hover:text-white transition-colors text-sm font-medium">
                         Analysis
                     </Link>
-                    <Link href="/forecast" className="hover:underline">
+                    <Link href="/forecast" className="text-aubergine-200 hover:text-white transition-colors text-sm font-medium">
                         Forecast
                     </Link>
 
@@ -61,12 +61,12 @@ export default function Navbar() {
 
                             {/* Dropdown Menu */}
                             {isDropdownOpen && (
-                                <div className="absolute right-0 mt-2 bg-white text-gray-900 rounded-md shadow-lg py-2 w-40">
+                                <div className="absolute right-0 mt-2 bg-aubergine-800 text-aubergine-200 rounded-lg shadow-xl border border-aubergine-600 py-1 w-40">
                                     <button
                                         onClick={() => signOut()}
-                                        className="block w-full text-left px-4 py-2 hover:bg-gray-200"
+                                        className="block w-full text-left px-4 py-2 hover:bg-aubergine-700 hover:text-white transition-colors text-sm"
                                     >
-                                        Logout
+                                        Sign out
                                     </button>
                                 </div>
                             )}
@@ -76,7 +76,7 @@ export default function Navbar() {
                     {!session && (
                         <button
                             onClick={() => router.push('/login')}
-                            className="bg-green-500 hover:bg-green-700 px-4 py-2 rounded-md transition"
+                            className="bg-ubuntu-500 hover:bg-ubuntu-700 px-4 py-2 rounded-md transition"
                         >
                             Login
                         </button>

@@ -347,7 +347,7 @@ const AnalysisPage = () => {
         </div>
         
         {analysisSummary && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 min-w-fit">
+            <div className="bg-gradient-to-r from-ubuntu-50 to-aubergine-50 border border-ubuntu-200 rounded-lg p-4 min-w-fit">
             <h3 className="font-semibold text-blue-800 mb-2 flex items-center">
               <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -449,7 +449,7 @@ const AnalysisPage = () => {
           <div className="flex justify-end pt-4 border-t border-gray-200">
             <button
               onClick={handleFilter}
-              className="bg-gradient-to-r from-ubuntu-500 to-ubuntu-700 text-white px-8 py-3 rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center font-medium shadow-lg hover:shadow-xl"
+              className="bg-gradient-to-r from-ubuntu-500 to-ubuntu-700 text-white px-8 py-3 rounded-lg hover:from-ubuntu-700 hover:to-aubergine-700 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center font-medium shadow-lg hover:shadow-xl"
               disabled={loading}
             >
               {loading ? (

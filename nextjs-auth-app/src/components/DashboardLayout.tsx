@@ -291,14 +291,14 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <header className="bg-white shadow-sm border-b border-ubuntu-200 px-6 py-4">
+        <header className="bg-white shadow-sm border-b-2 border-ubuntu-500 px-6 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center">
+            <div className="flex items-center min-w-0">
               <button
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="p-2 rounded-lg text-gray-500 hover:bg-ubuntu-50 transition-colors"
+                className="p-2 rounded-lg text-aubergine-500 hover:bg-ubuntu-50 transition-colors"
               >
                 {isSidebarOpen ? (
                   <X className="w-5 h-5" />
@@ -307,26 +307,21 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 )}
               </button>
               
-              <div className="ml-4">
-                <h2 className="text-lg font-semibold text-gray-900">
+              <div className="ml-4 truncate">
+                <h2 className="text-lg font-semibold text-aubergine-900 truncate">
                   {getCurrentPageInfo().name}
                 </h2>
-                <p className="text-sm text-gray-500">
+                <p className="text-sm text-aubergine-500 truncate">
                   {getCurrentPageInfo().description}
                 </p>
               </div>
-            </div>
-
-            {/* Quick Actions or Additional Controls */}
-            <div className="flex items-center space-x-2">
-              {/* Add any quick action buttons here */}
             </div>
           </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-auto">
-          <div className="h-full">
+        <main className="flex-1 overflow-auto bg-ubuntu-50">
+          <div className="min-h-full">
             {children}
           </div>
         </main>
