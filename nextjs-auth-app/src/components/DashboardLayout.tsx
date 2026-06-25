@@ -180,6 +180,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                 <Link
                   key={item.name}
                   href={item.href}
+                  prefetch={true}
                   className={`flex items-center px-4 py-3 rounded-lg transition-all group ${
                     isActive
                       ? 'bg-ubuntu-500 text-white shadow-md'
@@ -218,32 +219,31 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
                     <ChevronDown className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                   </button>
                   
-                  {isOpen && (
-                    <div className="ml-6 space-y-1">
-                      {dropdown.items.map((item) => {
-                        const Icon = item.icon;
-                        const isActive = pathname === item.href;
-                        
-                        return (
-                          <Link
-                            key={item.name}
-                            href={item.href}
-                            className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm ${
-                              isActive
-                                ? 'bg-ubuntu-500 text-white'
-                                : 'text-aubergine-300 hover:bg-aubergine-700 hover:text-white'
-                            }`}
-                          >
-                            <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-white' : 'text-aubergine-400'}`} />
-                            <div>
-                              <div className="font-medium">{item.name}</div>
-                              <div className={`text-xs ${isActive ? 'text-ubuntu-200' : 'text-aubergine-500'}`}>{item.description}</div>
-                            </div>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <div className={`ml-6 space-y-1 ${isOpen ? '' : 'hidden'}`}>
+                    {dropdown.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = pathname === item.href;
+                      
+                      return (
+                        <Link
+                          key={item.name}
+                          href={item.href}
+                          prefetch={true}
+                          className={`flex items-center px-4 py-2 rounded-lg transition-colors text-sm ${
+                            isActive
+                              ? 'bg-ubuntu-500 text-white'
+                              : 'text-aubergine-300 hover:bg-aubergine-700 hover:text-white'
+                          }`}
+                        >
+                          <Icon className={`w-4 h-4 mr-3 ${isActive ? 'text-white' : 'text-aubergine-400'}`} />
+                          <div>
+                            <div className="font-medium">{item.name}</div>
+                            <div className={`text-xs ${isActive ? 'text-ubuntu-200' : 'text-aubergine-500'}`}>{item.description}</div>
+                          </div>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               );
             }
