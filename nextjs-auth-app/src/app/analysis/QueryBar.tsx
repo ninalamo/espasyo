@@ -123,7 +123,7 @@ const QueryBar = ({
               id="numberOfClusters"
               value={numberOfClusters}
               onChange={(e) =>
-                setNumberOfClusters(Math.min(10, Math.max(3, Number(e.target.value))))
+                setNumberOfClusters(Math.min(10, Math.max(0, Number(e.target.value))))
               }
               className="border border-gray-300 p-2 rounded-md w-full text-center focus:outline-none focus:ring-2 focus:ring-blue-400"
             />

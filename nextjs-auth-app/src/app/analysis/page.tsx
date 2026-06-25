@@ -27,7 +27,7 @@ const AnalysisPage = () => {
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>(["Latitude", "Longitude"]);
   const [lastAnalysisParams, setLastAnalysisParams] = useState<any>(null);
 
-  const [numberOfClusters, setNumberOfClusters] = useState(3);
+  const [numberOfClusters, setNumberOfClusters] = useState(0);
   const [numberOfRuns, setNumberOfRuns] = useState(1);
 
   // Load existing analysis data from localStorage on component mount
@@ -82,10 +82,6 @@ const AnalysisPage = () => {
     }
     if (!selectedFeatures || selectedFeatures.length === 0) {
       toast.error("Please select a feature.");
-      return;
-    }
-    if (numberOfClusters < 3 || numberOfClusters > 10) {
-      toast.error("Number of clusters must be between 3 and 10.");
       return;
     }
     if (numberOfRuns < 1 || numberOfRuns > 10) {
