@@ -84,6 +84,8 @@ function ManpowerProposalPage() {
   const [settings, setSettings] = useState<DeploymentSettings>(loadSettings);
   const [showSettings, setShowSettings] = useState(false);
   const [expandedPrecinct, setExpandedPrecinct] = useState<number | null>(null);
+  const [evaluation, setEvaluation] = useState<Record<number, { mape: number; reliable: boolean; comparisons: number }> | null>(null);
+  const [evalLoading, setEvalLoading] = useState(false);
 
   useEffect(() => {
     fetch('/data/precincts.geojson')
@@ -111,6 +113,33 @@ function ManpowerProposalPage() {
         const snapshot = await forecastApi.getById(forecastId);
         setForecastData(snapshot.predictions || []);
         setForecastName(snapshot.name);
+
+        setEvalLoading(true);
+        try {
+          const evalResult = await forecastApi.evaluate(forecastId);
+          if (evalResult?.details?.length) {
+            const byPrecinct = new Map<string, { sumPct: number; count: number }>();
+            for (const d of evalResult.details) {
+              const p = byPrecinct.get(d.precinct) || { sumPct: 0, count: 0 };
+              p.sumPct += Math.abs(d.percentageError);
+              p.count++;
+              byPrecinct.set(d.precinct, p);
+            }
+            const map: Record<number, { mape: number; reliable: boolean; comparisons: number }> = {};
+            const precinctNames = ['Alabang','Bayanan','Buli','Cupang','Poblacion','Putatan','Tunasan','Ayala_Alabang','Sucat'];
+            for (const [name, data] of byPrecinct) {
+              const idx = precinctNames.indexOf(name);
+              if (idx !== -1) {
+                map[idx] = {
+                  mape: Math.round((data.sumPct / data.count) * 10) / 10,
+                  reliable: (data.sumPct / data.count) < 30,
+                  comparisons: data.count,
+                };
+              }
+            }
+            setEvaluation(map);
+          }
+        } catch {} finally { setEvalLoading(false); }
       } catch { toast.error('Failed to load forecast data'); }
       finally { setLoading(false); }
     })();
@@ -307,10 +336,16 @@ function ManpowerProposalPage() {
           </Link>
           <button
             onClick={exportCsv}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 text-sm"
+            className="px-4 py-2 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 flex items-center gap-2 text-sm"
           >
-            Export as CSV
+            Export CSV
           </button>
+          <Link
+            href={`/precincts?forecastId=${forecastId}`}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-medium"
+          >
+            Push to Precincts
+          </Link>
         </div>
       </div>
 
@@ -419,7 +454,7 @@ function ManpowerProposalPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white border border-gray-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <Users className="w-8 h-8 text-blue-600" />
@@ -458,6 +493,30 @@ function ManpowerProposalPage() {
                 </span>
               </div>
               <div className="text-xs text-gray-500">High & Critical Risk</div>
+            </div>
+          </div>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <svg className={`w-8 h-8 ${evaluation ? 'text-green-600' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <div>
+              {evalLoading ? (
+                <div className="text-sm text-gray-400">Loading...</div>
+              ) : evaluation ? (
+                <>
+                  <div className="text-2xl font-bold text-gray-900">
+                    {Math.round(Object.values(evaluation).reduce((s, e) => s + e.mape, 0) / Object.keys(evaluation).length)}%
+                  </div>
+                  <div className="text-xs text-gray-500">Avg MAPE (lower is better)</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-sm font-medium text-gray-400">—</div>
+                  <div className="text-xs text-gray-400">Not evaluated</div>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -536,6 +595,13 @@ function ManpowerProposalPage() {
                           <span className="font-medium text-gray-900">{pa.precinctName}</span>
                           {pa.trend === 'up' && <span className="text-red-500 text-xs">↑</span>}
                           {pa.trend === 'down' && <span className="text-green-500 text-xs">↓</span>}
+                          {evaluation?.[pa.precinctNumber] && (
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium ${
+                              evaluation[pa.precinctNumber].reliable ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {evaluation[pa.precinctNumber].mape}% error
+                            </span>
+                          )}
                         </div>
                       </td>
                       <td className="px-4 py-3">
@@ -633,6 +699,23 @@ function ManpowerProposalPage() {
                                     })}
                                 </div>
                               </div>
+
+                              {/* Evaluation / Accuracy */}
+                              {evaluation?.[pa.precinctNumber] && (
+                                <div className="mt-3 pt-3 border-t">
+                                  <h4 className="font-semibold text-gray-800 mb-2">Accuracy</h4>
+                                  <div className="text-xs space-y-1">
+                                    <p>
+                                      <span className={`inline-block w-2 h-2 rounded-full mr-1 ${evaluation[pa.precinctNumber].reliable ? 'bg-green-500' : 'bg-yellow-500'}`} />
+                                      MAPE: <strong>{evaluation[pa.precinctNumber].mape}%</strong>
+                                      {evaluation[pa.precinctNumber].reliable
+                                        ? <span className="text-green-600 ml-1">✓ Reliable</span>
+                                        : <span className="text-yellow-600 ml-1">Needs more data</span>}
+                                    </p>
+                                    <p className="text-gray-500">Based on {evaluation[pa.precinctNumber].comparisons} comparison points</p>
+                                  </div>
+                                </div>
+                              )}
                             </div>
 
                           </div>
