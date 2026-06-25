@@ -4,7 +4,6 @@ import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
-import * as turf from '@turf/turf';
 import { Cluster } from '../types/analysis/ClusterDto';
 import { CrimeTypesDictionary } from '../constants/consts';
 import MapModal from './MapModal';
@@ -19,8 +18,8 @@ interface MapProps {
 type ViewMode = 'points' | 'heatmap' | 'both';
 
 const PRECINCT_COLORS = [
-  '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
-  '#911eb4', '#42d4f4', '#f032e6', '#bfef45',
+  '#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFE8A1', '#E8BAFF',
+  '#FFD9BA', '#A1FFE8', '#FFC3E0', '#D4BAFF',
 ];
 
 const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping }) => {
@@ -28,14 +27,12 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const leafletMap = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const heatLayersRef = useRef<L.LayerGroup | null>(null);
-  const envelopeLayersRef = useRef<L.LayerGroup | null>(null);
   const precinctLayerRef = useRef<L.GeoJSON | null>(null);
   const precinctLabelLayerRef = useRef<L.LayerGroup | null>(null);
 
   const crimeTypeEnum = CrimeTypesDictionary;
 
   const [viewMode, setViewMode] = useState<ViewMode>('both');
-  const [showEnvelope, setShowEnvelope] = useState(true);
   const [showPrecincts, setShowPrecincts] = useState(false);
 
   const [stepwise, setStepwise] = useState(false);
@@ -156,9 +153,10 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       .then(data => {
         precinctLayerRef.current = L.geoJSON(data, {
           style: (feature) => ({
-            color: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
-            weight: 2.5,
-            fill: false,
+            color: '#666',
+            weight: 2,
+            fillColor: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
+            fillOpacity: 0.35,
           }),
         });
 
@@ -206,31 +204,18 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
       }).addTo(leafletMap.current);
       markersLayerRef.current = L.layerGroup().addTo(leafletMap.current);
       heatLayersRef.current = L.layerGroup().addTo(leafletMap.current);
-      envelopeLayersRef.current = L.layerGroup().addTo(leafletMap.current);
       precinctLabelLayerRef.current = L.layerGroup();
       setMapReady(true);
     }
 
     markersLayerRef.current?.clearLayers();
     heatLayersRef.current?.clearLayers();
-    envelopeLayersRef.current?.clearLayers();
 
     const showPointsLayer = viewMode === 'points' || viewMode === 'both';
     const showHeatLayer = viewMode === 'heatmap' || viewMode === 'both';
 
     filteredClusters.forEach(cluster => {
       const clusterColor = clusterColorsMapping[cluster.clusterId] || "#D3D3D3";
-
-      if (showEnvelope && cluster.clusterItems.length > 2) {
-        const points = cluster.clusterItems.map(i => [i.latitude, i.longitude] as [number, number]);
-        const fc = turf.featureCollection(points.map(pt => turf.point([pt[1], pt[0]])));
-        const hull = turf.convex(fc) || turf.bboxPolygon(turf.bbox(fc));
-        const buffered = turf.buffer(hull, 0.3, { units: 'kilometers' });
-        if (!buffered) return;
-        const coords = buffered.geometry.coordinates[0];
-        const latLngs = coords.map(c => [c[1], c[0]] as [number, number]);
-        L.polygon(latLngs, { stroke: false, fillColor: clusterColor, fillOpacity: 0.3 }).addTo(envelopeLayersRef.current!);
-      }
 
       if (showHeatLayer && cluster.clusterItems.length > 3) {
         try {
@@ -308,7 +293,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         });
       }
     });
-  }, [filteredClusters, center, zoom, viewMode, showEnvelope, compareMode, periodBYears, clusterColorsMapping, crimeTypeEnum]);
+  }, [filteredClusters, center, zoom, viewMode, compareMode, periodBYears, clusterColorsMapping, crimeTypeEnum]);
 
   const [showFilters, setShowFilters] = useState(true);
 
@@ -360,10 +345,6 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                 ))}
               </div>
               <div className="flex items-center gap-2 border-l border-gray-200 pl-2">
-                <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
-                  <input type="checkbox" checked={showEnvelope} onChange={e => setShowEnvelope(e.target.checked)} className="accent-blue-600" />
-                  Env
-                </label>
                 <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
                   <input type="checkbox" checked={showPrecincts} onChange={e => setShowPrecincts(e.target.checked)} className="accent-blue-600" />
                   Precincts

@@ -59,8 +59,8 @@ interface InterpolatedPoint extends ForecastMapPoint {
 }
 
 const PRECINCT_COLORS = [
-  '#e6194b', '#3cb44b', '#ffe119', '#4363d8', '#f58231',
-  '#911eb4', '#42d4f4', '#f032e6', '#bfef45',
+  '#FFB3BA', '#BAFFC9', '#BAE1FF', '#FFE8A1', '#E8BAFF',
+  '#FFD9BA', '#A1FFE8', '#FFC3E0', '#D4BAFF',
 ];
 
 const ForecastMap: React.FC<ForecastMapProps> = ({ 
@@ -320,9 +320,10 @@ const ForecastMap: React.FC<ForecastMapProps> = ({
       .then(data => {
         precinctLayerRef.current = L.geoJSON(data, {
           style: (feature: any) => ({
-            color: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
-            weight: 2.5,
-            fill: false,
+            color: '#666',
+            weight: 2,
+            fillColor: PRECINCT_COLORS[feature?.properties?.id ?? 0] ?? '#2c3e50',
+            fillOpacity: 0.35,
           }),
         });
 
