@@ -2,10 +2,10 @@
 
 import { useState, useEffect, useMemo, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { MapPin, Users, TrendingUp, AlertTriangle } from 'lucide-react';
+import { MapPin, Users, TrendingUp, AlertTriangle, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
-import { GetPrecinctsDictionary } from '../../constants/consts';
+import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import { forecastApi } from '../api/utils/forecastApi';
 import withAuth from '../hoc/withAuth';
 import { Skeleton, CardSkeleton, TableSkeleton } from '../../components/ui/skeleton';
@@ -23,19 +23,48 @@ interface PrecinctAllocation {
   trend: 'up' | 'down' | 'stable';
 }
 
-const OFFICERS_PER_SQKM = 1.5;
-const PATROL_DEMAND = 40;
+interface DeploymentSettings {
+  riskThresholdCritical: number;
+  riskThresholdHigh: number;
+  riskThresholdMedium: number;
+  officersPerSqKm: number;
+  patrolDemand: number;
+  riskBaseline: { critical: number; high: number; medium: number; low: number };
+  severityWeights: Record<number, number>;
+}
 
-const CRIME_SEVERITY_WEIGHTS: Record<number, number> = {
-  0: 5,  1: 4,  2: 3,  3: 2,  4: 2,
-  5: 3,  6: 4,  7: 4,  8: 2,  9: 4,
-  10: 2, 11: 5, 12: 5, 13: 5, 14: 5,
-  15: 5, 16: 5, 17: 5, 18: 2, 19: 2,
+const SETTINGS_KEY = 'manpowerDeploymentSettings';
+
+const DEFAULT_SETTINGS: DeploymentSettings = {
+  riskThresholdCritical: 50,
+  riskThresholdHigh: 25,
+  riskThresholdMedium: 10,
+  officersPerSqKm: 1.5,
+  patrolDemand: 40,
+  riskBaseline: { critical: 6, high: 4, medium: 3, low: 2 },
+  severityWeights: {
+    0: 5,  1: 4,  2: 3,  3: 2,  4: 2,
+    5: 3,  6: 4,  7: 4,  8: 2,  9: 4,
+    10: 2, 11: 5, 12: 5, 13: 5, 14: 5,
+    15: 5, 16: 5, 17: 5, 18: 2, 19: 2,
+  },
 };
 
-const RISK_BASELINE: Record<string, number> = {
-  critical: 6, high: 4, medium: 3, low: 2,
-};
+const SEVERITY_TIERS = [
+  { label: 'Critical', weight: 5, types: [0, 11, 12, 13, 14, 15, 16, 17] },
+  { label: 'High', weight: 4, types: [1, 6, 9] },
+  { label: 'Medium', weight: 3, types: [2, 5] },
+  { label: 'Low', weight: 2, types: [3, 4, 8, 10, 18, 19] },
+];
+
+function loadSettings(): DeploymentSettings {
+  if (typeof window === 'undefined') return DEFAULT_SETTINGS;
+  try {
+    const saved = localStorage.getItem(SETTINGS_KEY);
+    if (saved) return { ...DEFAULT_SETTINGS, ...JSON.parse(saved) };
+  } catch {}
+  return DEFAULT_SETTINGS;
+}
 
 const RISK_COLORS: Record<string, string> = {
   critical: 'bg-red-100 text-red-800 border-red-300',
@@ -52,6 +81,8 @@ function ManpowerProposalPage() {
   const [forecastName, setForecastName] = useState('');
   const [loading, setLoading] = useState(true);
   const [precinctAreas, setPrecinctAreas] = useState<Map<number, number>>(new Map());
+  const [settings, setSettings] = useState<DeploymentSettings>(loadSettings);
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     fetch('/data/precincts.geojson')
@@ -84,12 +115,12 @@ function ManpowerProposalPage() {
     })();
   }, [forecastId]);
 
-  const getOverallRisk = (avgPerMonth: number): string => {
-    if (avgPerMonth >= 50) return 'critical';
-    if (avgPerMonth >= 25) return 'high';
-    if (avgPerMonth >= 10) return 'medium';
+  const getOverallRisk = useCallback((avgPerMonth: number): string => {
+    if (avgPerMonth >= settings.riskThresholdCritical) return 'critical';
+    if (avgPerMonth >= settings.riskThresholdHigh) return 'high';
+    if (avgPerMonth >= settings.riskThresholdMedium) return 'medium';
     return 'low';
-  };
+  }, [settings.riskThresholdCritical, settings.riskThresholdHigh, settings.riskThresholdMedium]);
 
   const precinctAllocations = useMemo((): PrecinctAllocation[] => {
     if (forecastData.length === 0) return [];
@@ -102,19 +133,20 @@ function ManpowerProposalPage() {
     }
 
     const monthCount = new Set(forecastData.map(f => `${f.year}-${f.month}`)).size;
+    const { severityWeights, patrolDemand, officersPerSqKm, riskBaseline } = settings;
 
     return Array.from(byPrecinct.entries())
       .map(([num, items]) => {
         const name = GetPrecinctsDictionary[num] || `Precinct ${num}`;
         const totalPredicted = items.reduce((s, i) => s + i.predictedCount, 0);
         const avgPerMonth = totalPredicted / monthCount;
-        const riskLevel = getOverallRisk(avgPerMonth);
+        const riskLevel = getOverallRisk(avgPerMonth) as keyof typeof riskBaseline;
         const areaSqKm = precinctAreas.get(num) || 0;
-        const weightedScore = items.reduce((s, i) => s + i.predictedCount * (CRIME_SEVERITY_WEIGHTS[i.crimeType] ?? 1), 0);
+        const weightedScore = items.reduce((s, i) => s + i.predictedCount * (severityWeights[i.crimeType] ?? 1), 0);
         const monthlyWeighted = weightedScore / monthCount;
-        const patrolUnits = monthlyWeighted / PATROL_DEMAND;
-        const areaUnits = areaSqKm * OFFICERS_PER_SQKM;
-        const suggestedOfficers = Math.max(RISK_BASELINE[riskLevel], Math.round(patrolUnits + areaUnits));
+        const patrolUnits = monthlyWeighted / patrolDemand;
+        const areaUnits = areaSqKm * officersPerSqKm;
+        const suggestedOfficers = Math.max(riskBaseline[riskLevel], Math.round(patrolUnits + areaUnits));
 
         const inc = items.filter(i => i.trend === 'increasing').length;
         const dec = items.filter(i => i.trend === 'decreasing').length;
@@ -136,7 +168,7 @@ function ManpowerProposalPage() {
         const order = ['critical', 'high', 'medium', 'low'];
         return order.indexOf(a.riskLevel) - order.indexOf(b.riskLevel);
       });
-  }, [forecastData, precinctAreas]);
+  }, [forecastData, precinctAreas, settings, getOverallRisk]);
 
   const totalOfficers = useMemo(
     () => precinctAllocations.reduce((s, p) => s + p.suggestedOfficers, 0),
@@ -181,6 +213,22 @@ function ManpowerProposalPage() {
     a.click();
     URL.revokeObjectURL(url);
   }, [precinctAllocations, forecastName]);
+
+  const updateSetting = useCallback(<K extends keyof DeploymentSettings>(key: K, value: DeploymentSettings[K]) => {
+    setSettings(prev => {
+      const next = { ...prev, [key]: value };
+      try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  const updateSeverityTier = useCallback((tierWeight: number, newWeight: number) => {
+    const tier = SEVERITY_TIERS.find(t => t.weight === tierWeight);
+    if (!tier) return;
+    const updated = { ...settings.severityWeights };
+    tier.types.forEach(t => { updated[t] = newWeight; });
+    updateSetting('severityWeights', updated);
+  }, [settings.severityWeights, updateSetting]);
 
   const perShift = Math.round(totalOfficers / 3);
   const nightShift = totalOfficers - perShift * 2;
@@ -263,6 +311,110 @@ function ManpowerProposalPage() {
             Export as CSV
           </button>
         </div>
+      </div>
+
+      {/* Settings Panel */}
+      <div className="bg-white border border-gray-200 rounded-lg no-print">
+        <button
+          onClick={() => setShowSettings(!showSettings)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50"
+        >
+          <div className="flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Deployment Parameters
+          </div>
+          {showSettings ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+        </button>
+        {showSettings && (
+          <div className="px-4 pb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 text-sm">
+            {/* Risk Thresholds */}
+            <div>
+              <h4 className="font-medium text-gray-800 mb-2">Risk Thresholds (crimes/mo)</h4>
+              <div className="space-y-2">
+                <label className="flex items-center justify-between">
+                  <span className="text-red-700">Critical ≥</span>
+                  <input type="number" value={settings.riskThresholdCritical} onChange={e => updateSetting('riskThresholdCritical', +e.target.value)}
+                    className="w-20 px-2 py-1 border rounded text-right" min={1} />
+                </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-orange-700">High ≥</span>
+                  <input type="number" value={settings.riskThresholdHigh} onChange={e => updateSetting('riskThresholdHigh', +e.target.value)}
+                    className="w-20 px-2 py-1 border rounded text-right" min={1} />
+                </label>
+                <label className="flex items-center justify-between">
+                  <span className="text-yellow-700">Medium ≥</span>
+                  <input type="number" value={settings.riskThresholdMedium} onChange={e => updateSetting('riskThresholdMedium', +e.target.value)}
+                    className="w-20 px-2 py-1 border rounded text-right" min={0} />
+                </label>
+              </div>
+            </div>
+
+            {/* Patrol & Area */}
+            <div>
+              <h4 className="font-medium text-gray-800 mb-2">Patrol & Area</h4>
+              <div className="space-y-2">
+                <label className="flex items-center justify-between">
+                  <span>Patrol demand</span>
+                  <span className="text-xs text-gray-500">crimes/officer</span>
+                </label>
+                <input type="number" value={settings.patrolDemand} onChange={e => updateSetting('patrolDemand', +e.target.value)}
+                  className="w-full px-2 py-1 border rounded text-right" min={1} step={5} />
+                <label className="flex items-center justify-between">
+                  <span>Officers / km²</span>
+                </label>
+                <input type="number" value={settings.officersPerSqKm} onChange={e => updateSetting('officersPerSqKm', +e.target.value)}
+                  className="w-full px-2 py-1 border rounded text-right" min={0} step={0.5} />
+              </div>
+            </div>
+
+            {/* Risk Baseline */}
+            <div>
+              <h4 className="font-medium text-gray-800 mb-2">Min Officers by Risk</h4>
+              <div className="space-y-2">
+                {(['critical', 'high', 'medium', 'low'] as const).map(level => (
+                  <label key={level} className="flex items-center justify-between">
+                    <span className="capitalize">{level}</span>
+                    <input type="number"
+                      value={settings.riskBaseline[level]}
+                      onChange={e => setSettings(prev => {
+                        const rb = { ...prev.riskBaseline, [level]: +e.target.value };
+                        const next = { ...prev, riskBaseline: rb };
+                        try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch {}
+                        return next;
+                      })}
+                      className="w-20 px-2 py-1 border rounded text-right" min={0} />
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Severity Weights */}
+            <div>
+              <h4 className="font-medium text-gray-800 mb-2">Crime Severity Weights</h4>
+              <div className="space-y-2">
+                {SEVERITY_TIERS.map(tier => {
+                  const currentWeight = settings.severityWeights[tier.types[0]];
+                  return (
+                    <label key={tier.label} className="flex items-center justify-between">
+                      <span className="text-xs">{tier.label} ({tier.types.length} types)</span>
+                      <input type="number" value={currentWeight}
+                        onChange={e => updateSeverityTier(tier.weight, +e.target.value)}
+                        className="w-16 px-2 py-1 border rounded text-right" min={1} max={10} />
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Reset */}
+            <div className="md:col-span-2 lg:col-span-4 flex justify-end">
+              <button onClick={() => { setSettings(DEFAULT_SETTINGS); localStorage.removeItem(SETTINGS_KEY); }}
+                className="text-xs text-gray-500 hover:text-red-600 underline">
+                Reset to defaults
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Summary cards */}
