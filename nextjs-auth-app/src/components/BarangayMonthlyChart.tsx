@@ -23,6 +23,16 @@ const ALL_CRIME_TYPES = Object.entries(CrimeTypesDictionary)
 
 const TIME_OF_DAY_OPTIONS = ['Morning', 'Afternoon', 'Evening'];
 
+interface SideFilters {
+  precincts: number[];
+  years: number[];
+  months: number[];
+  timeOfDay: string[];
+  crimeTypes: number[];
+}
+
+const emptySideFilters: SideFilters = { precincts: [], years: [], months: [], timeOfDay: [], crimeTypes: [] };
+
 interface Props {
   clusters: Cluster[];
   timeOfDayColors: Record<string, string>;
@@ -36,23 +46,11 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
   const [selectedPrecincts, setSelectedPrecincts] = useState<number[]>([]);
   const [showFilters, setShowFilters] = useState(true);
 
-  const [stepwise, setStepwise] = useState(false);
-  const [play, setPlay] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
-
   const [compareMode, setCompareMode] = useState(false);
-  const [periodAYears, setPeriodAYears] = useState<number[]>([]);
-  const [periodBYears, setPeriodBYears] = useState<number[]>([]);
+  const [sideAFilters, setSideAFilters] = useState<SideFilters>({ ...emptySideFilters });
+  const [sideBFilters, setSideBFilters] = useState<SideFilters>({ ...emptySideFilters });
 
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-
-  const uniqueSteps = useMemo(
-    () => Array.from(
-      new Set(clusters.flatMap(c => c.clusterItems.map(i => `${i.year}-${i.month.toString().padStart(2, '0')}`)))
-    ).sort(),
-    [clusters]
-  );
 
   const uniqueYears = useMemo(
     () => Array.from(new Set(clusters.flatMap(c => c.clusterItems.map(i => i.year)))).sort(),
@@ -81,19 +79,8 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
   const filteredData = useMemo(() => {
     let items = clusters.flatMap(c => c.clusterItems);
 
-    if (compareMode) {
-      items = items.filter(i =>
-        (periodAYears.length === 0 && periodBYears.length === 0) ||
-        periodAYears.includes(i.year) || periodBYears.includes(i.year)
-      );
-    } else if (stepwise && uniqueSteps.length > 0) {
-      const [y, m] = uniqueSteps[currentStep].split('-').map(Number);
-      items = items.filter(i => i.year === y && i.month === m);
-    } else {
-      if (selectedMonths.length > 0) items = items.filter(i => selectedMonths.includes(i.month));
-      if (selectedYears.length > 0) items = items.filter(i => selectedYears.includes(i.year));
-    }
-
+    if (selectedMonths.length > 0) items = items.filter(i => selectedMonths.includes(i.month));
+    if (selectedYears.length > 0) items = items.filter(i => selectedYears.includes(i.year));
     if (selectedCrimeTypes.length > 0) items = items.filter(i => selectedCrimeTypes.includes(i.crimeType));
     if (selectedTimeOfDay.length > 0) items = items.filter(i => selectedTimeOfDay.includes(i.timeOfDay));
     if (selectedPrecincts.length > 0) items = items.filter(i => selectedPrecincts.includes(i.precinct));
@@ -105,31 +92,13 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
       timeOfDay: i.timeOfDay,
       crimeType: i.crimeType,
     }));
-  }, [clusters, stepwise, currentStep, selectedMonths, selectedYears, selectedCrimeTypes, selectedTimeOfDay, selectedPrecincts, compareMode, periodAYears, periodBYears, uniqueSteps]);
-
-  useEffect(() => {
-    if (play && stepwise && uniqueSteps.length > 0) {
-      intervalRef.current = setInterval(() => {
-        setCurrentStep(prev => (prev + 1) % uniqueSteps.length);
-      }, 2000);
-    } else {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [play, stepwise, uniqueSteps]);
+  }, [clusters, selectedMonths, selectedYears, selectedCrimeTypes, selectedTimeOfDay, selectedPrecincts]);
 
   const handleCompareToggle = useCallback(() => {
-    if (!compareMode) {
-      const sortedYears = [...uniqueYears];
-      const mid = Math.floor(sortedYears.length / 2);
-      setPeriodAYears(sortedYears.slice(0, mid));
-      setPeriodBYears(sortedYears.slice(mid));
-    } else {
-      setPeriodAYears([]);
-      setPeriodBYears([]);
-    }
-    setCompareMode(!compareMode);
-  }, [compareMode, uniqueYears]);
+    setCompareMode(prev => !prev);
+    setSideAFilters({ ...emptySideFilters });
+    setSideBFilters({ ...emptySideFilters });
+  }, []);
 
   const precincts = useMemo(
     () => Array.from(new Set(filteredData.map(d => d.precinct))).sort((a, b) => a - b),
@@ -169,12 +138,8 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
-    const periodDist = compareMode
-      ? {
-          periodA: items.filter(d => !periodBYears.includes(d.year)).length,
-          periodB: items.filter(d => periodBYears.includes(d.year)).length,
-        }
-      : null;
+    const itemsA = compareMode ? applySideFilters(items, sideAFilters) : items;
+    const itemsB = compareMode ? applySideFilters(items, sideBFilters) : null;
 
     const peakTimeOfDay = [...Object.entries(timeOfDayDist)].sort((a, b) => b[1] - a[1])[0];
     const peakCrimeType = crimeTypeDist.length > 0 ? crimeTypeDist[0] : null;
@@ -206,20 +171,20 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
       parts.push(`The most common crime type was ${name} (${peakCrimeType[1]}, ${pct}% of total).`);
     }
 
-    if (periodDist) {
-      if (periodDist.periodA > periodDist.periodB) {
-        parts.push(`Comparing periods, Period A had more incidents (${periodDist.periodA} vs ${periodDist.periodB} in Period B).`);
-      } else if (periodDist.periodB > periodDist.periodA) {
-        parts.push(`Comparing periods, Period B had more incidents (${periodDist.periodB} vs ${periodDist.periodA} in Period A).`);
+    if (itemsB !== null) {
+      if (itemsA.length > itemsB.length) {
+        parts.push(`Side A has more incidents (${itemsA.length} vs ${itemsB.length} on Side B).`);
+      } else if (itemsB.length > itemsA.length) {
+        parts.push(`Side B has more incidents (${itemsB.length} vs ${itemsA.length} on Side A).`);
       } else {
-        parts.push(`Both periods have an equal number of incidents (${periodDist.periodA} each).`);
+        parts.push(`Both sides have an equal number of incidents (${itemsA.length} each).`);
       }
     }
 
     const explanation = parts.join(' ');
 
-    return { total, dateRange, years, timeOfDayDist, crimeTypeDist, periodDist, explanation };
-  }, [selected, filteredData, compareMode, periodBYears]);
+    return { total, dateRange, years, timeOfDayDist, crimeTypeDist, sideCountA: itemsA.length, sideCountB: itemsB?.length, explanation };
+  }, [selected, filteredData, compareMode, sideAFilters, sideBFilters]);
 
   const makeChartData = (counts: Record<number, Record<string, number>>, colors: Record<string, string>) => ({
     labels: months.map(m => m.label),
@@ -240,6 +205,96 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
       x: { title: { display: true, text: 'Month' } },
       y: { title: { display: true, text: 'Count' }, beginAtZero: true }
     },
+  };
+
+  const SideFilterPanel: React.FC<{
+    side: 'A' | 'B';
+    filters: SideFilters;
+    setFilters: React.Dispatch<React.SetStateAction<SideFilters>>;
+  }> = ({ side, filters, setFilters }) => {
+    const toggle = (key: keyof SideFilters, value: number | string) => {
+      setFilters(prev => {
+        const arr = prev[key] as (number | string)[];
+        return {
+          ...prev,
+          [key]: arr.includes(value) ? arr.filter(x => x !== value) : [...arr, value],
+        };
+      });
+    };
+
+    const reset = () => setFilters({ ...emptySideFilters });
+
+    const isA = side === 'A';
+    const accentColor = isA ? 'text-ubuntu-700' : 'text-red-700';
+    const borderColor = isA ? 'border-ubuntu-300' : 'border-red-300';
+    const bgSelected = isA ? 'bg-ubuntu-500 text-white' : 'bg-red-600 text-white';
+
+    return (
+      <div className={`p-3 bg-gray-50 rounded-lg border ${borderColor}`}>
+        <div className="flex items-center justify-between mb-2">
+          <span className={`text-xs font-semibold ${accentColor}`}>Side {side}</span>
+          <button onClick={reset} className="px-1.5 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300">Reset</button>
+        </div>
+        <div className="space-y-2">
+          {availablePrecincts.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-xs font-medium text-gray-500 w-14 shrink-0">Brgy:</span>
+              {availablePrecincts.map(({ id, name }) => (
+                <button key={id} onClick={() => toggle('precincts', id)}
+                  className={`px-1.5 py-0.5 border rounded text-xs whitespace-nowrap ${filters.precincts.includes(id) ? bgSelected : 'bg-white'}`}
+                >{name}</button>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-xs font-medium text-gray-500 w-14 shrink-0">Year:</span>
+            {uniqueYears.map(y => (
+              <button key={y} onClick={() => toggle('years', y)}
+                className={`px-1.5 py-0.5 border rounded text-xs ${filters.years.includes(y) ? bgSelected : 'bg-white'}`}
+              >{y}</button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-xs font-medium text-gray-500 w-14 shrink-0">Month:</span>
+            {[...Array(12)].map((_, i) => {
+              const m = i + 1;
+              return (
+                <button key={m} onClick={() => toggle('months', m)}
+                  className={`px-1.5 py-0.5 border rounded text-xs ${filters.months.includes(m) ? bgSelected : 'bg-white'}`}
+                >{m}</button>
+              );
+            })}
+          </div>
+          {availableCrimeTypes.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1">
+              <span className="text-xs font-medium text-gray-500 w-14 shrink-0">Crime:</span>
+              {availableCrimeTypes.map(({ id, label }) => (
+                <button key={id} onClick={() => toggle('crimeTypes', id)}
+                  className={`px-1.5 py-0.5 border rounded text-xs whitespace-nowrap ${filters.crimeTypes.includes(id) ? bgSelected : 'bg-white'}`}
+                >{label}</button>
+              ))}
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-xs font-medium text-gray-500 w-14 shrink-0">Time:</span>
+            {TIME_OF_DAY_OPTIONS.map(t => (
+              <button key={t} onClick={() => toggle('timeOfDay', t)}
+                className={`px-1.5 py-0.5 border rounded text-xs ${filters.timeOfDay.includes(t) ? bgSelected : 'bg-white'}`}
+              >{t}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const applySideFilters = (items: typeof filteredData, f: SideFilters) => {
+    if (f.precincts.length > 0) items = items.filter(d => f.precincts.includes(d.precinct));
+    if (f.years.length > 0) items = items.filter(d => f.years.includes(d.year));
+    if (f.months.length > 0) items = items.filter(d => f.months.includes(d.month));
+    if (f.timeOfDay.length > 0) items = items.filter(d => f.timeOfDay.includes(d.timeOfDay));
+    if (f.crimeTypes.length > 0) items = items.filter(d => f.crimeTypes.includes(d.crimeType));
+    return items;
   };
 
   const ChartTile: React.FC<{ precinct: number }> = ({ precinct }) => {
@@ -265,16 +320,22 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
       if (!isReady) return null;
 
       if (compareMode) {
+        const itemsA = applySideFilters(items, sideAFilters);
+        const itemsB = applySideFilters(items, sideBFilters);
+
         const countsA: Record<number, Record<string, number>> = {};
         const countsB: Record<number, Record<string, number>> = {};
         months.forEach(m => {
           countsA[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 };
           countsB[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 };
         });
-        items.forEach(d => {
+        itemsA.forEach(d => {
           const ms = new Date(d.year, d.month - 1, 1).getTime();
-          const target = periodBYears.includes(d.year) ? countsB : countsA;
-          if (target[ms]) target[ms][d.timeOfDay]++;
+          if (countsA[ms]) countsA[ms][d.timeOfDay]++;
+        });
+        itemsB.forEach(d => {
+          const ms = new Date(d.year, d.month - 1, 1).getTime();
+          if (countsB[ms]) countsB[ms][d.timeOfDay]++;
         });
         const dataA = makeChartData(countsA, compareColors.A);
         const dataB = makeChartData(countsB, compareColors.B);
@@ -282,13 +343,13 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="border border-ubuntu-300 rounded-lg p-3">
-              <h4 className="text-center text-sm font-semibold text-ubuntu-700 mb-2">Period A</h4>
+              <h4 className="text-center text-sm font-semibold text-ubuntu-700 mb-2">Side A</h4>
               <div style={{ height: 260 }}>
                 <Chart type="bar" data={dataA} options={chartOptions} />
               </div>
             </div>
             <div className="border border-red-300 rounded-lg p-3">
-              <h4 className="text-center text-sm font-semibold text-red-700 mb-2">Period B</h4>
+              <h4 className="text-center text-sm font-semibold text-red-700 mb-2">Side B</h4>
               <div style={{ height: 260 }}>
                 <Chart type="bar" data={dataB} options={chartOptions} />
               </div>
@@ -310,7 +371,7 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
           <Chart type="bar" data={data} options={chartOptions} />
         </div>
       );
-    }, [isReady, items, months, compareMode, periodBYears, timeOfDayColors]);
+    }, [isReady, items, months, compareMode, sideAFilters, sideBFilters, timeOfDayColors]);
 
     return (
       <>
@@ -347,10 +408,6 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
             </button>
             <div className="flex items-center gap-2 border-l border-gray-200 pl-2">
               <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
-                <input type="checkbox" checked={stepwise} onChange={e => { setStepwise(e.target.checked); setPlay(false); }} className="accent-blue-600" />
-                Trends
-              </label>
-              <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
                 <input type="checkbox" checked={compareMode} onChange={handleCompareToggle} className="accent-purple-600" />
                 Compare
               </label>
@@ -360,51 +417,12 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
 
         {showFilters && (
           <div className="space-y-3">
-            {compareMode && (
-              <div className="flex gap-4 p-2.5 bg-gray-50 rounded-lg border">
-                <div className="flex-1">
-                  <span className="text-xs font-medium text-ubuntu-700">Period A</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {uniqueYears.map(y => (
-                      <button
-                        key={y}
-                        onClick={() => setPeriodAYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
-                        className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
-                      >{y}</button>
-                    ))}
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <span className="text-xs font-medium text-red-700">Period B</span>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {uniqueYears.map(y => (
-                      <button
-                        key={y}
-                        onClick={() => setPeriodBYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
-                        className={`px-2 py-0.5 border rounded text-xs ${periodBYears.includes(y) ? 'bg-red-600 text-white' : 'bg-white'}`}
-                      >{y}</button>
-                    ))}
-                  </div>
-                </div>
+            {compareMode ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <SideFilterPanel side="A" filters={sideAFilters} setFilters={setSideAFilters} />
+                <SideFilterPanel side="B" filters={sideBFilters} setFilters={setSideBFilters} />
               </div>
-            )}
-
-            {stepwise && (
-              <div className="flex items-center justify-between gap-2 p-2.5 bg-gray-50 rounded-lg border">
-                <div className="flex items-center gap-1.5">
-                  <button onClick={() => setPlay(!play)} className="px-3 py-1 text-xs font-medium bg-ubuntu-500 text-white rounded hover:bg-ubuntu-700">
-                    {play ? '⏸' : '▶'} {play ? 'Pause' : 'Play'}
-                  </button>
-                  <button onClick={() => setCurrentStep(p => Math.max(p - 1, 0))} className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50">◀</button>
-                  <button onClick={() => setCurrentStep(p => Math.min(p + 1, uniqueSteps.length - 1))} className="px-2 py-1 text-xs bg-white border rounded hover:bg-gray-50">▶</button>
-                </div>
-                <span className="px-3 py-1 rounded-full bg-blue-100 text-ubuntu-700 text-xs font-semibold">
-                  {(() => { const [y, m] = uniqueSteps[currentStep].split('-').map(Number); return format(new Date(y, m - 1), 'MMM yyyy'); })()}
-                </span>
-              </div>
-            )}
-
-            {!stepwise && !compareMode && (
+            ) : (
               <div className="p-2.5 bg-gray-50 rounded-lg border space-y-2">
                 <div className="flex flex-wrap items-center gap-3">
                   <span className="text-xs font-medium text-gray-600">Month:</span>
@@ -487,11 +505,11 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
             <span className="text-gray-600">{selectedPrecinctSummary.total} incident{selectedPrecinctSummary.total !== 1 ? 's' : ''}</span>
             <span className="text-gray-400">·</span>
             <span className="text-gray-600">{selectedPrecinctSummary.dateRange}</span>
-            {selectedPrecinctSummary.periodDist && (
+            {selectedPrecinctSummary.sideCountB !== undefined && (
               <>
                 <span className="text-gray-400">·</span>
-                <span className="text-ubuntu-700">A: {selectedPrecinctSummary.periodDist.periodA}</span>
-                <span className="text-red-600">B: {selectedPrecinctSummary.periodDist.periodB}</span>
+                <span className="text-ubuntu-700">A: {selectedPrecinctSummary.sideCountA}</span>
+                <span className="text-red-600">B: {selectedPrecinctSummary.sideCountB}</span>
               </>
             )}
           </div>
