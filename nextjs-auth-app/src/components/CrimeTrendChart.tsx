@@ -97,6 +97,48 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters }) => {
       typeMap.set(item.crimeType, (typeMap.get(item.crimeType) || 0) + 1);
     });
 
+    // Fill gaps so the timeline is continuous (zero-fill empty buckets)
+    if (filteredItems.length > 0) {
+      let minDate = new Date(9999, 11, 31);
+      let maxDate = new Date(0, 0, 1);
+      filteredItems.forEach(item => {
+        const day = interval === 'daily' || interval === 'weekly' ? item.day : 1;
+        const d = new Date(item.year, item.month - 1, day);
+        if (d < minDate) minDate = new Date(d);
+        if (d > maxDate) maxDate = new Date(d);
+      });
+      const cursor = new Date(minDate);
+      while (cursor <= maxDate) {
+        let key: string;
+        switch (interval) {
+          case 'daily':
+            key = format(cursor, 'yyyy-MM-dd');
+            break;
+          case 'weekly': {
+            const week = getISOWeek(cursor);
+            key = `${cursor.getFullYear()}-W${String(week).padStart(2, '0')}`;
+            break;
+          }
+          case 'monthly':
+            key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+            break;
+          case 'yearly':
+            key = `${cursor.getFullYear()}`;
+            break;
+          default:
+            key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+        }
+        if (!grouped.has(key)) grouped.set(key, new Map());
+        switch (interval) {
+          case 'daily': cursor.setDate(cursor.getDate() + 1); break;
+          case 'weekly': cursor.setDate(cursor.getDate() + 7); break;
+          case 'monthly': cursor.setMonth(cursor.getMonth() + 1); break;
+          case 'yearly': cursor.setFullYear(cursor.getFullYear() + 1); break;
+          default: cursor.setMonth(cursor.getMonth() + 1);
+        }
+      }
+    }
+
     const sortedKeys = [...grouped.keys()].sort();
 
     const labels = sortedKeys.map(key => {
