@@ -297,6 +297,84 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
     );
   };
 
+  const CompareView: React.FC = () => {
+    const [isReady, setIsReady] = useState(false);
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+      const check = () => {
+        if (containerRef.current) {
+          const { width, height } = containerRef.current.getBoundingClientRect();
+          if (width > 0 && height > 0) setIsReady(true);
+        }
+      };
+      check();
+      const timer = setTimeout(() => setIsReady(true), 100);
+      return () => clearTimeout(timer);
+    }, []);
+
+    const content = useMemo(() => {
+      if (!isReady) return null;
+
+      const itemsA = applySideFilters(filteredData, sideAFilters);
+      const itemsB = applySideFilters(filteredData, sideBFilters);
+
+      const countsA: Record<number, Record<string, number>> = {};
+      const countsB: Record<number, Record<string, number>> = {};
+      months.forEach(m => {
+        countsA[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 };
+        countsB[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 };
+      });
+      itemsA.forEach(d => {
+        const ms = new Date(d.year, d.month - 1, 1).getTime();
+        if (countsA[ms]) countsA[ms][d.timeOfDay]++;
+      });
+      itemsB.forEach(d => {
+        const ms = new Date(d.year, d.month - 1, 1).getTime();
+        if (countsB[ms]) countsB[ms][d.timeOfDay]++;
+      });
+
+      const dataA = makeChartData(countsA, compareColors.A);
+      const dataB = makeChartData(countsB, compareColors.B);
+
+      return (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between px-1">
+            <span className="text-sm text-blue-700 font-semibold">Side A: {itemsA.length} incidents</span>
+            <span className="text-sm text-red-700 font-semibold">Side B: {itemsB.length} incidents</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border border-ubuntu-300 rounded-lg p-3">
+              <h4 className="text-center text-sm font-semibold text-ubuntu-700 mb-2">Side A</h4>
+              <div style={{ height: 300 }}>
+                <Chart type="bar" data={dataA} options={chartOptions} />
+              </div>
+            </div>
+            <div className="border border-red-300 rounded-lg p-3">
+              <h4 className="text-center text-sm font-semibold text-red-700 mb-2">Side B</h4>
+              <div style={{ height: 300 }}>
+                <Chart type="bar" data={dataB} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }, [isReady, filteredData, sideAFilters, sideBFilters, months]);
+
+    return (
+      <div ref={containerRef}>
+        {content ?? (
+          <div className="flex items-center justify-center h-64 text-gray-500">
+            <div className="text-center">
+              <div className="animate-spin h-6 w-6 mx-auto mb-2 border-2 border-ubuntu-500 border-t-transparent rounded-full"></div>
+              <p className="text-sm">Loading...</p>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const ChartTile: React.FC<{ precinct: number }> = ({ precinct }) => {
     const [isReady, setIsReady] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -535,7 +613,9 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
         </div>
       )}
 
-      {selected !== null ? (
+      {compareMode ? (
+        <CompareView />
+      ) : selected !== null ? (
         <div className="w-full p-4 border-4 border-blue-500 rounded shadow-sm bg-white" title="Click to show all barangays">
           <ChartTile precinct={selected} />
         </div>
