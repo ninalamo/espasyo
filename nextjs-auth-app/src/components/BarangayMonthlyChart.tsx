@@ -112,6 +112,15 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
 
   const toRender = selected !== null ? [selected] : precincts;
 
+  const applySideFilters = (items: typeof filteredData, f: SideFilters) => {
+    if (f.precincts.length > 0) items = items.filter(d => f.precincts.includes(d.precinct));
+    if (f.years.length > 0) items = items.filter(d => f.years.includes(d.year));
+    if (f.months.length > 0) items = items.filter(d => f.months.includes(d.month));
+    if (f.timeOfDay.length > 0) items = items.filter(d => f.timeOfDay.includes(d.timeOfDay));
+    if (f.crimeTypes.length > 0) items = items.filter(d => f.crimeTypes.includes(d.crimeType));
+    return items;
+  };
+
   const selectedPrecinctSummary = useMemo(() => {
     if (selected === null) return null;
     const items = filteredData.filter(d => d.precinct === selected);
@@ -286,15 +295,6 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
         </div>
       </div>
     );
-  };
-
-  const applySideFilters = (items: typeof filteredData, f: SideFilters) => {
-    if (f.precincts.length > 0) items = items.filter(d => f.precincts.includes(d.precinct));
-    if (f.years.length > 0) items = items.filter(d => f.years.includes(d.year));
-    if (f.months.length > 0) items = items.filter(d => f.months.includes(d.month));
-    if (f.timeOfDay.length > 0) items = items.filter(d => f.timeOfDay.includes(d.timeOfDay));
-    if (f.crimeTypes.length > 0) items = items.filter(d => f.crimeTypes.includes(d.crimeType));
-    return items;
   };
 
   const ChartTile: React.FC<{ precinct: number }> = ({ precinct }) => {

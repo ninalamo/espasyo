@@ -122,6 +122,17 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
+    if (!mapRef.current) return;
+    const observer = new ResizeObserver(() => {
+      if (leafletMap.current) {
+        leafletMap.current.invalidateSize();
+      }
+    });
+    observer.observe(mapRef.current);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     if (!mapReady || !leafletMap.current) return;
 
     if (!document.getElementById('precinct-label-style')) {
@@ -198,7 +209,9 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     if (!mapRef.current) return;
 
     if (!leafletMap.current) {
-      leafletMap.current = L.map(mapRef.current).setView(center, zoom);
+      leafletMap.current = L.map(mapRef.current, {
+        attributionControl: false,
+      }).setView(center, zoom);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "&copy; OpenStreetMap contributors"
       }).addTo(leafletMap.current);
