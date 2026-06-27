@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
@@ -48,10 +48,6 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     items: Cluster['clusterItems'];
   } | null>(null);
 
-  const [compareMode, setCompareMode] = useState(false);
-  const [periodAYears, setPeriodAYears] = useState<number[]>([]);
-  const [periodBYears, setPeriodBYears] = useState<number[]>([]);
-
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const uniqueSteps = useMemo(
@@ -77,15 +73,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
   useEffect(() => {
     let filtered = clusters;
 
-    if (compareMode) {
-      filtered = filtered.map(c => ({
-        ...c,
-        clusterItems: c.clusterItems.filter(i =>
-          (periodAYears.length === 0 && periodBYears.length === 0) ||
-          periodAYears.includes(i.year) || periodBYears.includes(i.year)
-        )
-      })).filter(c => c.clusterItems.length > 0);
-    } else if (stepwise && uniqueSteps.length > 0) {
+    if (stepwise && uniqueSteps.length > 0) {
       const [y, m] = uniqueSteps[currentStep].split('-').map(Number);
       filtered = filtered.map(c => ({
         ...c,
@@ -106,7 +94,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     }
 
     setFilteredClusters(filtered);
-  }, [clusters, stepwise, currentStep, selectedMonths, selectedYears, selectedCrimeTypes, compareMode, periodAYears, periodBYears, uniqueSteps]);
+  }, [clusters, stepwise, currentStep, selectedMonths, selectedYears, selectedCrimeTypes, uniqueSteps]);
 
   useEffect(() => {
     if (play && stepwise && uniqueSteps.length > 0) {
@@ -253,14 +241,12 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         cluster.clusterItems.forEach(item => {
           const key = `${item.latitude.toFixed(6)}_${item.longitude.toFixed(6)}`;
           if (!markerMap[key]) {
-            const isPeriodB = compareMode && periodBYears.includes(item.year);
-            const markerColor = isPeriodB ? '#E74C3C' : clusterColor;
             const marker = L.circleMarker([item.latitude, item.longitude], {
-              color: isPeriodB ? '#C0392B' : "#AAA",
+              color: "#AAA",
               weight: 1,
-              fillColor: markerColor,
+              fillColor: clusterColor,
               fillOpacity: 0.8,
-              radius: isPeriodB ? 6 : 5
+              radius: 5
             }).addTo(markersLayerRef.current!);
 
             const allItems = cluster.clusterItems.filter(
@@ -306,24 +292,11 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
         });
       }
     });
-  }, [filteredClusters, center, zoom, viewMode, compareMode, periodBYears, clusterColorsMapping, crimeTypeEnum]);
+  }, [filteredClusters, center, zoom, viewMode, clusterColorsMapping, crimeTypeEnum]);
 
   const [showFilters, setShowFilters] = useState(true);
 
   const crimeTypeEntries = useMemo(() => Object.entries(crimeTypeEnum), [crimeTypeEnum]);
-
-  const handleCompareToggle = useCallback(() => {
-    if (!compareMode) {
-      const sortedYears = [...uniqueYears];
-      const mid = Math.floor(sortedYears.length / 2);
-      setPeriodAYears(sortedYears.slice(0, mid));
-      setPeriodBYears(sortedYears.slice(mid));
-    } else {
-      setPeriodAYears([]);
-      setPeriodBYears([]);
-    }
-    setCompareMode(!compareMode);
-  }, [compareMode, uniqueYears]);
 
   const hasData = clusters && clusters.length > 0;
 
@@ -366,45 +339,12 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                   <input type="checkbox" checked={stepwise} onChange={e => { setStepwise(e.target.checked); setPlay(false); }} className="accent-blue-600" />
                   Trends
                 </label>
-                <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
-                  <input type="checkbox" checked={compareMode} onChange={handleCompareToggle} className="accent-purple-600" />
-                  Compare
-                </label>
               </div>
               </div>
             </div>
 
           {showFilters && (
             <div className="space-y-3">
-              {compareMode && (
-                <div className="flex gap-4 p-2.5 bg-gray-50 rounded-lg border">
-                  <div className="flex-1">
-                    <span className="text-xs font-medium text-ubuntu-700">Period A (Blue)</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {uniqueYears.map(y => (
-                        <button
-                          key={y}
-                          onClick={() => setPeriodAYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
-                          className={`px-2 py-0.5 border rounded text-xs ${periodAYears.includes(y) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
-                        >{y}</button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <span className="text-xs font-medium text-red-700">Period B (Red)</span>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {uniqueYears.map(y => (
-                        <button
-                          key={y}
-                          onClick={() => setPeriodBYears(prev => prev.includes(y) ? prev.filter(x => x !== y) : [...prev, y])}
-                          className={`px-2 py-0.5 border rounded text-xs ${periodBYears.includes(y) ? 'bg-red-600 text-white' : 'bg-white'}`}
-                        >{y}</button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
               {stepwise && (
                 <div className="flex items-center justify-between gap-2 p-2.5 bg-gray-50 rounded-lg border">
                   <div className="flex items-center gap-1.5">
@@ -418,7 +358,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                 </div>
               )}
 
-              {!stepwise && !compareMode && (
+              {!stepwise && (
                 <div className="p-2.5 bg-gray-50 rounded-lg border space-y-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="text-xs font-medium text-gray-600">Month:</span>
