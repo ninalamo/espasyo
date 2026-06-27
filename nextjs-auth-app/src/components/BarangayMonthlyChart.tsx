@@ -12,12 +12,9 @@ const precinctNames: Record<number, string> = GetPrecinctsDictionary;
 
 const timeSlots = ['Morning', 'Afternoon', 'Evening'] as const;
 
-const compareTimeSlots = ['Morning_A', 'Afternoon_A', 'Evening_A', 'Morning_B', 'Afternoon_B', 'Evening_B'] as const;
-
-const periodBColors: Record<string, string> = {
-  'Morning_B': '#D4AA30',
-  'Afternoon_B': '#1A7BB8',
-  'Evening_B': '#C44060',
+const compareColors: Record<string, Record<string, string>> = {
+  A: { Morning: '#FFCE56', Afternoon: '#36A2EB', Evening: '#FF6384' },
+  B: { Morning: '#D4AA30', Afternoon: '#1A7BB8', Evening: '#C44060' },
 };
 
 const ALL_CRIME_TYPES = Object.entries(CrimeTypesDictionary)
@@ -224,84 +221,103 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
     return { total, dateRange, years, timeOfDayDist, crimeTypeDist, periodDist, explanation };
   }, [selected, filteredData, compareMode, periodBYears]);
 
+  const makeChartData = (counts: Record<number, Record<string, number>>, colors: Record<string, string>) => ({
+    labels: months.map(m => m.label),
+    datasets: timeSlots.map(slot => ({
+      type: 'bar' as const,
+      label: slot,
+      data: months.map(m => counts[m.ms]?.[slot] ?? 0),
+      backgroundColor: colors[slot],
+      stack: 'stack',
+    })),
+  });
+
+  const chartOptions: ChartOptions<'bar'> = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'bottom' } },
+    scales: {
+      x: { title: { display: true, text: 'Month' } },
+      y: { title: { display: true, text: 'Count' }, beginAtZero: true }
+    },
+  };
+
   const ChartTile: React.FC<{ precinct: number }> = ({ precinct }) => {
-    const [isContainerReady, setIsContainerReady] = useState(false);
+    const [isReady, setIsReady] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
     const brgyName = precinctNames[precinct] || `Precinct ${precinct}`;
 
     useEffect(() => {
-      const checkContainerSize = () => {
+      const check = () => {
         if (containerRef.current) {
           const { width, height } = containerRef.current.getBoundingClientRect();
-          if (width > 0 && height > 0) setIsContainerReady(true);
+          if (width > 0 && height > 0) setIsReady(true);
         }
       };
-      checkContainerSize();
-      const timer = setTimeout(() => setIsContainerReady(true), 100);
+      check();
+      const timer = setTimeout(() => setIsReady(true), 100);
       return () => clearTimeout(timer);
     }, []);
 
-    const counts: Record<number, Record<string, number>> = {};
-    months.forEach(m => {
+    const items = useMemo(() => filteredData.filter(d => d.precinct === precinct), [filteredData, precinct]);
+
+    const chartContent = useMemo(() => {
+      if (!isReady) return null;
+
       if (compareMode) {
-        counts[m.ms] = { Morning_A: 0, Afternoon_A: 0, Evening_A: 0, Morning_B: 0, Afternoon_B: 0, Evening_B: 0 };
-      } else {
-        counts[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 };
+        const countsA: Record<number, Record<string, number>> = {};
+        const countsB: Record<number, Record<string, number>> = {};
+        months.forEach(m => {
+          countsA[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 };
+          countsB[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 };
+        });
+        items.forEach(d => {
+          const ms = new Date(d.year, d.month - 1, 1).getTime();
+          const target = periodBYears.includes(d.year) ? countsB : countsA;
+          if (target[ms]) target[ms][d.timeOfDay]++;
+        });
+        const dataA = makeChartData(countsA, compareColors.A);
+        const dataB = makeChartData(countsB, compareColors.B);
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="border border-ubuntu-300 rounded-lg p-3">
+              <h4 className="text-center text-sm font-semibold text-ubuntu-700 mb-2">Period A</h4>
+              <div style={{ height: 260 }}>
+                <Chart type="bar" data={dataA} options={chartOptions} />
+              </div>
+            </div>
+            <div className="border border-red-300 rounded-lg p-3">
+              <h4 className="text-center text-sm font-semibold text-red-700 mb-2">Period B</h4>
+              <div style={{ height: 260 }}>
+                <Chart type="bar" data={dataB} options={chartOptions} />
+              </div>
+            </div>
+          </div>
+        );
       }
-    });
 
-    filteredData.filter(d => d.precinct === precinct).forEach(d => {
-      const ms = new Date(d.year, d.month - 1, 1).getTime();
-      if (counts[ms]) {
-        if (compareMode) {
-          const period = periodBYears.includes(d.year) ? 'B' : 'A';
-          const key = `${d.timeOfDay}_${period}`;
-          if (key in counts[ms]) counts[ms][key]++;
-        } else {
-          counts[ms][d.timeOfDay]++;
-        }
-      }
-    });
+      const counts: Record<number, Record<string, number>> = {};
+      months.forEach(m => { counts[m.ms] = { Morning: 0, Afternoon: 0, Evening: 0 }; });
+      items.forEach(d => {
+        const ms = new Date(d.year, d.month - 1, 1).getTime();
+        if (counts[ms]) counts[ms][d.timeOfDay]++;
+      });
+      const data = makeChartData(counts, timeOfDayColors);
 
-    const barDatasets = compareMode
-      ? compareTimeSlots.map(slot => ({
-          type: 'bar' as const,
-          label: slot.replace('_', ' (').replace('A', 'Period A').replace('B', 'Period B)'),
-          data: months.map(m => counts[m.ms][slot] ?? 0),
-          backgroundColor: slot.endsWith('_B') ? periodBColors[slot] : timeOfDayColors[slot.replace('_A', '')],
-          stack: 'stack',
-        }))
-      : timeSlots.map(slot => ({
-          type: 'bar' as const,
-          label: slot,
-          data: months.map(m => counts[m.ms][slot] ?? 0),
-          backgroundColor: timeOfDayColors[slot],
-          stack: 'stack',
-        }));
-
-    const chartData: ChartData<'bar'> = {
-      labels: months.map(m => m.label),
-      datasets: barDatasets,
-    };
-
-    const options: ChartOptions<'bar'> = {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { position: 'bottom' } },
-      scales: {
-        x: { title: { display: true, text: 'Month' } },
-        y: { title: { display: true, text: 'Count' }, beginAtZero: true }
-      },
-    };
+      return (
+        <div style={{ height: 300 }}>
+          <Chart type="bar" data={data} options={chartOptions} />
+        </div>
+      );
+    }, [isReady, items, months, compareMode, periodBYears, timeOfDayColors]);
 
     return (
       <>
         <h3 className="text-center font-medium mb-2">{brgyName}</h3>
-        <div ref={containerRef} style={{ height: 300 }}>
-          {isContainerReady ? (
-            <Chart type="bar" data={chartData} options={options} />
-          ) : (
-            <div className="flex items-center justify-center h-full text-gray-500">
+        <div ref={containerRef}>
+          {chartContent ?? (
+            <div className="flex items-center justify-center h-64 text-gray-500">
               <div className="text-center">
                 <div className="animate-spin h-6 w-6 mx-auto mb-2 border-2 border-ubuntu-500 border-t-transparent rounded-full"></div>
                 <p className="text-sm">Loading...</p>
