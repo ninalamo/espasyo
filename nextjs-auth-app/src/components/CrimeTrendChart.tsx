@@ -63,8 +63,7 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters }) => {
   }, [clusters, selectedCrimeTypes, selectedPrecincts, selectedTimeOfDay]);
 
   const { labels, datasets } = useMemo(() => {
-    const typesInData = [...new Set(filteredItems.map(i => i.crimeType))].sort();
-    const visibleTypes = selectedCrimeTypes.length > 0 ? selectedCrimeTypes : typesInData;
+    const visibleTypes = selectedCrimeTypes.length > 0 ? selectedCrimeTypes : ALL_CRIME_TYPES.map(ct => ct.id);
 
     const grouped = new Map<string, Map<number, number>>();
 
