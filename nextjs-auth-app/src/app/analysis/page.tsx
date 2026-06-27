@@ -552,6 +552,29 @@ const AnalysisPage = () => {
               ))}
             </div>
           </div>
+
+          {/* Filters Applied Summary */}
+          {lastAnalysisParams && (
+            <div className="px-6 py-4 border-b border-gray-200">
+              <h3 className="text-sm font-medium text-gray-700 mb-2">Filters & Features Applied</h3>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm">
+                <span><span className="text-gray-500">Features:</span> <span className="font-medium">{(lastAnalysisParams.features as string[]).join(', ')}</span></span>
+                <span><span className="text-gray-500">Date:</span> <span className="font-medium">{lastAnalysisParams.dateFrom} → {lastAnalysisParams.dateTo}</span></span>
+                {lastAnalysisParams.numberOfClusters > 0 && (
+                  <span><span className="text-gray-500">Clusters:</span> <span className="font-medium">{lastAnalysisParams.numberOfClusters}</span></span>
+                )}
+                {lastAnalysisParams.filters && (lastAnalysisParams.filters as Record<string, string[]>).crimeTypes?.length > 0 && (
+                  <span><span className="text-gray-500">Crime Types:</span> <span className="font-medium">{(lastAnalysisParams.filters as any).crimeTypes.map((id: string) => CrimeTypesDictionary[parseInt(id)] || id).join(', ')}</span></span>
+                )}
+                {lastAnalysisParams.filters && (lastAnalysisParams.filters as Record<string, string[]>).severities?.length > 0 && (
+                  <span><span className="text-gray-500">Severity:</span> <span className="font-medium">{(lastAnalysisParams.filters as any).severities.join(', ')}</span></span>
+                )}
+                {(!lastAnalysisParams.filters || Object.keys(lastAnalysisParams.filters).length === 0) && (
+                  <span className="text-gray-400 italic">No additional filters applied</span>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -15,6 +15,7 @@ export interface ClusterItem {
   latitude: number;
   longitude: number;
   month: number;
+  day: number;
   year: number;
   timeOfDay: string;
   precinct: number;

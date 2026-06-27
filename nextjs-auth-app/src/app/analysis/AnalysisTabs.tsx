@@ -6,6 +6,7 @@ import { Cluster } from '../../types/analysis/ClusterDto';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import { BarangayMonthlyChart } from '../../components/BarangayMonthlyChart';
+import { CrimeTrendChart } from '../../components/CrimeTrendChart';
 import ClusterDataTable from '../../components/ClusterDataTable';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
@@ -50,8 +51,9 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams }) => 
                 
                 <TabList className="flex border-b border-gray-200 bg-gray-50">
                     {[
-                        { key: 'Map', label: 'Interactive Map', icon: '🗺️' },
-                        { key: 'Monthly Chart', label: 'Time Analysis', icon: '📊' },
+                        { key: 'Map', label: 'Spatial', icon: '🗺️' },
+                        { key: 'Trend Chart', label: 'Temporal', icon: '📈' },
+                        { key: 'Monthly Chart', label: 'Seasonal', icon: '🌙' },
                         { key: 'Table', label: 'Data Table', icon: '📋' }
                     ].map(tab => (
                         <Tab
@@ -87,7 +89,15 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams }) => 
                     
                     <TabPanel className="p-6">
                         <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                            <h3 className="font-medium text-gray-800 mb-2">Temporal Pattern Analysis</h3>
+                            <h3 className="font-medium text-gray-800 mb-2">Crime Trends Over Time</h3>
+                            <p className="text-sm text-gray-600">Line chart showing incident counts per crime type over time. Aggregate by daily, weekly, monthly, or yearly intervals.</p>
+                        </div>
+                        <CrimeTrendChart clusters={clusters} />
+                    </TabPanel>
+                    
+                    <TabPanel className="p-6">
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h3 className="font-medium text-gray-800 mb-2">Seasonal Pattern Analysis</h3>
                             <p className="text-sm text-gray-600">Monthly crime distribution by barangay and time of day. Click individual charts to focus.</p>
                         </div>
                         <BarangayMonthlyChart
