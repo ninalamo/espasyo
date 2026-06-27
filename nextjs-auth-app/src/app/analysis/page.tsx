@@ -13,6 +13,7 @@ import { ErrorDto } from '../../types/ErrorDto';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import QueryBar from './QueryBar';
+import FilterSection, { FilterState, initialFilterState } from './FilterSection';
 import AnalysisTabs from './AnalysisTabs';
 
 const Map = dynamic(() => import('../../components/Map'), { ssr: false });
@@ -29,6 +30,7 @@ const AnalysisPage = () => {
 
   const [numberOfClusters, setNumberOfClusters] = useState(0);
   const [numberOfRuns, setNumberOfRuns] = useState(1);
+  const [filterState, setFilterState] = useState<FilterState>(initialFilterState);
 
   // Load existing analysis data from localStorage on component mount
   useEffect(() => {
@@ -75,6 +77,21 @@ const AnalysisPage = () => {
     loadSavedAnalysis();
   }, []); // Run only on component mount
 
+  const handleFilterChange = useCallback((newFilterState: FilterState) => {
+    setFilterState(newFilterState);
+  }, []);
+
+  const buildFilters = useCallback(() => {
+    const filters: Record<string, string[]> = {};
+    if (selectedFeatures.includes("CrimeType") && filterState.selectedCrimeTypes.length > 0) {
+      filters.crimeTypes = filterState.selectedCrimeTypes;
+    }
+    if (selectedFeatures.includes("Severity") && filterState.selectedSeverity.length > 0) {
+      filters.severities = filterState.selectedSeverity;
+    }
+    return filters;
+  }, [selectedFeatures, filterState]);
+
   const handleFilter = useCallback(async () => {
     if (!dateFrom || !dateTo) {
       toast.error("Please select both start and end dates.");
@@ -100,6 +117,7 @@ const AnalysisPage = () => {
         features: selectedFeatures,
         numberOfClusters,
         numberOfRuns,
+        filters: buildFilters(),
       };
 
       const response = await apiService.put<ClusterGroupResponse | ErrorDto>(
@@ -124,7 +142,7 @@ const AnalysisPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns]);
+  }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns, buildFilters]);
 
   // Analysis summary data
   const analysisSummary = useMemo(() => {
@@ -439,6 +457,12 @@ const AnalysisPage = () => {
             numberOfClusters={numberOfClusters} setNumberOfClusters={setNumberOfClusters}
             numberOfRuns={numberOfRuns} setNumberOfRuns={setNumberOfRuns}
             selectedFeatures={selectedFeatures} setSelectedFeatures={setSelectedFeatures}
+          />
+
+          {/* Feature Value Filters */}
+          <FilterSection
+            selectedFeatures={selectedFeatures}
+            onFilterChange={handleFilterChange}
           />
 
           {/* Run Analysis Button */}
