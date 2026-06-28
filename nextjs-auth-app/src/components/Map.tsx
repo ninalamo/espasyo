@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { format } from 'date-fns';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
@@ -296,7 +297,51 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
 
   const [showFilters, setShowFilters] = useState(true);
 
-  const crimeTypeEntries = useMemo(() => Object.entries(crimeTypeEnum), [crimeTypeEnum]);
+  const crimeTypeEntries = useMemo(
+    () => Object.entries(crimeTypeEnum).filter(([id]) => parseInt(id) >= 0),
+    [crimeTypeEnum]
+  );
+
+  const displaySummary = useMemo(() => {
+    if (!filteredClusters.length) return null;
+    const allItems = filteredClusters.flatMap(c => c.clusterItems);
+    const totalItems = allItems.length;
+    const precincts = new Set(allItems.map(i => i.precinct));
+    const crimeTypes = new Set(allItems.map(i => i.crimeType));
+
+    let minDate: Date | null = null;
+    let maxDate: Date | null = null;
+    allItems.forEach(i => {
+      const d = new Date(i.year, i.month - 1, i.day);
+      if (!minDate || d < minDate) minDate = d;
+      if (!maxDate || d > maxDate) maxDate = d;
+    });
+
+    const crimeTypeBreakdown: Record<string, number> = {};
+    allItems.forEach(i => {
+      const label = crimeTypeEnum[i.crimeType] || `Type ${i.crimeType}`;
+      crimeTypeBreakdown[label] = (crimeTypeBreakdown[label] || 0) + 1;
+    });
+    const topCrimes = Object.entries(crimeTypeBreakdown)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    const totalClusters = filteredClusters.length;
+    const parts: string[] = [
+      `Currently displaying ${totalItems.toLocaleString()} incident${totalItems !== 1 ? 's' : ''} across ${totalClusters} cluster${totalClusters !== 1 ? 's' : ''} and ${precincts.size} barangay${precincts.size !== 1 ? 's' : ''}.`
+    ];
+    if (minDate && maxDate) {
+      const minStr = format(minDate, 'MMM dd, yyyy');
+      const maxStr = format(maxDate, 'MMM dd, yyyy');
+      parts.push(`Date range: ${minStr} — ${maxStr}.`);
+    }
+    if (topCrimes.length > 0) {
+      const crimeStr = topCrimes.map(([name, count]) => `${name} (${count})`).join(', ');
+      parts.push(`Top crime type${topCrimes.length > 1 ? 's' : ''}: ${crimeStr}.`);
+    }
+
+    return parts.join(' ');
+  }, [filteredClusters, crimeTypeEnum]);
 
   const hasData = clusters && clusters.length > 0;
 
@@ -313,7 +358,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                 <svg className={`w-3.5 h-3.5 transition-transform ${showFilters ? 'rotate-0' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
-                Filters
+                Post-Analysis Filters
               </button>
               <div className="flex items-center gap-1.5 border-l border-gray-200 pl-2">
                 {(['points', 'heatmap', 'both'] as ViewMode[]).map(mode => (
@@ -397,6 +442,12 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {displaySummary && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-gray-700 leading-relaxed">
+              {displaySummary}
             </div>
           )}
 

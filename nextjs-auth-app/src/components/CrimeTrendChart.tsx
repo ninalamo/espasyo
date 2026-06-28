@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Line } from 'react-chartjs-2';
 import { ChartOptions, TooltipItem } from 'chart.js';
 import 'chart.js/auto';
@@ -32,14 +32,23 @@ const TIME_OF_DAY_OPTIONS = ['Morning', 'Afternoon', 'Evening'];
 
 interface Props {
   clusters: Cluster[];
+  dateFrom?: string;
+  dateTo?: string;
 }
 
-export const CrimeTrendChart: React.FC<Props> = ({ clusters }) => {
+export const CrimeTrendChart: React.FC<Props> = ({ clusters, dateFrom, dateTo }) => {
   const [interval, setInterval] = useState<Interval>('daily');
   const [selectedCrimeTypes, setSelectedCrimeTypes] = useState<number[]>([]);
   const [selectedPrecincts, setSelectedPrecincts] = useState<number[]>([]);
   const [selectedTimeOfDay, setSelectedTimeOfDay] = useState<string[]>([]);
   const [showFilters, setShowFilters] = useState(true);
+  const [filterDateFrom, setFilterDateFrom] = useState(dateFrom || '');
+  const [filterDateTo, setFilterDateTo] = useState(dateTo || '');
+
+  useEffect(() => {
+    setFilterDateFrom(dateFrom || '');
+    setFilterDateTo(dateTo || '');
+  }, [dateFrom, dateTo]);
 
   const availableCrimeTypes = useMemo(() => {
     const typesInData = new Set(clusters.flatMap(c => c.clusterItems.map(i => i.crimeType)));
@@ -59,8 +68,17 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters }) => {
     if (selectedCrimeTypes.length > 0) items = items.filter(i => selectedCrimeTypes.includes(i.crimeType));
     if (selectedPrecincts.length > 0) items = items.filter(i => selectedPrecincts.includes(i.precinct));
     if (selectedTimeOfDay.length > 0) items = items.filter(i => selectedTimeOfDay.includes(i.timeOfDay));
+    if (filterDateFrom) {
+      const fromDate = new Date(filterDateFrom);
+      items = items.filter(i => new Date(i.year, i.month - 1, i.day) >= fromDate);
+    }
+    if (filterDateTo) {
+      const toDate = new Date(filterDateTo);
+      toDate.setHours(23, 59, 59, 999);
+      items = items.filter(i => new Date(i.year, i.month - 1, i.day) <= toDate);
+    }
     return items;
-  }, [clusters, selectedCrimeTypes, selectedPrecincts, selectedTimeOfDay]);
+  }, [clusters, selectedCrimeTypes, selectedPrecincts, selectedTimeOfDay, filterDateFrom, filterDateTo]);
 
   const { labels, datasets } = useMemo(() => {
     const visibleTypes = selectedCrimeTypes.length > 0 ? selectedCrimeTypes : ALL_CRIME_TYPES.map(ct => ct.id);
@@ -98,15 +116,36 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters }) => {
     });
 
     // Fill gaps so the timeline is continuous (zero-fill empty buckets)
-    if (filteredItems.length > 0) {
-      let minDate = new Date(9999, 11, 31);
-      let maxDate = new Date(0, 0, 1);
-      filteredItems.forEach(item => {
-        const day = interval === 'daily' || interval === 'weekly' ? item.day : 1;
-        const d = new Date(item.year, item.month - 1, day);
-        if (d < minDate) minDate = new Date(d);
-        if (d > maxDate) maxDate = new Date(d);
-      });
+    if (filteredItems.length > 0 || filterDateFrom || filterDateTo) {
+      let minDate: Date;
+      let maxDate: Date;
+
+      if (filteredItems.length > 0) {
+        minDate = new Date(9999, 11, 31);
+        maxDate = new Date(0, 0, 1);
+        filteredItems.forEach(item => {
+          const day = interval === 'daily' || interval === 'weekly' ? item.day : 1;
+          const d = new Date(item.year, item.month - 1, day);
+          if (d < minDate) minDate = new Date(d);
+          if (d > maxDate) maxDate = new Date(d);
+        });
+      } else {
+        minDate = new Date();
+        maxDate = new Date();
+      }
+
+      if (filterDateFrom) {
+        const [y, m, d] = filterDateFrom.split('-').map(Number);
+        const fromDate = new Date(y, m - 1, d || 1);
+        if (fromDate < minDate) minDate = fromDate;
+      }
+      if (filterDateTo) {
+        const [y, m, d] = filterDateTo.split('-').map(Number);
+        const toDate = new Date(y, m - 1, d || 1);
+        toDate.setHours(23, 59, 59, 999);
+        if (toDate > maxDate) maxDate = toDate;
+      }
+
       const cursor = new Date(minDate);
       while (cursor <= maxDate) {
         let key: string;
@@ -238,7 +277,7 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters }) => {
               <svg className={`w-3.5 h-3.5 transition-transform ${showFilters ? 'rotate-0' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
-              Filters
+              Post-Analysis Filters
             </button>
           </div>
           <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
@@ -282,6 +321,21 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters }) => {
               </div>
             </div>
 
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-600">Date:</span>
+              <input type="date" value={filterDateFrom}
+                onChange={e => setFilterDateFrom(e.target.value)}
+                min={dateFrom || undefined}
+                max={filterDateTo || undefined}
+                className="border rounded px-2 py-0.5 text-xs" />
+              <span className="text-xs text-gray-400">→</span>
+              <input type="date" value={filterDateTo}
+                onChange={e => setFilterDateTo(e.target.value)}
+                min={filterDateFrom || undefined}
+                max={dateTo || undefined}
+                className="border rounded px-2 py-0.5 text-xs" />
+            </div>
+
             {availablePrecincts.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs font-medium text-gray-600">Barangay:</span>
@@ -296,7 +350,7 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters }) => {
             )}
 
             <div className="flex justify-end">
-              <button onClick={() => { setSelectedCrimeTypes([]); setSelectedTimeOfDay([]); setSelectedPrecincts([]); }}
+              <button onClick={() => { setSelectedCrimeTypes([]); setSelectedTimeOfDay([]); setSelectedPrecincts([]); setFilterDateFrom(dateFrom || ''); setFilterDateTo(dateTo || ''); }}
                 className="px-2 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300"
               >Reset</button>
             </div>

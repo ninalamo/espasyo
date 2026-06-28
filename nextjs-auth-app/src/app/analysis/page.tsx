@@ -31,6 +31,7 @@ const AnalysisPage = () => {
   const [numberOfClusters, setNumberOfClusters] = useState(0);
   const [numberOfRuns, setNumberOfRuns] = useState(1);
   const [filterState, setFilterState] = useState<FilterState>(initialFilterState);
+  const [isImported, setIsImported] = useState(false);
 
   // Load existing analysis data from localStorage on component mount
   useEffect(() => {
@@ -144,6 +145,37 @@ const AnalysisPage = () => {
     }
   }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns, buildFilters]);
 
+  const handleImportData = useCallback((data: any) => {
+    if (!data.clusters || !Array.isArray(data.clusters)) {
+      toast.error('Invalid format: clusters array not found');
+      return;
+    }
+
+    setClusters(data.clusters);
+
+    if (data.metadata?.parameters) {
+      const params = data.metadata.parameters;
+      setLastAnalysisParams(params);
+      if (params.dateFrom) setDateFrom(params.dateFrom);
+      if (params.dateTo) setDateTo(params.dateTo);
+      if (params.features) setSelectedFeatures(params.features);
+      if (params.numberOfClusters) setNumberOfClusters(params.numberOfClusters);
+      if (params.numberOfRuns) setNumberOfRuns(params.numberOfRuns);
+    }
+
+    localStorage.setItem('lastAnalysisClusters', JSON.stringify(data.clusters));
+    if (data.metadata?.parameters) {
+      localStorage.setItem('lastAnalysisParams', JSON.stringify(data.metadata.parameters));
+    }
+    localStorage.setItem('lastAnalysisTimestamp', new Date().toISOString());
+
+    setMapKey(prev => prev + 1);
+    setIsImported(true);
+
+    const totalItems = data.clusters.reduce((sum: number, c: any) => sum + (c.clusterItems?.length || 0), 0);
+    toast.success(`Imported ${data.clusters.length} clusters, ${totalItems} data points from file`);
+  }, []);
+
   // Analysis summary data
   const analysisSummary = useMemo(() => {
     if (clusters.length === 0) return null;
@@ -172,9 +204,10 @@ const AnalysisPage = () => {
       crimeTypesCount: crimeTypes.size,
       features: selectedFeatures.join(', ') || 'None',
       analysisDate,
-      isFromCache
+      isFromCache,
+      isImported
     };
-  }, [clusters, selectedFeatures]);
+  }, [clusters, selectedFeatures, isImported]);
 
   // Download analysis as CSV
   const downloadAnalysisCSV = useCallback(() => {
@@ -286,6 +319,7 @@ const AnalysisPage = () => {
     setLastAnalysisParams(null);
     setMapKey(prevKey => prevKey + 1); // Force map re-render
     
+    setIsImported(false);
     toast.success('Analysis data cleared successfully!');
   }, []);
 
@@ -367,7 +401,12 @@ const AnalysisPage = () => {
                 <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
               </svg>
               Last Analysis Results
-              {analysisSummary?.isFromCache && (
+              {analysisSummary?.isImported && (
+                <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full" title="Data loaded from imported file">
+                  📁 Imported
+                </span>
+              )}
+              {analysisSummary?.isFromCache && !analysisSummary?.isImported && (
                 <span className="ml-2 text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded-full" title="Data loaded from cache">
                   📂 Cached
                 </span>
@@ -583,6 +622,7 @@ const AnalysisPage = () => {
         clusters={clusters}
         mapKey={mapKey}
         analysisParams={lastAnalysisParams}
+        onImport={handleImportData}
       />
 
     </div>

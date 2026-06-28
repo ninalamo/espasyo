@@ -482,7 +482,7 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
               <svg className={`w-3.5 h-3.5 transition-transform ${showFilters ? 'rotate-0' : '-rotate-90'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
               </svg>
-              Filters
+              Post-Analysis Filters
             </button>
             <div className="flex items-center gap-2 border-l border-gray-200 pl-2">
               <label className="flex items-center gap-1 text-xs cursor-pointer select-none">
