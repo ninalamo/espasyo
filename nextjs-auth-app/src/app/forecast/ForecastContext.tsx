@@ -9,6 +9,7 @@ import type {
   ForecastSnapshot,
   ForecastParams,
   ForecastMetrics,
+  ForecastApiResponse,
 } from '../../types/forecast/ForecastBaseTypes';
 import type { ExtendedForecastData, ForecastMapPoint } from '../../types/forecast/ExtendedForecastTypes';
 import { forecastApi } from '../api/utils/forecastApi';
@@ -25,6 +26,9 @@ interface ForecastContextValue {
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
   forecastMetrics: ForecastMetrics | null;
+  spatialData: any[];
+  seasonalPredictions: any[];
+  apiResponse: ForecastApiResponse | null;
   extendedForecastData: ExtendedForecastData[];
   forecastMapPoints: ForecastMapPoint[];
   activeModelLabel: string;
@@ -51,6 +55,9 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const [forecastMetrics, setForecastMetrics] = useState<ForecastMetrics | null>(null);
   const [extendedForecastData, setExtendedForecastData] = useState<ExtendedForecastData[]>([]);
   const [forecastMapPoints, setForecastMapPoints] = useState<ForecastMapPoint[]>([]);
+  const [spatialData, setSpatialData] = useState<any[]>([]);
+  const [seasonalPredictions, setSeasonalPredictions] = useState<any[]>([]);
+  const [apiResponse, setApiResponse] = useState<ForecastApiResponse | null>(null);
   const [activeModelLabel, setActiveModelLabel] = useState('');
   const [dataQuality, setDataQuality] = useState<any>(null);
   const loadingRef = useRef<string | null>(null);
@@ -78,6 +85,9 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setHistoricalData(data.historicalData || []);
       setForecastData(data.predictions || []);
       setForecastMetrics(data.metrics ?? null);
+      setSpatialData(data.spatialData ?? []);
+      setSeasonalPredictions(data.seasonalPredictions ?? []);
+      setApiResponse(data.apiResponse ?? null);
 
       const mapPoints = (data.predictions || []).map(f => {
         const precinctCoords: Record<number, { lat: number; lng: number }> = {
@@ -140,6 +150,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
       if (!response?.series) throw new Error('Invalid API response');
 
+      setApiResponse(response);
       setActiveModelLabel('ML.NET');
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
@@ -218,6 +229,9 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
           clusterCount: c.clusterItems.length,
         })),
         generatedById: session?.user?.id,
+        spatialData,
+        seasonalPredictions,
+        apiResponse,
         metadata: {
           totalClusters: clusters.length,
           totalPredictions: forecastData.length,
@@ -248,6 +262,9 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     setForecastMetrics(null);
     setExtendedForecastData([]);
     setForecastMapPoints([]);
+    setSpatialData([]);
+    setSeasonalPredictions([]);
+    setApiResponse(null);
     setActiveModelLabel('');
     setDataQuality(null);
   }, []);
@@ -260,13 +277,15 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
   const value = useMemo(() => ({
     loading, forecastId, forecast, clusters, historicalData,
-    forecastData, forecastMetrics, extendedForecastData, forecastMapPoints,
+    forecastData, forecastMetrics, spatialData, seasonalPredictions, apiResponse,
+    extendedForecastData, forecastMapPoints,
     activeModelLabel, dataQuality,
     analysisLoaded, forecastParams,
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   }), [
     loading, forecastId, forecast, clusters, historicalData,
-    forecastData, forecastMetrics, extendedForecastData, forecastMapPoints,
+    forecastData, forecastMetrics, spatialData, seasonalPredictions, apiResponse,
+    extendedForecastData, forecastMapPoints,
     activeModelLabel, dataQuality,
     analysisLoaded, forecastParams,
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,

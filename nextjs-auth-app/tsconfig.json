@@ -16,9 +16,11 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ]
     },
     "plugins": [
       {
@@ -31,8 +33,9 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
-    "next-auth.d.ts",        // If the file is at the project root
-    "types/next-auth.d.ts"
+    "next-auth.d.ts", // If the file is at the project root
+    "types/next-auth.d.ts",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

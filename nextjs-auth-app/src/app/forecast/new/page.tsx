@@ -46,6 +46,9 @@ export default withAuth(function NewForecastPage() {
 
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [forecastMetrics, setForecastMetrics] = useState<ForecastMetrics | null>(null);
+  const [spatialData, setSpatialData] = useState<any[]>([]);
+  const [seasonalPredictions, setSeasonalPredictions] = useState<any[]>([]);
+  const [rawApiResponse, setRawApiResponse] = useState<any>(null);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
   const [activeModelLabel, setActiveModelLabel] = useState('');
   const [forecastName, setForecastName] = useState('');
@@ -163,6 +166,8 @@ export default withAuth(function NewForecastPage() {
       );
 
       setForecastData(predictions);
+      setSpatialData(response.spatial ?? []);
+      setSeasonalPredictions(response.seasonalPredictions ?? []);
       toast.success(`Generated ${predictions.length} predictions`);
       setStep('review');
     } catch (err: any) {
@@ -205,6 +210,8 @@ export default withAuth(function NewForecastPage() {
           clusterCount: c.clusterItems.length,
         })),
         generatedById: session?.user?.id,
+        spatialData,
+        seasonalPredictions,
         historicalData,
         metadata: {
           totalClusters: clusters.length,
@@ -432,12 +439,11 @@ export default withAuth(function NewForecastPage() {
                 <div className="text-xs text-green-600">Model Used</div>
               </div>
             </div>
-            <div className="mb-4">
-              <ForecastSummary
-                historicalData={historicalData}
-                forecastData={forecastData}
-                params={forecastParams}
-              />
+            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600 space-y-1">
+              <p><span className="font-medium text-gray-800">{forecastData.length}</span> temporal predictions ·
+              <span className="font-medium text-gray-800"> {spatialData.length}</span> spatial predictions ·
+              <span className="font-medium text-gray-800"> {seasonalPredictions.length}</span> seasonal predictions</p>
+              <p className="text-xs text-gray-400">View detailed results in the overview page after saving.</p>
             </div>
           </div>
 

@@ -245,6 +245,32 @@ class ForecastApiService {
               riskLevel: p.riskLevel,
               trend: p.trend,
             })),
+            spatialPredictions: (data.spatialData || []).map(s => {
+              const dt = s.timestamp ? new Date(s.timestamp) : null;
+              return {
+                precinct: s.precinct,
+                clusterId: s.clusterId,
+                latitude: s.latitude,
+                longitude: s.longitude,
+                month: dt ? dt.getMonth() + 1 : 1,
+                year: dt ? dt.getFullYear() : new Date().getFullYear(),
+                predictedValue: s.forecast,
+                lowerBound: s.lowerBound,
+                upperBound: s.upperBound,
+                confidence: s.confidence,
+                riskLevel: s.riskLevel,
+                trend: s.trend,
+              };
+            }),
+            seasonalPredictions: (data.seasonalPredictions || []).map(s => ({
+              precinct: s.precinct,
+              crimeType: s.crimeType,
+              seasonalFactors: s.seasonal,
+              strengthSeasonal: s.strength?.seasonal ?? 0,
+              strengthTrend: s.strength?.trend ?? 0,
+              peakMonth: s.peakMonth,
+              troughMonth: s.troughMonth,
+            })),
             generatedById: data.generatedById ?? '',
           }),
         });
@@ -259,6 +285,9 @@ class ForecastApiService {
           predictions: data.predictions,
           metrics: data.metrics,
           params: data.params,
+          spatialData: data.spatialData,
+          seasonalPredictions: data.seasonalPredictions,
+          apiResponse: data.apiResponse,
           metadata: {
             ...data.metadata,
             totalPredictions: response.totalPredictions,
@@ -282,6 +311,9 @@ class ForecastApiService {
         predictions: data.predictions,
         metrics: data.metrics ?? null,
         params: data.params,
+        spatialData: data.spatialData,
+        seasonalPredictions: data.seasonalPredictions,
+        apiResponse: data.apiResponse,
         metadata: {
           ...data.metadata,
           totalPredictions: data.predictions.length,
@@ -350,6 +382,9 @@ class ForecastApiService {
           predictions,
           metrics: data.metrics ?? null,
           params: data.params,
+          spatialData: data.spatialData,
+          seasonalPredictions: data.seasonalPredictions,
+          apiResponse: data.apiResponse,
           metadata: {
             ...data.metadata,
             totalPredictions: predictions.length,

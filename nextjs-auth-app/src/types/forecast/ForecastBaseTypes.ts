@@ -80,6 +80,20 @@ export interface ForecastMetrics {
   modelAccuracy: number;
 }
 
+export interface ForecastApiResponse {
+  series?: any[];
+  forecasts?: any[];
+  spatial?: any[];
+  metrics?: any;
+  generatedAt?: string;
+  modelUsed?: string;
+  summary?: any;
+  explanation?: any;
+  dynamicThresholds?: any;
+  temporalPatterns?: any;
+  seasonalPredictions?: any[];
+}
+
 export interface ForecastSnapshot {
   id: string;
   name: string;
@@ -90,6 +104,9 @@ export interface ForecastSnapshot {
   params: ForecastParams;
   dataQuality?: any;
   historicalData?: HistoricalData[];
+  spatialData?: any[];
+  seasonalPredictions?: any[];
+  apiResponse?: ForecastApiResponse;
   metadata: ForecastMetadata;
   metrics?: ForecastMetrics | null;
 }
@@ -129,6 +146,9 @@ export interface CreateForecastRequest {
   historicalData?: HistoricalData[];
   clusterData?: ForecastClusterGroup[];
   generatedById?: string;
+  spatialData?: any[];
+  seasonalPredictions?: any[];
+  apiResponse?: ForecastApiResponse;
   metrics?: ForecastMetrics | null;
   metadata: ForecastSnapshot['metadata'];
 }
