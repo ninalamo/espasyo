@@ -265,9 +265,10 @@ class ForecastApiService {
             seasonalPredictions: (data.seasonalPredictions || []).map(s => ({
               precinct: s.precinct,
               crimeType: s.crimeType,
-              seasonalFactors: s.seasonal,
-              strengthSeasonal: s.strength?.seasonal ?? 0,
-              strengthTrend: s.strength?.trend ?? 0,
+              trend: s.trend,
+              seasonal: s.seasonal,
+              residual: s.residual,
+              strength: s.strength,
               peakMonth: s.peakMonth,
               troughMonth: s.troughMonth,
             })),
