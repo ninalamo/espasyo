@@ -154,6 +154,8 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setActiveModelLabel('ML.NET');
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
+      setSpatialData(response.spatialRows ?? []);
+      setSeasonalPredictions(response.seasonalPredictions ?? []);
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
         (series.forecasts || []).map((f: any) => ({
           year: new Date(f.timestamp).getFullYear(),
@@ -231,7 +233,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         generatedById: session?.user?.id,
         spatialData,
         seasonalPredictions,
-        apiResponse,
+        apiResponse: apiResponse ?? undefined,
         metadata: {
           totalClusters: clusters.length,
           totalPredictions: forecastData.length,
@@ -251,7 +253,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       toast.error(`Failed to save forecast: ${err.message}`);
       return null;
     }
-  }, [forecastData, clusters, activeModelLabel, historicalData, forecastMetrics]);
+  }, [forecastData, clusters, activeModelLabel, historicalData, forecastMetrics, spatialData, seasonalPredictions, apiResponse]);
 
   const clearForecast = useCallback(() => {
     setForecast(null);

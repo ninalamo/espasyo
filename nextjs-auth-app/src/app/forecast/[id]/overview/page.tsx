@@ -137,7 +137,7 @@ export default function OverviewPage() {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                   <h4 className="font-medium text-green-800 text-sm mb-2">Recommended Actions</h4>
                   <ul className="text-sm text-green-700 space-y-1">
-                    {apiResponse.summary.recommendedActions.map((a: string, i: number) => (
+                    {apiResponse!.summary.recommendedActions.map((a: string, i: number) => (
                       <li key={i}>• {a}</li>
                     ))}
                   </ul>
