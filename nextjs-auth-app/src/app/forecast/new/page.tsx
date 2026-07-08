@@ -146,6 +146,7 @@ export default withAuth(function NewForecastPage() {
         clusterData: clusterGroups,
         horizon: forecastParams.forecastPeriod,
         confidenceLevel: forecastParams.confidence,
+        modelType: forecastParams.model,
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
@@ -224,7 +225,7 @@ export default withAuth(function NewForecastPage() {
         metadata: {
           totalClusters: clusters.length,
           totalPredictions: forecastData.length,
-          activeModel: 'Linear',
+          activeModel: forecastParams.model,
           precincts: [...new Set(forecastData.map(f => f.precinct))],
           crimeTypes: [...new Set(forecastData.map(f => f.crimeType))],
         },
@@ -368,8 +369,25 @@ export default withAuth(function NewForecastPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
-              <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">
-                Linear Regression — <span className="text-gray-500">statistical time-series forecasting using linear trends</span>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { id: 'linear', label: 'Linear', desc: 'straight-line OLS trend' },
+                  { id: 'seasonal', label: 'Seasonal', desc: 'linear trend × monthly multipliers' },
+                  { id: 'ssa', label: 'SSA', desc: 'trend + seasonal + noise decomposition' },
+                  { id: 'ensemble', label: 'Ensemble', desc: 'average of SSA, Seasonal & Linear' },
+                ] as const).map(m => (
+                  <button key={m.id}
+                    onClick={() => setForecastParams({ ...forecastParams, model: m.id })}
+                    className={`px-3 py-2 rounded-md border text-sm font-medium transition ${
+                      forecastParams.model === m.id
+                        ? 'bg-indigo-600 text-white border-indigo-600'
+                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-indigo-300'
+                    }`}
+                  >
+                    <span className="block">{m.label}</span>
+                    <span className={`block text-xs mt-0.5 ${forecastParams.model === m.id ? 'text-indigo-200' : 'text-gray-400'}`}>{m.desc}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
@@ -422,7 +440,9 @@ export default withAuth(function NewForecastPage() {
                 <div className="text-xs text-purple-600">Precincts</div>
               </div>
               <div className="bg-green-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-700">Linear</div>
+                <div className="text-2xl font-bold text-green-700">
+                  {{ linear: 'Linear', seasonal: 'Seasonal', ssa: 'SSA', ensemble: 'Ensemble' }[forecastParams.model]}
+                </div>
                 <div className="text-xs text-green-600">Model Used</div>
               </div>
             </div>

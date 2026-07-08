@@ -159,6 +159,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         clusterData: clusterGroups,
         horizon: params.forecastPeriod,
         confidenceLevel: params.confidence,
+        modelType: params.model,
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
