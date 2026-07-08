@@ -127,6 +127,11 @@ export default withAuth(function NewForecastPage() {
       const aggregated = aggregateByMonth(clusters);
       setHistoricalData(aggregated);
 
+      const historicalLookup = new Map<string, number>();
+      aggregated.forEach(h => {
+        historicalLookup.set(`${h.year}-${h.month}-${h.precinct}-${h.crimeType}`, h.count);
+      });
+
       const clusterGroups = clusters.map(c => ({
         clusterId: c.clusterId,
         clusterItems: c.clusterItems.map(i => ({
@@ -141,9 +146,6 @@ export default withAuth(function NewForecastPage() {
         clusterData: clusterGroups,
         horizon: forecastParams.forecastPeriod,
         confidenceLevel: forecastParams.confidence,
-        includeSeasonality: forecastParams.includeSeasonality,
-        weightRecentData: forecastParams.weightRecentData,
-        modelType: 'Linear',
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
@@ -152,16 +154,21 @@ export default withAuth(function NewForecastPage() {
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
-        (series.forecasts || []).map((f: any) => ({
-          year: new Date(f.timestamp).getFullYear(),
-          month: new Date(f.timestamp).getMonth() + 1,
-          precinct: series.precinct,
-          crimeType: series.crimeType,
-          predictedCount: Math.max(0, Math.round(f.forecast)),
-          confidence: f.confidence || forecastParams.confidence,
-          trend: f.trend || 'stable',
-          riskLevel: f.riskLevel || 'medium',
-        }))
+        (series.forecasts || []).map((f: any) => {
+          const year = new Date(f.timestamp).getFullYear();
+          const month = new Date(f.timestamp).getMonth() + 1;
+          return {
+            year,
+            month,
+            precinct: series.precinct,
+            crimeType: series.crimeType,
+            predictedCount: Math.max(0, f.forecast),
+            confidence: f.confidence || forecastParams.confidence,
+            lastYearActual: historicalLookup.get(`${year - 1}-${month}-${series.precinct}-${series.crimeType}`),
+            trend: f.trend || 'stable',
+            riskLevel: f.riskLevel || 'medium',
+          };
+        })
       ).sort((a: ForecastData, b: ForecastData) =>
         new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime()
       );

@@ -33,6 +33,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
   const [mode, setMode] = useState<Mode>('consolidated');
   const [selectedCrimeTypes, setSelectedCrimeTypes] = useState<number[]>([]);
   const [selectedPrecincts, setSelectedPrecincts] = useState<number[]>([]);
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [showFilters, setShowFilters] = useState(true);
   const [isContainerReady, setIsContainerReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,6 +65,15 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     const months = [...new Set(forecastData.map(f => f.month))].sort((a, b) => a - b);
     return months.length > 0 ? months : null;
   }, [forecastData]);
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const displayMonths = useMemo(() => {
+    if (!forecastMonths) return null;
+    return forecastMonths.filter(m => m >= currentMonth);
+  }, [forecastMonths, currentMonth]);
 
   const forecastYears = useMemo(() => {
     return [...new Set(forecastData.map(f => f.year))].sort((a, b) => a - b);
@@ -130,9 +140,21 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     return map;
   }, [filteredHistorical, filteredForecast]);
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonth = now.getMonth() + 1;
+  const displayYears = useMemo(() => {
+    const historical = allYears.filter(y => y < currentYear);
+    const selected = selectedYears.length > 0 ? historical.filter(y => selectedYears.includes(y)) : historical;
+    const projected = allYears.filter(y => y >= currentYear);
+    return [...selected, ...projected];
+  }, [allYears, selectedYears, currentYear]);
+
+  useEffect(() => {
+    setSelectedYears(prev => {
+      const historical = allYears.filter(y => y < currentYear);
+      const current = new Set(prev);
+      if (prev.length === 0 || [...current].every(y => historical.includes(y))) return historical;
+      return prev.filter(y => historical.includes(y));
+    });
+  }, [allYears, currentYear]);
 
   const tk = (year: number, month: number, typeId: number) => `${year}-${month}-${typeId}`;
 
@@ -179,22 +201,42 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
       return { labels, datasets };
     }
 
-    const labels = forecastMonths.map(m => monthNames[m - 1]);
+    const months = displayMonths || forecastMonths;
+    const labels = months.map(m => monthNames[m - 1]);
 
     const isIndividual = mode === 'individual' && selectedCrimeTypes.length > 0;
     const typeIds = isIndividual ? selectedCrimeTypes : [-1];
 
     const buildDataset = (typeId: number) => {
       const yearLines: any[] = [];
+      const years = displayYears;
 
-      allYears.forEach((year, yi) => {
+      years.forEach((year, yi) => {
+        const ageFromNewest = years.length - 1 - yi;
+        const dashPatterns = [[2, 4], [6, 4], [10, 4]];
+        const histDash = dashPatterns[Math.min(ageFromNewest, dashPatterns.length - 1)];
         const colorIdx = typeId === -1 ? yi % YEAR_COLORS.length : typeId % CRIME_TYPE_COLORS.length;
         const baseColor = typeId === -1 ? YEAR_COLORS[colorIdx] : CRIME_TYPE_COLORS[colorIdx];
         const label = typeId === -1 ? String(year) : `${CrimeTypesDictionary[typeId] || typeId} (${year})`;
 
         if (year < currentYear) {
-          const data = forecastMonths.map(m =>
+          const data = months.map(m =>
             normalizedTimeline.get(tk(year, m, typeId))?.actual ?? 0
+          );
+          yearLines.push({
+            label, data,
+            borderColor: baseColor,
+            backgroundColor: baseColor + '22',
+            pointBackgroundColor: baseColor,
+            borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
+            borderDash: histDash,
+          });
+          return;
+        }
+
+        if (year > currentYear) {
+          const data = months.map(m =>
+            normalizedTimeline.get(tk(year, m, typeId))?.predicted ?? 0
           );
           yearLines.push({
             label, data,
@@ -206,41 +248,44 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           return;
         }
 
-        if (year > currentYear) {
-          const data = forecastMonths.map(m =>
+        const actualRaw = months.map(m =>
+          m >= currentMonth ? null : (normalizedTimeline.get(tk(year, m, typeId))?.actual ?? 0)
+        );
+        const hasActual = actualRaw.some(v => v != null && v > 0);
+
+        if (!hasActual) {
+          const data = months.map(m =>
             normalizedTimeline.get(tk(year, m, typeId))?.predicted ?? 0
           );
           yearLines.push({
-            label: `${label} (Predicted)`, data,
+            label, data,
             borderColor: baseColor,
             backgroundColor: baseColor + '22',
             pointBackgroundColor: baseColor,
-            borderWidth: 2, pointRadius: 3, borderDash: [5, 5], tension: 0.3, fill: false, spanGaps: false,
+            borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
           });
           return;
         }
 
-        const actualData = forecastMonths.map(m =>
-          m >= currentMonth ? null : (normalizedTimeline.get(tk(year, m, typeId))?.actual ?? 0)
-        );
-        const predData = forecastMonths.map(m => {
+        const predData = months.map(m => {
           if (m < currentMonth) return null;
           return normalizedTimeline.get(tk(year, m, typeId))?.predicted ?? 0;
-        }).map((v, i) => actualData[i] != null ? null : v);
+        }).map((v, i) => actualRaw[i] != null ? null : v);
 
         yearLines.push({
-          label: `${label} (Actual)`, data: actualData,
+          label: `${label} (Actual)`, data: actualRaw,
           borderColor: baseColor,
           backgroundColor: baseColor + '22',
           pointBackgroundColor: baseColor,
           borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
+          borderDash: histDash,
         });
         yearLines.push({
           label: `${label} (Predicted)`, data: predData,
           borderColor: baseColor,
           backgroundColor: baseColor + '22',
           pointBackgroundColor: baseColor,
-          borderWidth: 2, pointRadius: 3, borderDash: [5, 5], tension: 0.3, fill: false, spanGaps: false,
+          borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
         });
       });
 
@@ -260,7 +305,23 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     });
 
     return { labels, datasets };
-  }, [filteredHistorical, filteredForecast, forecastMonths, allYears, interval, showYearly, mode, selectedCrimeTypes, normalizedTimeline, currentYear, currentMonth]);
+  }, [filteredHistorical, filteredForecast, forecastMonths, displayYears, interval, showYearly, mode, selectedCrimeTypes, normalizedTimeline, currentYear, currentMonth]);
+
+  const unfilteredMax = useMemo(() => {
+    const key = (y: number, m: number) => `${y}-${m}`;
+    const totals = new Map<string, number>();
+    historicalData.forEach(h => {
+      const k = key(h.year, h.month);
+      totals.set(k, (totals.get(k) ?? 0) + h.count);
+    });
+    forecastData.forEach(f => {
+      const k = key(f.year, f.month);
+      totals.set(k, (totals.get(k) ?? 0) + f.predictedCount);
+    });
+    const maxVal = Math.max(...totals.values(), 0);
+    const rounded = Math.ceil(maxVal / 10) * 10 + 20;
+    return Math.max(rounded, 30);
+  }, [historicalData, forecastData]);
 
   const options: ChartOptions<'line'> = {
     responsive: true,
@@ -290,7 +351,11 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
       y: {
         title: { display: true, text: 'Incident Count' },
         beginAtZero: true,
-        ticks: { precision: 0 },
+        max: unfilteredMax,
+        ticks: {
+          stepSize: 10,
+          precision: 0,
+        },
       },
     },
   };
@@ -353,14 +418,40 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
             <div className="flex items-center gap-2">
               <span className="text-xs font-medium text-gray-600">Crime:</span>
               <div className="flex flex-wrap gap-1 flex-1">
-                {availableCrimeTypes.map(({ id, label }) => (
-                  <button key={id}
-                    onClick={() => setSelectedCrimeTypes(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-                    className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(id) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
-                  >{label}</button>
-                ))}
+                  {availableCrimeTypes.map(({ id, label }) => (
+                    <button key={id}
+                      onClick={() => {
+                        if (mode === 'individual') {
+                          setSelectedCrimeTypes(prev => prev.includes(id) ? [] : [id]);
+                        } else {
+                          setSelectedCrimeTypes(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+                        }
+                      }}
+                      className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${
+                        selectedCrimeTypes.includes(id)
+                          ? mode === 'individual'
+                            ? 'bg-ubuntu-500 text-white'
+                            : 'bg-ubuntu-500 text-white'
+                          : 'bg-white'
+                      }`}
+                    >{label}</button>
+                  ))}
               </div>
             </div>
+
+            {allYears.filter(y => y < currentYear).length > 1 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium text-gray-600">Year:</span>
+                <div className="flex flex-wrap gap-1 flex-1">
+                  {allYears.filter(y => y < currentYear).map(year => (
+                    <button key={year}
+                      onClick={() => setSelectedYears(prev => prev.includes(year) ? prev.filter(x => x !== year) : [...prev, year])}
+                      className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedYears.includes(year) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
+                    >{year}</button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {availablePrecincts.length > 0 && (
               <div className="flex items-center gap-2">
@@ -377,7 +468,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
             )}
 
             <div className="flex justify-end">
-              <button onClick={() => { setSelectedCrimeTypes([]); setSelectedPrecincts([]); }}
+              <button onClick={() => { setSelectedCrimeTypes([]); setSelectedPrecincts([]); setSelectedYears([]); }}
                 className="px-2 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300"
               >Reset</button>
             </div>
@@ -406,12 +497,16 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
 
       <div className="mt-2 text-xs text-gray-400 flex items-center gap-4">
         <span className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 bg-gray-600 inline-block"></span>
-          Actual (Historical)
+          <span className="w-4 h-0.5 bg-gray-600 inline-block" style={{ borderTop: '2px dotted #666', height: 0 }}></span>
+          Oldest
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 bg-gray-600 inline-block" style={{ background: 'transparent', borderTop: '2px dashed #666', height: 0 }}></span>
-          Predicted (Forecast)
+          <span className="w-4 h-0.5 bg-gray-600 inline-block" style={{ borderTop: '2px dashed #666', height: 0 }}></span>
+          Most Recent
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="w-4 h-0.5 bg-gray-600 inline-block"></span>
+          Predicted
         </span>
       </div>
     </div>

@@ -46,6 +46,15 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
       ).length
     );
 
+    // Year-over-year comparison
+    const yoyItems = forecastData.filter(f => f.lastYearActual != null && f.lastYearActual > 0);
+    const yoyTotalPredicted = yoyItems.reduce((sum, f) => sum + f.predictedCount, 0);
+    const yoyTotalLastYear = yoyItems.reduce((sum, f) => sum + f.lastYearActual!, 0);
+    const yoyChange = yoyTotalLastYear > 0 
+      ? ((yoyTotalPredicted - yoyTotalLastYear) / yoyTotalLastYear) * 100 
+      : null;
+    const hasYoYData = yoyItems.length > 0;
+
     // Trends
     const trends = {
       increasing: forecastData.filter(f => f.trend === 'increasing').length,
@@ -117,6 +126,8 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
       avgIntervalWidth,
       intervalWidthPct,
       historicalAvgMonthly,
+      yoyChange,
+      hasYoYData,
       trends,
       riskLevels,
       topRiskPrecincts,
@@ -228,6 +239,63 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
               }`}>
                 {summary.changeFromHistorical > 0 ? '+' : ''}{summary.changeFromHistorical.toFixed(1)}%
               </p>
+            </div>
+          </div>
+        </div>
+
+        {/* Year-over-Year Comparison */}
+        <div className={`bg-gradient-to-r p-4 rounded-lg border ${
+          summary.hasYoYData
+            ? summary.yoyChange! > 10 
+              ? 'from-red-50 to-pink-50 border-red-200' 
+              : summary.yoyChange! < -10 
+                ? 'from-green-50 to-emerald-50 border-green-200'
+                : 'from-yellow-50 to-amber-50 border-yellow-200'
+            : 'from-gray-50 to-slate-50 border-gray-200'
+        }`}>
+          <div className="flex items-center">
+            <div className={`p-2 rounded-lg ${
+              summary.hasYoYData
+                ? summary.yoyChange! > 10 
+                  ? 'bg-red-600' 
+                  : summary.yoyChange! < -10 
+                    ? 'bg-green-600'
+                    : 'bg-yellow-600'
+                : 'bg-gray-400'
+            }`}>
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <p className={`text-sm font-medium ${
+                summary.hasYoYData
+                  ? summary.yoyChange! > 10 
+                    ? 'text-red-800' 
+                    : summary.yoyChange! < -10 
+                      ? 'text-green-800'
+                      : 'text-yellow-800'
+                  : 'text-gray-500'
+              }`}>vs Same Period Last Year</p>
+              {summary.hasYoYData ? (
+                <>
+                  <p className={`text-2xl font-bold ${
+                    summary.yoyChange! > 10 
+                      ? 'text-red-900' 
+                      : summary.yoyChange! < -10 
+                        ? 'text-green-900'
+                        : 'text-yellow-900'
+                  }`}>
+                    {summary.yoyChange! > 0 ? '+' : ''}{summary.yoyChange!.toFixed(1)}%
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">{summary.yoyChange! > 0 ? 'Increase' : 'Decrease'} from last year</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-2xl font-bold text-gray-400">--</p>
+                  <p className="text-xs text-gray-500 mt-1">No prior year data</p>
+                </>
+              )}
             </div>
           </div>
         </div>

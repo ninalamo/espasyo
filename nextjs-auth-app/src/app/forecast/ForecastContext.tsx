@@ -81,8 +81,19 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       const data = await forecastApi.getById(id);
       setForecast(data);
       setForecastId(data.id);
-      setHistoricalData(data.historicalData || []);
-      setForecastData(data.predictions || []);
+      const histData = data.historicalData || [];
+      setHistoricalData(histData);
+
+      const historicalLookup = new Map<string, number>();
+      histData.forEach((h: HistoricalData) => {
+        historicalLookup.set(`${h.year}-${h.month}-${h.precinct}-${h.crimeType}`, h.count);
+      });
+
+      const predictions = (data.predictions || []).map(f => ({
+        ...f,
+        lastYearActual: f.lastYearActual ?? historicalLookup.get(`${f.year - 1}-${f.month}-${f.precinct}-${f.crimeType}`),
+      }));
+      setForecastData(predictions);
       setForecastMetrics(data.metrics ?? null);
       setSpatialData(data.spatialData ?? []);
       setSeasonalPredictions(data.seasonalPredictions ?? []);
@@ -129,6 +140,11 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       }
       setHistoricalData(aggregated);
 
+      const historicalLookup = new Map<string, number>();
+      aggregated.forEach(h => {
+        historicalLookup.set(`${h.year}-${h.month}-${h.precinct}-${h.crimeType}`, h.count);
+      });
+
       const clusterGroups = clustersData.map(c => ({
         clusterId: c.clusterId,
         clusterItems: c.clusterItems.map(i => ({
@@ -143,9 +159,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         clusterData: clusterGroups,
         horizon: params.forecastPeriod,
         confidenceLevel: params.confidence,
-        includeSeasonality: params.includeSeasonality,
-        weightRecentData: params.weightRecentData,
-        modelType: 'Linear',
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
@@ -157,18 +170,23 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setSpatialData(response.spatialRows ?? []);
       setSeasonalPredictions(response.seasonalPredictions ?? []);
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
-        (series.forecasts || []).map((f: any) => ({
-          year: new Date(f.timestamp).getFullYear(),
-          month: new Date(f.timestamp).getMonth() + 1,
-          precinct: series.precinct,
-          crimeType: series.crimeType,
-          predictedCount: Math.max(0, Math.round(f.forecast)),
-          confidence: f.confidence ?? 0,
-          lowerBound: f.lowerBound != null ? f.lowerBound : undefined,
-          upperBound: f.upperBound != null ? f.upperBound : undefined,
-          trend: f.trend || 'stable',
-          riskLevel: f.riskLevel || 'medium',
-        }))
+        (series.forecasts || []).map((f: any) => {
+          const year = new Date(f.timestamp).getFullYear();
+          const month = new Date(f.timestamp).getMonth() + 1;
+          return {
+            year,
+            month,
+            precinct: series.precinct,
+            crimeType: series.crimeType,
+            predictedCount: Math.max(0, f.forecast),
+            confidence: f.confidence ?? 0,
+            lowerBound: f.lowerBound != null ? f.lowerBound : undefined,
+            upperBound: f.upperBound != null ? f.upperBound : undefined,
+            lastYearActual: historicalLookup.get(`${year - 1}-${month}-${series.precinct}-${series.crimeType}`),
+            trend: f.trend || 'stable',
+            riskLevel: f.riskLevel || 'medium',
+          };
+        })
       ).sort((a: ForecastData, b: ForecastData) =>
         new Date(a.year, a.month - 1).getTime() - new Date(b.year, b.month - 1).getTime()
       );

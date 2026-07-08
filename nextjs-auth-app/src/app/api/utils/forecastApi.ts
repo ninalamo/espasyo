@@ -81,6 +81,16 @@ const CRIMETYPE_NAME_TO_INT: Record<string, number> = {
   'Rape': 16, 'Robbery': 17, 'Theft': 18, 'Vandalism': 19,
 };
 
+function toCrimeTypeInt(value: string | number): number {
+  if (typeof value === 'number') {
+    if (Number.isInteger(value) && value >= 0 && value <= 19) return value;
+    throw new Error(`Invalid numeric crimeType: ${value}`);
+  }
+  const mapped = CRIMETYPE_NAME_TO_INT[value];
+  if (mapped !== undefined) return mapped;
+  throw new Error(`Unknown crimeType name: "${value}"`);
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7007/api';
 
 /* Backend response shapes (api/ForecastRun) */
@@ -185,7 +195,7 @@ class ForecastApiService {
       const results = await this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`);
 
       const precincts = [...new Set(results.map(r => BARANGAY_NAME_TO_INT[r.precinct] ?? 0))];
-      const crimeTypes = [...new Set(results.map(r => CRIMETYPE_NAME_TO_INT[r.crimeType] ?? 0))];
+      const crimeTypes = [...new Set(results.map(r => toCrimeTypeInt(r.crimeType)))];
       const storedNames = getStoredNames();
 
       return {
@@ -197,7 +207,7 @@ class ForecastApiService {
           year: r.year,
           month: r.month,
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
-          crimeType: CRIMETYPE_NAME_TO_INT[r.crimeType] ?? 0,
+          crimeType: toCrimeTypeInt(r.crimeType),
           predictedCount: Math.max(0, Math.round(r.predictedValue)),
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
@@ -365,7 +375,7 @@ class ForecastApiService {
           year: r.year,
           month: r.month,
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
-          crimeType: CRIMETYPE_NAME_TO_INT[r.crimeType] ?? 0,
+          crimeType: toCrimeTypeInt(r.crimeType),
           predictedCount: Math.max(0, Math.round(r.predictedValue)),
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],

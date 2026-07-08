@@ -70,14 +70,25 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
     const forecastByMonth = forecastData.reduce((acc, item) => {
       const key = `${item.year}-${String(item.month).padStart(2, '0')}`;
       if (!acc[key]) {
-        acc[key] = { total: 0, lowerSum: 0, upperSum: 0, count: 0 };
+        acc[key] = { total: 0, lowerSum: 0, upperSum: 0, count: 0, lastYearSum: 0 };
       }
       acc[key].total += item.predictedCount;
       acc[key].lowerSum += item.lowerBound ?? 0;
       acc[key].upperSum += item.upperBound ?? 0;
+      if (item.lastYearActual != null) {
+        acc[key].lastYearSum += item.lastYearActual;
+      }
       acc[key].count += 1;
       return acc;
-    }, {} as Record<string, { total: number; lowerSum: number; upperSum: number; count: number }>);
+    }, {} as Record<string, { total: number; lowerSum: number; upperSum: number; count: number; lastYearSum: number }>);
+
+    // Aggregate last year actuals by month
+    const lastYearByMonth = forecastData.reduce((acc, item) => {
+      if (item.lastYearActual == null) return acc;
+      const key = `${item.year}-${String(item.month).padStart(2, '0')}`;
+      acc[key] = (acc[key] || 0) + item.lastYearActual;
+      return acc;
+    }, {} as Record<string, number>);
 
     // Create combined timeline
     const allDates = new Set([
@@ -90,6 +101,7 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
     // Separate historical and forecast data
     const historicalValues: (number | null)[] = [];
     const forecastValues: (number | null)[] = [];
+    const lastYearValues: (number | null)[] = [];
     const confidenceUpper: (number | null)[] = [];
     const confidenceLower: (number | null)[] = [];
 
@@ -100,11 +112,13 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
       if (historical !== undefined) {
         historicalValues.push(historical);
         forecastValues.push(null);
+        lastYearValues.push(null);
         confidenceUpper.push(null);
         confidenceLower.push(null);
       } else if (forecast !== undefined) {
         historicalValues.push(null);
         forecastValues.push(forecast.total);
+        lastYearValues.push(lastYearByMonth[date] ?? null);
         // Use real SSA lower/upper bounds when available, otherwise compute from confidence
         if (forecast.lowerSum > 0 || forecast.upperSum > 0) {
           const avgLower = forecast.lowerSum / forecast.count;
@@ -120,6 +134,7 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
       } else {
         historicalValues.push(null);
         forecastValues.push(null);
+        lastYearValues.push(null);
         confidenceUpper.push(null);
         confidenceLower.push(null);
       }
@@ -140,6 +155,18 @@ const TimeSeriesChart: React.FC<Props> = ({ historicalData, forecastData, params
           borderColor: 'rgb(59, 130, 246)',
           backgroundColor: 'rgba(59, 130, 246, 0.1)',
           borderWidth: 2,
+          fill: false,
+          tension: 0.1,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+        },
+        {
+          label: 'Last Year Actual',
+          data: lastYearValues,
+          borderColor: 'rgb(156, 163, 175)',
+          backgroundColor: 'rgba(156, 163, 175, 0.1)',
+          borderWidth: 2,
+          borderDash: [4, 4],
           fill: false,
           tension: 0.1,
           pointRadius: 4,

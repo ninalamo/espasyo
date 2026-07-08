@@ -7,6 +7,7 @@ export interface ForecastData {
   confidence: number;
   lowerBound?: number;
   upperBound?: number;
+  lastYearActual?: number;
   trend: 'increasing' | 'decreasing' | 'stable';
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
   shiftBreakdown?: ShiftBreakdown;
