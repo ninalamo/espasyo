@@ -19,6 +19,8 @@ const CRIME_TYPE_COLORS = [
 
 const YEAR_COLORS = ['#2563EB', '#16A34A', '#D97706', '#DC2626', '#7C3AED', '#0891B2', '#BE185D', '#65A30D'];
 
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
 const ALL_CRIME_TYPES = Object.entries(CrimeTypesDictionary)
   .filter(([id]) => parseInt(id) >= 0)
   .map(([id, label]) => ({ id: parseInt(id), label }));
@@ -35,6 +37,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
   const [selectedPrecincts, setSelectedPrecincts] = useState<number[]>([]);
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [showFilters, setShowFilters] = useState(true);
+  const [stepSize, setStepSize] = useState<1 | 5 | 10>(10);
   const [isContainerReady, setIsContainerReady] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -61,19 +64,32 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     };
   }, []);
 
-  const forecastMonths = useMemo(() => {
-    const months = [...new Set(forecastData.map(f => f.month))].sort((a, b) => a - b);
-    return months.length > 0 ? months : null;
-  }, [forecastData]);
-
   const now = new Date();
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth() + 1;
 
-  const displayMonths = useMemo(() => {
-    if (!forecastMonths) return null;
-    return forecastMonths.filter(m => m >= currentMonth);
-  }, [forecastMonths, currentMonth]);
+  const timeline = useMemo(() => {
+    if (forecastData.length === 0) return [];
+    const first = forecastData.reduce((a, b) =>
+      a.year < b.year || (a.year === b.year && a.month < b.month) ? a : b
+    );
+    const last = forecastData.reduce((a, b) =>
+      a.year > b.year || (a.year === b.year && a.month > b.month) ? a : b
+    );
+    const result: Array<{ year: number; month: number }> = [];
+    let y = first.year, m = first.month;
+    while (y < last.year || (y === last.year && m <= last.month)) {
+      result.push({ year: y, month: m });
+      m++;
+      if (m > 12) { m = 1; y++; }
+    }
+    return result;
+  }, [forecastData]);
+
+  const forecastMonths = useMemo(() => {
+    const months = [...new Set(timeline.map(t => t.month))].sort((a, b) => a - b);
+    return months.length > 0 ? months : null;
+  }, [timeline]);
 
   const forecastYears = useMemo(() => {
     return [...new Set(forecastData.map(f => f.year))].sort((a, b) => a - b);
@@ -81,19 +97,13 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
 
   const allYears = useMemo(() => {
     const years = new Set<number>();
-    historicalData.forEach(h => { if (forecastMonths?.includes(h.month)) years.add(h.year); });
+    const tmMonths = new Set(timeline.map(t => t.month));
+    historicalData.forEach(h => { if (tmMonths.has(h.month)) years.add(h.year); });
     forecastData.forEach(f => years.add(f.year));
     return [...years].sort((a, b) => a - b);
-  }, [historicalData, forecastData, forecastMonths]);
+  }, [historicalData, forecastData, timeline]);
 
-  const windowSpanMonths = useMemo(() => {
-    if (!forecastMonths || forecastMonths.length < 2) return 0;
-    const start = forecastMonths[0];
-    const end = forecastMonths[forecastMonths.length - 1];
-    return end >= start ? end - start + 1 : (12 - start + end + 1);
-  }, [forecastMonths]);
-
-  const showYearly = windowSpanMonths >= 12;
+  const showYearly = timeline.length >= 12;
 
   const availableCrimeTypes = useMemo(() => {
     const types = new Set([...historicalData.map(h => h.crimeType), ...forecastData.map(f => f.crimeType)]);
@@ -143,7 +153,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
   const displayYears = useMemo(() => {
     const historical = allYears.filter(y => y < currentYear);
     const selected = selectedYears.length > 0 ? historical.filter(y => selectedYears.includes(y)) : historical;
-    const projected = allYears.filter(y => y >= currentYear);
+    const projected = allYears.filter(y => y === currentYear);
     return [...selected, ...projected];
   }, [allYears, selectedYears, currentYear]);
 
@@ -156,12 +166,25 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     });
   }, [allYears, currentYear]);
 
+  const yearLabels = useMemo(() => {
+    const map = new Map<number, string>();
+    if (forecastData.length === 0) {
+      allYears.forEach(y => map.set(y, String(y)));
+      return map;
+    }
+    const first = forecastData.reduce((a, b) => a.year < b.year || (a.year === b.year && a.month < b.month) ? a : b);
+    const last = forecastData.reduce((a, b) => a.year > b.year || (a.year === b.year && a.month > b.month) ? a : b);
+    const range = `${MONTH_NAMES[first.month - 1]}-${MONTH_NAMES[last.month - 1]}`;
+    allYears.forEach(year => map.set(year, `${range} (${year})`));
+    return map;
+  }, [allYears, forecastData]);
+
   const tk = (year: number, month: number, typeId: number) => `${year}-${month}-${typeId}`;
 
   const { labels, datasets } = useMemo(() => {
     if (!forecastMonths) return { labels: [], datasets: [] };
 
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthNames = MONTH_NAMES;
     const useYearly = interval === 'yearly' && showYearly;
 
     if (useYearly) {
@@ -201,8 +224,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
       return { labels, datasets };
     }
 
-    const months = displayMonths || forecastMonths;
-    const labels = months.map(m => monthNames[m - 1]);
+    const labels = timeline.map(t => MONTH_NAMES[t.month - 1]);
 
     const isIndividual = mode === 'individual' && selectedCrimeTypes.length > 0;
     const typeIds = isIndividual ? selectedCrimeTypes : [-1];
@@ -220,8 +242,8 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
         const label = typeId === -1 ? String(year) : `${CrimeTypesDictionary[typeId] || typeId} (${year})`;
 
         if (year < currentYear) {
-          const data = months.map(m =>
-            normalizedTimeline.get(tk(year, m, typeId))?.actual ?? 0
+          const data = timeline.map(t =>
+            normalizedTimeline.get(tk(year, t.month, typeId))?.actual ?? 0
           );
           yearLines.push({
             label, data,
@@ -234,54 +256,11 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           return;
         }
 
-        if (year > currentYear) {
-          const data = months.map(m =>
-            normalizedTimeline.get(tk(year, m, typeId))?.predicted ?? 0
-          );
-          yearLines.push({
-            label, data,
-            borderColor: baseColor,
-            backgroundColor: baseColor + '22',
-            pointBackgroundColor: baseColor,
-            borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
-          });
-          return;
-        }
-
-        const actualRaw = months.map(m =>
-          m >= currentMonth ? null : (normalizedTimeline.get(tk(year, m, typeId))?.actual ?? 0)
+        const data = timeline.map(t =>
+          normalizedTimeline.get(tk(t.year, t.month, typeId))?.predicted ?? 0
         );
-        const hasActual = actualRaw.some(v => v != null && v > 0);
-
-        if (!hasActual) {
-          const data = months.map(m =>
-            normalizedTimeline.get(tk(year, m, typeId))?.predicted ?? 0
-          );
-          yearLines.push({
-            label, data,
-            borderColor: baseColor,
-            backgroundColor: baseColor + '22',
-            pointBackgroundColor: baseColor,
-            borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
-          });
-          return;
-        }
-
-        const predData = months.map(m => {
-          if (m < currentMonth) return null;
-          return normalizedTimeline.get(tk(year, m, typeId))?.predicted ?? 0;
-        }).map((v, i) => actualRaw[i] != null ? null : v);
-
         yearLines.push({
-          label: `${label} (Actual)`, data: actualRaw,
-          borderColor: baseColor,
-          backgroundColor: baseColor + '22',
-          pointBackgroundColor: baseColor,
-          borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
-          borderDash: histDash,
-        });
-        yearLines.push({
-          label: `${label} (Predicted)`, data: predData,
+          label, data,
           borderColor: baseColor,
           backgroundColor: baseColor + '22',
           pointBackgroundColor: baseColor,
@@ -305,23 +284,24 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     });
 
     return { labels, datasets };
-  }, [filteredHistorical, filteredForecast, forecastMonths, displayYears, interval, showYearly, mode, selectedCrimeTypes, normalizedTimeline, currentYear, currentMonth]);
+  }, [filteredHistorical, filteredForecast, timeline, displayYears, interval, showYearly, mode, selectedCrimeTypes, normalizedTimeline, currentYear]);
 
-  const unfilteredMax = useMemo(() => {
+  const chartMax = useMemo(() => {
     const key = (y: number, m: number) => `${y}-${m}`;
     const totals = new Map<string, number>();
-    historicalData.forEach(h => {
+    filteredHistorical.forEach(h => {
       const k = key(h.year, h.month);
       totals.set(k, (totals.get(k) ?? 0) + h.count);
     });
-    forecastData.forEach(f => {
+    filteredForecast.forEach(f => {
       const k = key(f.year, f.month);
       totals.set(k, (totals.get(k) ?? 0) + f.predictedCount);
     });
     const maxVal = Math.max(...totals.values(), 0);
-    const rounded = Math.ceil(maxVal / 10) * 10 + 20;
-    return Math.max(rounded, 30);
-  }, [historicalData, forecastData]);
+    const padding = stepSize === 1 ? 5 : stepSize * 2;
+    const rounded = Math.ceil(maxVal / stepSize) * stepSize + padding;
+    return Math.max(rounded, stepSize * 3);
+  }, [filteredHistorical, filteredForecast, stepSize]);
 
   const options: ChartOptions<'line'> = {
     responsive: true,
@@ -351,9 +331,9 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
       y: {
         title: { display: true, text: 'Incident Count' },
         beginAtZero: true,
-        max: unfilteredMax,
+        max: chartMax,
         ticks: {
-          stepSize: 10,
+          stepSize,
           precision: 0,
         },
       },
@@ -447,7 +427,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
                     <button key={year}
                       onClick={() => setSelectedYears(prev => prev.includes(year) ? prev.filter(x => x !== year) : [...prev, year])}
                       className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedYears.includes(year) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
-                    >{year}</button>
+                    >{yearLabels.get(year) ?? year}</button>
                   ))}
                 </div>
               </div>
@@ -467,6 +447,21 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
               </div>
             )}
 
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-600">Scale:</span>
+              <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-0.5">
+                {([1, 5, 10] as const).map(s => (
+                  <button key={s}
+                    onClick={() => setStepSize(s)}
+                    className={`px-2 py-0.5 text-xs rounded-md font-medium transition ${
+                      stepSize === s
+                        ? 'bg-white text-ubuntu-700 shadow-sm border'
+                        : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >by {s}'s</button>
+                ))}
+              </div>
+            </div>
             <div className="flex justify-end">
               <button onClick={() => { setSelectedCrimeTypes([]); setSelectedPrecincts([]); setSelectedYears([]); }}
                 className="px-2 py-0.5 text-xs bg-gray-200 rounded hover:bg-gray-300"
