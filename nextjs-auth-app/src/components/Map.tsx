@@ -313,6 +313,7 @@ const Map: React.FC<MapProps> = ({ center, zoom, clusters, clusterColorsMapping 
     let maxDate: Date | null = null;
     allItems.forEach(i => {
       const d = new Date(i.year, i.month - 1, i.day);
+      if (isNaN(d.getTime())) return;
       if (!minDate || d < minDate) minDate = d;
       if (!maxDate || d > maxDate) maxDate = d;
     });
