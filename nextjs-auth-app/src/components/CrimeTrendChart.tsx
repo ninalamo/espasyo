@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { Line } from 'react-chartjs-2';
 import { ChartOptions, TooltipItem } from 'chart.js';
 import 'chart.js/auto';
@@ -44,6 +44,31 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters, dateFrom, dateTo })
   const [showFilters, setShowFilters] = useState(true);
   const [filterDateFrom, setFilterDateFrom] = useState(dateFrom || '');
   const [filterDateTo, setFilterDateTo] = useState(dateTo || '');
+  const [isContainerReady, setIsContainerReady] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkContainerSize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          setIsContainerReady(true);
+        }
+      }
+    };
+    checkContainerSize();
+    const resizeObserver = new ResizeObserver(checkContainerSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    const fallbackTimer = setTimeout(() => {
+      setIsContainerReady(true);
+    }, 100);
+    return () => {
+      resizeObserver.disconnect();
+      clearTimeout(fallbackTimer);
+    };
+  }, []);
 
   useEffect(() => {
     setFilterDateFrom(dateFrom || '');
@@ -362,8 +387,17 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters, dateFrom, dateTo })
         {labels.length === 0 ? (
           <div className="text-center text-gray-500 italic py-16">No data matches the current filter selection.</div>
         ) : (
-          <div style={{ height: 420 }}>
-            <Line data={{ labels, datasets }} options={options} />
+          <div ref={containerRef} style={{ height: 420 }}>
+            {isContainerReady ? (
+              <Line data={{ labels, datasets }} options={options} />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                <div className="text-center">
+                  <div className="animate-spin h-6 w-6 mx-auto mb-2 border-2 border-ubuntu-500 border-t-transparent rounded-full"></div>
+                  <p className="text-sm">Loading chart...</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

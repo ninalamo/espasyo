@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Line } from 'react-chartjs-2';
 import { ChartOptions, TooltipItem } from 'chart.js';
 import 'chart.js/auto';
@@ -34,6 +34,31 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
   const [selectedCrimeTypes, setSelectedCrimeTypes] = useState<number[]>([]);
   const [selectedPrecincts, setSelectedPrecincts] = useState<number[]>([]);
   const [showFilters, setShowFilters] = useState(true);
+  const [isContainerReady, setIsContainerReady] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkContainerSize = () => {
+      if (containerRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        if (width > 0 && height > 0) {
+          setIsContainerReady(true);
+        }
+      }
+    };
+    checkContainerSize();
+    const resizeObserver = new ResizeObserver(checkContainerSize);
+    if (containerRef.current) {
+      resizeObserver.observe(containerRef.current);
+    }
+    const fallbackTimer = setTimeout(() => {
+      setIsContainerReady(true);
+    }, 100);
+    return () => {
+      resizeObserver.disconnect();
+      clearTimeout(fallbackTimer);
+    };
+  }, []);
 
   const forecastMonths = useMemo(() => {
     const months = [...new Set(forecastData.map(f => f.month))].sort((a, b) => a - b);
@@ -87,6 +112,30 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     return items;
   }, [forecastData, selectedCrimeTypes, selectedPrecincts]);
 
+  const normalizedTimeline = useMemo(() => {
+    const map = new Map<string, { actual: number; predicted: number }>();
+    const key = (y: number, m: number, t: number) => `${y}-${m}-${t}`;
+    filteredHistorical.forEach(h => {
+      const k = key(h.year, h.month, -1);
+      map.set(k, { actual: (map.get(k)?.actual ?? 0) + h.count, predicted: map.get(k)?.predicted ?? 0 });
+      const k2 = key(h.year, h.month, h.crimeType);
+      map.set(k2, { actual: (map.get(k2)?.actual ?? 0) + h.count, predicted: map.get(k2)?.predicted ?? 0 });
+    });
+    filteredForecast.forEach(f => {
+      const k = key(f.year, f.month, -1);
+      map.set(k, { actual: map.get(k)?.actual ?? 0, predicted: (map.get(k)?.predicted ?? 0) + f.predictedCount });
+      const k2 = key(f.year, f.month, f.crimeType);
+      map.set(k2, { actual: map.get(k2)?.actual ?? 0, predicted: (map.get(k2)?.predicted ?? 0) + f.predictedCount });
+    });
+    return map;
+  }, [filteredHistorical, filteredForecast]);
+
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+
+  const tk = (year: number, month: number, typeId: number) => `${year}-${month}-${typeId}`;
+
   const { labels, datasets } = useMemo(() => {
     if (!forecastMonths) return { labels: [], datasets: [] };
 
@@ -137,87 +186,61 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
 
     const buildDataset = (typeId: number) => {
       const yearLines: any[] = [];
-      const predictionYearSet = new Set(filteredForecast.map(f => f.year));
 
       allYears.forEach((year, yi) => {
-        const hasPrediction = predictionYearSet.has(year);
         const colorIdx = typeId === -1 ? yi % YEAR_COLORS.length : typeId % CRIME_TYPE_COLORS.length;
         const baseColor = typeId === -1 ? YEAR_COLORS[colorIdx] : CRIME_TYPE_COLORS[colorIdx];
         const label = typeId === -1 ? String(year) : `${CrimeTypesDictionary[typeId] || typeId} (${year})`;
 
-        if (!hasPrediction) {
-          const values = forecastMonths.map(m => {
-            const entry = filteredHistorical.find(h => h.year === year && h.month === m && (typeId === -1 || h.crimeType === typeId));
-            return entry ? entry.count : null;
-          });
-          let lastVal: number | null = null;
-          const filled = values.map(v => {
-            if (v != null) { lastVal = v; return v; }
-            return lastVal;
-          });
+        if (year < currentYear) {
+          const data = forecastMonths.map(m =>
+            normalizedTimeline.get(tk(year, m, typeId))?.actual ?? 0
+          );
           yearLines.push({
-            label,
-            data: filled,
+            label, data,
             borderColor: baseColor,
             backgroundColor: baseColor + '22',
             pointBackgroundColor: baseColor,
-            borderWidth: 2,
-            pointRadius: 3,
-            tension: 0.3,
-            fill: false,
-            spanGaps: false,
+            borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
           });
           return;
         }
 
-        const histValues = forecastMonths.map(m => {
-          const entry = filteredHistorical.find(h => h.year === year && h.month === m && (typeId === -1 || h.crimeType === typeId));
-          return entry ? entry.count : null;
-        });
+        if (year > currentYear) {
+          const data = forecastMonths.map(m =>
+            normalizedTimeline.get(tk(year, m, typeId))?.predicted ?? 0
+          );
+          yearLines.push({
+            label: `${label} (Predicted)`, data,
+            borderColor: baseColor,
+            backgroundColor: baseColor + '22',
+            pointBackgroundColor: baseColor,
+            borderWidth: 2, pointRadius: 3, borderDash: [5, 5], tension: 0.3, fill: false, spanGaps: false,
+          });
+          return;
+        }
 
-        const foreValues = forecastMonths.map(m => {
-          const entry = filteredForecast.find(f => f.year === year && f.month === m && (typeId === -1 || f.crimeType === typeId));
-          return entry ? entry.predictedCount : null;
-        });
-
-        let lastHist: number | null = null;
-        const actualData = histValues.map(v => {
-          if (v != null) { lastHist = v; return v; }
-          return lastHist;
-        });
+        const actualData = forecastMonths.map(m =>
+          m >= currentMonth ? null : (normalizedTimeline.get(tk(year, m, typeId))?.actual ?? 0)
+        );
+        const predData = forecastMonths.map(m => {
+          if (m < currentMonth) return null;
+          return normalizedTimeline.get(tk(year, m, typeId))?.predicted ?? 0;
+        }).map((v, i) => actualData[i] != null ? null : v);
 
         yearLines.push({
-          label: `${label} (Actual)`,
-          data: actualData,
+          label: `${label} (Actual)`, data: actualData,
           borderColor: baseColor,
           backgroundColor: baseColor + '22',
           pointBackgroundColor: baseColor,
-          borderWidth: 2,
-          pointRadius: 3,
-          tension: 0.3,
-          fill: false,
-          spanGaps: false,
+          borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
         });
-
-        let lastFore: number | null = null;
-        const predData = foreValues.map((v, i) => {
-          if (actualData[i] != null) return null;
-          if (v != null) { lastFore = v; return v; }
-          return lastFore;
-        });
-
         yearLines.push({
-          label: `${label} (Predicted)`,
-          data: predData,
+          label: `${label} (Predicted)`, data: predData,
           borderColor: baseColor,
           backgroundColor: baseColor + '22',
           pointBackgroundColor: baseColor,
-          borderWidth: 2,
-          pointRadius: 3,
-          borderDash: [5, 5],
-          tension: 0.3,
-          fill: false,
-          spanGaps: false,
+          borderWidth: 2, pointRadius: 3, borderDash: [5, 5], tension: 0.3, fill: false, spanGaps: false,
         });
       });
 
@@ -225,8 +248,19 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     };
 
     const datasets = typeIds.flatMap(tid => buildDataset(tid));
+
+    console.log('=== ForecastTrendChart debug ===', {
+      mode,
+      selectedCrimeTypes: selectedCrimeTypes.map(id => CrimeTypesDictionary[id] || id),
+      selectedPrecincts: selectedPrecincts.map(id => GetPrecinctsDictionary[id] || id),
+      monthlyData: labels.map((label, i) => ({
+        month: label,
+        datasets: datasets.map(d => ({ label: d.label, value: d.data[i] })),
+      })),
+    });
+
     return { labels, datasets };
-  }, [filteredHistorical, filteredForecast, forecastMonths, allYears, interval, showYearly, mode, selectedCrimeTypes]);
+  }, [filteredHistorical, filteredForecast, forecastMonths, allYears, interval, showYearly, mode, selectedCrimeTypes, normalizedTimeline, currentYear, currentMonth]);
 
   const options: ChartOptions<'line'> = {
     responsive: true,
@@ -316,19 +350,17 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
 
         {showFilters && (
           <div className="p-2.5 bg-gray-50 rounded-lg border space-y-2">
-            {mode === 'individual' && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-600">Crime:</span>
-                <div className="flex flex-wrap gap-1 flex-1">
-                  {availableCrimeTypes.map(({ id, label }) => (
-                    <button key={id}
-                      onClick={() => setSelectedCrimeTypes(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
-                      className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(id) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
-                    >{label}</button>
-                  ))}
-                </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-gray-600">Crime:</span>
+              <div className="flex flex-wrap gap-1 flex-1">
+                {availableCrimeTypes.map(({ id, label }) => (
+                  <button key={id}
+                    onClick={() => setSelectedCrimeTypes(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])}
+                    className={`px-2 py-0.5 border rounded text-xs whitespace-nowrap ${selectedCrimeTypes.includes(id) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
+                  >{label}</button>
+                ))}
               </div>
-            )}
+            </div>
 
             {availablePrecincts.length > 0 && (
               <div className="flex items-center gap-2">
@@ -357,8 +389,17 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
         {labels.length === 0 || datasets.length === 0 ? (
           <div className="text-center text-gray-500 italic py-16">No data matches the current filter selection.</div>
         ) : (
-          <div style={{ height: 420 }}>
-            <Line data={{ labels, datasets }} options={options} />
+          <div ref={containerRef} style={{ height: 420 }}>
+            {isContainerReady ? (
+              <Line data={{ labels, datasets }} options={options} />
+            ) : (
+              <div className="flex items-center justify-center h-full text-gray-500">
+                <div className="text-center">
+                  <div className="animate-spin h-6 w-6 mx-auto mb-2 border-2 border-ubuntu-500 border-t-transparent rounded-full"></div>
+                  <p className="text-sm">Loading chart...</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
