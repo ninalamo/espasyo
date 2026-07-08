@@ -1,12 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { useForecast } from '../../ForecastContext';
-import ForecastSummary from '../../ForecastSummary';
-import TrendAnalysis from '../../TrendAnalysis';
-import { forecastApi } from '../../../api/utils/forecastApi';
 import { Skeleton, CardSkeleton, ChartSkeleton } from '../../../../components/ui/skeleton';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../../../constants/consts';
 import dynamic from 'next/dynamic';
@@ -15,21 +11,12 @@ const ForecastMap = dynamic(() => import('../../../../components/ForecastMap'), 
   ssr: false,
   loading: () => <div className="h-[500px] rounded-lg border border-gray-200 bg-gray-50 animate-pulse flex items-center justify-center text-sm text-gray-400">Loading map...</div>,
 });
-import type { ForecastEvaluationResult } from '../../../../types/forecast/ForecastBaseTypes';
+import { ForecastTrendChart } from '../../../../components/ForecastTrendChart';
 
 const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export default function OverviewPage() {
-  const { forecastData, forecastParams, historicalData, forecastMetrics, forecastId, forecast, loading, spatialData, seasonalPredictions, apiResponse } = useForecast();
-  const [evaluation, setEvaluation] = useState<ForecastEvaluationResult | null>(null);
-
-  useEffect(() => {
-    if (forecastId && !forecastId.startsWith('local-')) {
-      forecastApi.evaluate(forecastId)
-        .then(setEvaluation)
-        .catch(() => {});
-    }
-  }, [forecastId]);
+  const { forecastData, forecastParams, historicalData, forecastId, loading, spatialData, seasonalPredictions, apiResponse } = useForecast();
 
   if (loading || forecastData.length === 0) {
     return (
@@ -95,8 +82,8 @@ export default function OverviewPage() {
             {/* Temporal Tab */}
             <TabPanel className="p-6 space-y-6">
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-medium text-gray-800 mb-2">Time-Based Forecast Analysis</h3>
-                <p className="text-sm text-gray-600">Summary metrics and trend analysis across forecast periods, precincts, and crime types.</p>
+                <h3 className="font-medium text-gray-800 mb-2">Crime Trends Over Time</h3>
+                <p className="text-sm text-gray-600">Year-over-year comparison within the forecast window. Toggle between consolidated (total) and individual crime types. Switch to yearly view when the forecast window spans 12+ months.</p>
               </div>
 
               {apiResponse?.explanation && (
@@ -106,26 +93,10 @@ export default function OverviewPage() {
                 </div>
               )}
 
-              {apiResponse?.summary && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-indigo-50 rounded-lg p-3 text-center">
-                    <div className="text-xl font-bold text-indigo-700">{apiResponse.summary.totalForecasts}</div>
-                    <div className="text-xs text-indigo-600">Total Forecoasts</div>
-                  </div>
-                  <div className="bg-red-50 rounded-lg p-3 text-center">
-                    <div className="text-xl font-bold text-red-700">{apiResponse.summary.highRiskPredictions + apiResponse.summary.criticalRiskPredictions}</div>
-                    <div className="text-xs text-red-600">High + Critical</div>
-                  </div>
-                  <div className="bg-yellow-50 rounded-lg p-3 text-center">
-                    <div className="text-xl font-bold text-yellow-700 capitalize">{apiResponse.summary.overallTrend}</div>
-                    <div className="text-xs text-yellow-600">Overall Trend</div>
-                  </div>
-                  <div className="bg-purple-50 rounded-lg p-3 text-center">
-                    <div className="text-xl font-bold text-purple-700 capitalize">{apiResponse.summary.dominantRiskLevel}</div>
-                    <div className="text-xs text-purple-600">Dominant Risk</div>
-                  </div>
-                </div>
-              )}
+              <ForecastTrendChart
+                historicalData={historicalData}
+                forecastData={forecastData}
+              />
 
               {apiResponse?.summary?.keyInsight && (
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
@@ -143,20 +114,6 @@ export default function OverviewPage() {
                   </ul>
                 </div>
               )}
-
-              <ForecastSummary
-                historicalData={historicalData}
-                forecastData={forecastData}
-                params={forecastParams}
-                createdAt={forecast?.createdAt}
-                metrics={forecastMetrics}
-                evaluation={evaluation}
-              />
-              <TrendAnalysis
-                historicalData={historicalData}
-                forecastData={forecastData}
-                forecastId={forecastId}
-              />
             </TabPanel>
 
             {/* Spatial Tab */}

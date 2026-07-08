@@ -38,7 +38,7 @@ export default withAuth(function NewForecastPage() {
 
   const [forecastParams, setForecastParams] = useState<ForecastParams>({
     forecastPeriod: 6,
-    model: 'ssa',
+    model: 'linear',
     confidence: 0.95,
     includeSeasonality: true,
     weightRecentData: true,
@@ -50,7 +50,7 @@ export default withAuth(function NewForecastPage() {
   const [seasonalPredictions, setSeasonalPredictions] = useState<any[]>([]);
   const [rawApiResponse, setRawApiResponse] = useState<any>(null);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
-  const [activeModelLabel, setActiveModelLabel] = useState('');
+
   const [forecastName, setForecastName] = useState('');
   const [saveLoading, setSaveLoading] = useState(false);
 
@@ -115,8 +115,8 @@ export default withAuth(function NewForecastPage() {
       toast.error('Please load analysis data first');
       return;
     }
-    if (forecastParams.forecastPeriod < 1 || forecastParams.forecastPeriod > 12) {
-      toast.error('Forecast period must be 1-12 months');
+    if (forecastParams.forecastPeriod < 1) {
+      toast.error('Forecast period must be at least 1 month');
       return;
     }
 
@@ -143,11 +143,12 @@ export default withAuth(function NewForecastPage() {
         confidenceLevel: forecastParams.confidence,
         includeSeasonality: forecastParams.includeSeasonality,
         weightRecentData: forecastParams.weightRecentData,
+        modelType: 'Linear',
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
 
-      setActiveModelLabel('ML.NET');
+
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
@@ -216,7 +217,7 @@ export default withAuth(function NewForecastPage() {
         metadata: {
           totalClusters: clusters.length,
           totalPredictions: forecastData.length,
-          activeModel: activeModelLabel,
+          activeModel: 'Linear',
           precincts: [...new Set(forecastData.map(f => f.precinct))],
           crimeTypes: [...new Set(forecastData.map(f => f.crimeType))],
         },
@@ -230,7 +231,7 @@ export default withAuth(function NewForecastPage() {
     } finally {
       setSaveLoading(false);
     }
-  }, [forecastName, forecastParams, forecastData, forecastMetrics, clusters, historicalData, activeModelLabel, spatialData, seasonalPredictions, router]);
+  }, [forecastName, forecastParams, forecastData, forecastMetrics, clusters, historicalData, spatialData, seasonalPredictions, router]);
 
   const dataLoaded = analysisLoaded && clusters.length > 0;
 
@@ -350,7 +351,7 @@ export default withAuth(function NewForecastPage() {
               </label>
               <input
                 type="number"
-                min="1" max="12"
+                min="1"
                 value={forecastParams.forecastPeriod}
                 onChange={e => setForecastParams({ ...forecastParams, forecastPeriod: parseInt(e.target.value) || 6 })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -361,31 +362,10 @@ export default withAuth(function NewForecastPage() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
               <div className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-md text-sm text-gray-700">
-                Singular Spectrum Analysis — <span className="text-gray-500">statistical time-series decomposition via ML.NET</span>
+                Linear Regression — <span className="text-gray-500">statistical time-series forecasting using linear trends</span>
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Confidence: {(forecastParams.confidence * 100).toFixed(0)}%
-              </label>
-              <input
-                type="range" min="0.8" max="0.99" step="0.01"
-                value={forecastParams.confidence}
-                onChange={e => setForecastParams({ ...forecastParams, confidence: parseFloat(e.target.value) })}
-                className="w-full"
-              />
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                checked={forecastParams.weightRecentData}
-                onChange={e => setForecastParams({ ...forecastParams, weightRecentData: e.target.checked })}
-                className="mr-2"
-              />
-              <span className="text-sm text-gray-700">Prioritize recent trends (last 6 months)</span>
-            </div>
           </div>
 
           <div className="mt-6 flex justify-between">
@@ -435,7 +415,7 @@ export default withAuth(function NewForecastPage() {
                 <div className="text-xs text-purple-600">Precincts</div>
               </div>
               <div className="bg-green-50 rounded-lg p-4 text-center">
-                <div className="text-2xl font-bold text-green-700">{activeModelLabel}</div>
+                <div className="text-2xl font-bold text-green-700">Linear</div>
                 <div className="text-xs text-green-600">Model Used</div>
               </div>
             </div>

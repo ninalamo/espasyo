@@ -157,7 +157,7 @@ class ForecastApiService {
       createdAt: r.runAt,
       forecastPeriod: r.horizon,
       totalPredictions: r.totalSeries,
-      activeModel: r.modelType === 'SSA' ? 'ML.NET' : r.modelType,
+      activeModel: 'Linear',
       precinctCount: 1,
       crimeTypeCount: 0,
     }));
@@ -168,7 +168,7 @@ class ForecastApiService {
       createdAt: s.createdAt,
       forecastPeriod: s.forecastPeriod,
       totalPredictions: s.metadata?.totalPredictions || s.predictions.length,
-      activeModel: s.metadata?.activeModel || 'ML.NET',
+      activeModel: s.metadata?.activeModel || 'Linear',
       precinctCount: s.metadata?.precincts?.length || [...new Set(s.predictions.map(p => p.precinct))].length,
       crimeTypeCount: s.metadata?.crimeTypes?.length || [...new Set(s.predictions.map(p => p.crimeType))].length,
     }));
@@ -205,7 +205,7 @@ class ForecastApiService {
         })),
         params: {
           forecastPeriod: 6,
-          model: 'ssa',
+          model: 'linear',
           confidence: 0.95,
           includeSeasonality: true,
           weightRecentData: true,
@@ -213,7 +213,7 @@ class ForecastApiService {
         metadata: {
           totalClusters: 0,
           totalPredictions: results.length,
-          activeModel: 'ML.NET',
+          activeModel: 'Linear',
           precincts,
           crimeTypes,
         },
@@ -350,7 +350,7 @@ class ForecastApiService {
               precinctId,
               horizon: data.params.forecastPeriod,
               confidenceLevel: data.params.confidence,
-              modelType: 'SSA',
+              modelType: 'Linear',
               name: data.name,
               includeSeasonality: data.params.includeSeasonality,
               weightRecentData: data.params.weightRecentData,
