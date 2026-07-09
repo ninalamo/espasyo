@@ -10,8 +10,17 @@ export interface ForecastData {
   lastYearActual?: number;
   trend: 'increasing' | 'decreasing' | 'stable';
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  compositeRiskScore?: number;
   shiftBreakdown?: ShiftBreakdown;
   dominantShift?: string;
+}
+
+export interface RiskScoringConfig {
+  heinousBoostFactor?: number;
+  heinousPresenceFactor?: number;
+  crimeTypeSeverityScores?: Record<number, number>;
+  precinctCrimeRiskFactors?: Record<number, number>;
+  heinousCrimeTypeIds?: number[];
 }
 
 export interface ShiftBreakdown {

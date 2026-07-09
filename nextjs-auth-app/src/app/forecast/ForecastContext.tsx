@@ -10,6 +10,7 @@ import type {
   ForecastParams,
   ForecastMetrics,
   ForecastApiResponse,
+  RiskScoringConfig,
 } from '../../types/forecast/ForecastBaseTypes';
 import type { ExtendedForecastData, ForecastMapPoint } from '../../types/forecast/ExtendedForecastTypes';
 import { forecastApi } from '../api/utils/forecastApi';
@@ -34,7 +35,7 @@ interface ForecastContextValue {
   dataQuality: any;
   analysisLoaded: boolean;
   forecastParams: ForecastParams;
-  generateForecast: (clustersData: Cluster[], params: ForecastParams) => Promise<ForecastData[]>;
+  generateForecast: (clustersData: Cluster[], params: ForecastParams, riskScoringConfig?: RiskScoringConfig) => Promise<ForecastData[]>;
   saveCurrentForecast: (name: string) => Promise<string | null>;
   loadForecast: (id: string) => Promise<void>;
   clearForecast: () => void;
@@ -128,7 +129,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     }
   }, []);
 
-  const generateForecast = useCallback(async (clustersData: Cluster[], params: ForecastParams): Promise<ForecastData[]> => {
+  const generateForecast = useCallback(async (clustersData: Cluster[], params: ForecastParams, riskScoringConfig?: RiskScoringConfig): Promise<ForecastData[]> => {
     setLoading(true);
     setForecastData([]);
 
@@ -160,6 +161,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         horizon: params.forecastPeriod,
         confidenceLevel: params.confidence,
         modelType: params.model,
+        riskScoringConfig: riskScoringConfig ?? undefined,
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
@@ -170,10 +172,18 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setForecastMetrics(metrics ?? null);
       setSpatialData(response.spatialRows ?? []);
       setSeasonalPredictions(response.seasonalPredictions ?? []);
+
+      const compositeLookup = new Map<string, number>();
+      (response.forecasts || []).forEach((r: any) => {
+        const key = `${r.precinct}-${r.crimeType}-${new Date(r.timestamp).getTime()}`;
+        if (r.compositeRiskScore != null) compositeLookup.set(key, r.compositeRiskScore);
+      });
+
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
         (series.forecasts || []).map((f: any) => {
           const year = new Date(f.timestamp).getFullYear();
           const month = new Date(f.timestamp).getMonth() + 1;
+          const lookupKey = `${series.precinct}-${series.crimeType}-${new Date(f.timestamp).getTime()}`;
           return {
             year,
             month,
@@ -186,6 +196,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
             lastYearActual: historicalLookup.get(`${year - 1}-${month}-${series.precinct}-${series.crimeType}`),
             trend: f.trend || 'stable',
             riskLevel: f.riskLevel || 'medium',
+            compositeRiskScore: compositeLookup.get(lookupKey),
           };
         })
       ).sort((a: ForecastData, b: ForecastData) =>

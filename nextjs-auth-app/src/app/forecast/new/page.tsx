@@ -7,8 +7,9 @@ import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import type { Cluster } from '../../../types/analysis/ClusterDto';
-import type { ForecastData, ForecastMetrics, ForecastParams } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastData, ForecastMetrics, ForecastParams, RiskScoringConfig } from '../../../types/forecast/ForecastBaseTypes';
 import { format } from 'date-fns';
+import { CrimeTypesDictionary } from '../../../constants/consts';
 import { apiService } from '../../api/utils/apiService';
 import { forecastApi } from '../../api/utils/forecastApi';
 import { getSession } from 'next-auth/react';
@@ -42,6 +43,12 @@ export default withAuth(function NewForecastPage() {
     confidence: 0.95,
     includeSeasonality: true,
     weightRecentData: true,
+  });
+
+  const [riskScoringConfig, setRiskScoringConfig] = useState<RiskScoringConfig>({
+    heinousBoostFactor: 1.5,
+    heinousPresenceFactor: 1.2,
+    heinousCrimeTypeIds: [7, 11, 12, 14, 15, 16],
   });
 
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
@@ -147,17 +154,25 @@ export default withAuth(function NewForecastPage() {
         horizon: forecastParams.forecastPeriod,
         confidenceLevel: forecastParams.confidence,
         modelType: forecastParams.model,
+        riskScoringConfig: riskScoringConfig,
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
 
-
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
+
+      const compositeLookup = new Map<string, number>();
+      (response.forecasts || []).forEach((r: any) => {
+        const key = `${r.precinct}-${r.crimeType}-${new Date(r.timestamp).getTime()}`;
+        if (r.compositeRiskScore != null) compositeLookup.set(key, r.compositeRiskScore);
+      });
+
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
         (series.forecasts || []).map((f: any) => {
           const year = new Date(f.timestamp).getFullYear();
           const month = new Date(f.timestamp).getMonth() + 1;
+          const lookupKey = `${series.precinct}-${series.crimeType}-${new Date(f.timestamp).getTime()}`;
           return {
             year,
             month,
@@ -165,9 +180,12 @@ export default withAuth(function NewForecastPage() {
             crimeType: series.crimeType,
             predictedCount: Math.max(0, f.forecast),
             confidence: f.confidence || forecastParams.confidence,
+            lowerBound: f.lowerBound != null ? f.lowerBound : undefined,
+            upperBound: f.upperBound != null ? f.upperBound : undefined,
             lastYearActual: historicalLookup.get(`${year - 1}-${month}-${series.precinct}-${series.crimeType}`),
             trend: f.trend || 'stable',
             riskLevel: f.riskLevel || 'medium',
+            compositeRiskScore: compositeLookup.get(lookupKey),
           };
         })
       ).sort((a: ForecastData, b: ForecastData) =>
@@ -184,7 +202,7 @@ export default withAuth(function NewForecastPage() {
     } finally {
       setLoading(false);
     }
-  }, [analysisLoaded, clusters, forecastParams]);
+  }, [analysisLoaded, clusters, forecastParams, riskScoringConfig]);
 
   const buildNameSuffix = (data: ForecastData[]) => {
     if (data.length === 0) return '';
@@ -391,6 +409,62 @@ export default withAuth(function NewForecastPage() {
               </div>
             </div>
 
+            {/* Advanced Risk Scoring */}
+            <details className="mt-6 border border-gray-200 rounded-lg">
+              <summary className="px-4 py-3 bg-gray-50 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+                Advanced: Composite Risk Scoring
+              </summary>
+              <div className="p-4 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Heinous Boost Factor</label>
+                    <input type="number" step="0.1" min="1.0" max="3.0"
+                      value={riskScoringConfig.heinousBoostFactor ?? 1.5}
+                      onChange={e => setRiskScoringConfig({ ...riskScoringConfig, heinousBoostFactor: parseFloat(e.target.value) || 1.5 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-400 mt-0.5">Multiplier for heinous crimes (default: 1.5)</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Heinous Presence Factor</label>
+                    <input type="number" step="0.1" min="1.0" max="2.0"
+                      value={riskScoringConfig.heinousPresenceFactor ?? 1.2}
+                      onChange={e => setRiskScoringConfig({ ...riskScoringConfig, heinousPresenceFactor: parseFloat(e.target.value) || 1.2 })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                    <p className="text-xs text-gray-400 mt-0.5">Applied to non-heinous crimes when heinous present (default: 1.2)</p>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">Heinous Crime Types</label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto border border-gray-200 rounded p-2">
+                    {Object.entries(CrimeTypesDictionary).filter(([k]) => k !== '-1').map(([id, name]) => {
+                      const numId = parseInt(id);
+                      const isHeinous = riskScoringConfig.heinousCrimeTypeIds?.includes(numId) ?? false;
+                      return (
+                        <label key={id} className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
+                          <input type="checkbox" checked={isHeinous}
+                            onChange={() => {
+                              const current = riskScoringConfig.heinousCrimeTypeIds ?? [];
+                              const updated = isHeinous
+                                ? current.filter(h => h !== numId)
+                                : [...current, numId];
+                              setRiskScoringConfig({ ...riskScoringConfig, heinousCrimeTypeIds: updated });
+                            }}
+                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                          />
+                          {name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-gray-400 mt-0.5">Crime types that get the heinous boost factor</p>
+                </div>
+                <div className="p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
+                  <strong>Formula:</strong> CompositeRiskScore = (severity / 10) × precinctRisk × heinousMultiplier
+                </div>
+              </div>
+            </details>
           </div>
 
           <div className="mt-6 flex justify-between">
