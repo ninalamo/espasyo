@@ -178,6 +178,12 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     return map;
   }, [allYears, forecastData]);
 
+  const projectedLabel = useMemo(() => {
+    const years = [...new Set(forecastData.map(f => f.year))].sort((a, b) => a - b);
+    if (years.length === 0) return String(currentYear);
+    return years.length === 1 ? String(years[0]) : `${years[0]}–${years[years.length - 1]}`;
+  }, [forecastData, currentYear]);
+
   const tk = (year: number, month: number, typeId: number) => `${year}-${month}-${typeId}`;
 
   const { labels, datasets } = useMemo(() => {
@@ -202,7 +208,8 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           const foreCount = filteredForecast
             .filter(f => f.year === year && (typeId === -1 || f.crimeType === typeId))
             .reduce((s, f) => s + f.predictedCount, 0);
-          const label = typeId === -1 ? String(year) : `${CrimeTypesDictionary[typeId] || typeId} (${year})`;
+        const yearLabel = year < currentYear ? String(year) : projectedLabel;
+        const label = typeId === -1 ? yearLabel : `${CrimeTypesDictionary[typeId] || typeId} (${yearLabel})`;
           const colorIdx = typeId === -1 ? yearSet.indexOf(year) % YEAR_COLORS.length : typeId % CRIME_TYPE_COLORS.length;
           const color = typeId === -1 ? YEAR_COLORS[colorIdx] : CRIME_TYPE_COLORS[colorIdx];
           datasets.push({
@@ -228,6 +235,18 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     const isIndividual = mode === 'individual' && selectedCrimeTypes.length > 0;
     const typeIds = isIndividual ? selectedCrimeTypes : [-1];
 
+    // Lighten a #RRGGBB hex color toward white by `amount` (0 = unchanged, 1 = white).
+    const lighten = (hex: string, amount: number): string => {
+      const m = /^#?([0-9a-f]{6})$/i.exec(hex);
+      if (!m) return hex;
+      const num = parseInt(m[1], 16);
+      const r = (num >> 16) & 0xff;
+      const g = (num >> 8) & 0xff;
+      const b = num & 0xff;
+      const mix = (c: number) => Math.round(c + (255 - c) * amount);
+      return `#${((1 << 24) + (mix(r) << 16) + (mix(g) << 8) + mix(b)).toString(16).slice(1)}`;
+    };
+
     const buildDataset = (typeId: number) => {
       const yearLines: any[] = [];
       const years = displayYears;
@@ -238,6 +257,20 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
         const histDash = dashPatterns[Math.min(ageFromNewest, dashPatterns.length - 1)];
         const colorIdx = typeId === -1 ? yi % YEAR_COLORS.length : typeId % CRIME_TYPE_COLORS.length;
         const baseColor = typeId === -1 ? YEAR_COLORS[colorIdx] : CRIME_TYPE_COLORS[colorIdx];
+
+        // In individual mode keep each crime type's hue, but fade older historical
+        // years toward white (older = blander) while the forecast stays bright.
+        let lineColor = baseColor;
+        if (isIndividual && typeId !== -1) {
+          if (year < currentYear) {
+            const historicalYears = years.filter(y => y < currentYear);
+            const rankFromOldest = historicalYears.indexOf(year);
+            const totalHistorical = Math.max(1, historicalYears.length - 1);
+            // Oldest historical year ~75% lighter, most recent historical year ~20% lighter.
+            const lightenAmount = totalHistorical === 0 ? 0 : 0.2 + (rankFromOldest / totalHistorical) * 0.55;
+            lineColor = lighten(baseColor, Math.min(0.85, lightenAmount));
+          }
+        }
         const label = typeId === -1 ? String(year) : `${CrimeTypesDictionary[typeId] || typeId} (${year})`;
 
         if (year < currentYear) {
@@ -246,9 +279,9 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           );
           yearLines.push({
             label, data,
-            borderColor: baseColor,
-            backgroundColor: baseColor + '22',
-            pointBackgroundColor: baseColor,
+            borderColor: lineColor,
+            backgroundColor: lineColor + '22',
+            pointBackgroundColor: lineColor,
             borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
             borderDash: histDash,
           });
@@ -260,9 +293,9 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
         );
         yearLines.push({
           label, data,
-          borderColor: baseColor,
-          backgroundColor: baseColor + '22',
-          pointBackgroundColor: baseColor,
+          borderColor: lineColor,
+          backgroundColor: lineColor + '22',
+          pointBackgroundColor: lineColor,
           borderWidth: 2, pointRadius: 3, tension: 0.3, fill: false, spanGaps: false,
         });
       });
@@ -489,19 +522,22 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
         )}
       </div>
 
-      <div className="mt-2 text-xs text-gray-400 flex items-center gap-4">
-        <span className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 bg-gray-600 inline-block" style={{ borderTop: '2px dotted #666', height: 0 }}></span>
-          Oldest
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 bg-gray-600 inline-block" style={{ borderTop: '2px dashed #666', height: 0 }}></span>
-          Most Recent
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="w-4 h-0.5 bg-gray-600 inline-block"></span>
-          Predicted
-        </span>
+      <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 space-y-1">
+        <p className="font-medium text-gray-700">How this prediction is computed</p>
+        <p>
+          For each precinct and crime type, the system uses Singular Spectrum Analysis (SSA) via ML.NET's{' '}
+          <code>ForecastBySsa</code>. SSA decomposes the historical monthly incident counts into trend, seasonality,
+          and noise components, reconstructs each, and projects them forward from the current calendar month.
+          The window size is capped at 12 (or half the series length, whichever is smaller) to satisfy SSA's
+          internal constraints. Predicted values are capped so they cannot exceed roughly twice the long-term
+          average, preventing runaway extrapolation on sparse or noisy series. If the forecast horizon exceeds
+          SSA's limit, it falls back to a simple linear trend model.
+        </p>
+        <p>
+          Lines for past years are shown faded (older years are lighter) for year-over-year comparison, while the solid
+          bright line is the forecast for the upcoming window. Dashed lines mark historical years; the unbroken bright
+          line is the prediction.
+        </p>
       </div>
     </div>
   );
