@@ -97,11 +97,10 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
 
   const allYears = useMemo(() => {
     const years = new Set<number>();
-    const tmMonths = new Set(timeline.map(t => t.month));
-    historicalData.forEach(h => { if (tmMonths.has(h.month)) years.add(h.year); });
+    historicalData.forEach(h => years.add(h.year));
     forecastData.forEach(f => years.add(f.year));
     return [...years].sort((a, b) => a - b);
-  }, [historicalData, forecastData, timeline]);
+  }, [historicalData, forecastData]);
 
   const showYearly = timeline.length >= 12;
 
