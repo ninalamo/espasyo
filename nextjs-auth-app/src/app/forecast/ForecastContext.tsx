@@ -10,7 +10,6 @@ import type {
   ForecastParams,
   ForecastMetrics,
   ForecastApiResponse,
-  RiskScoringConfig,
 } from '../../types/forecast/ForecastBaseTypes';
 import type { ExtendedForecastData, ForecastMapPoint } from '../../types/forecast/ExtendedForecastTypes';
 import { forecastApi } from '../api/utils/forecastApi';
@@ -35,7 +34,7 @@ interface ForecastContextValue {
   dataQuality: any;
   analysisLoaded: boolean;
   forecastParams: ForecastParams;
-  generateForecast: (clustersData: Cluster[], params: ForecastParams, riskScoringConfig?: RiskScoringConfig) => Promise<ForecastData[]>;
+  generateForecast: (clustersData: Cluster[], params: ForecastParams) => Promise<ForecastData[]>;
   saveCurrentForecast: (name: string) => Promise<string | null>;
   loadForecast: (id: string) => Promise<void>;
   clearForecast: () => void;
@@ -129,7 +128,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     }
   }, []);
 
-  const generateForecast = useCallback(async (clustersData: Cluster[], params: ForecastParams, riskScoringConfig?: RiskScoringConfig): Promise<ForecastData[]> => {
+  const generateForecast = useCallback(async (clustersData: Cluster[], params: ForecastParams): Promise<ForecastData[]> => {
     setLoading(true);
     setForecastData([]);
 
@@ -161,7 +160,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         horizon: params.forecastPeriod,
         confidenceLevel: params.confidence,
         modelType: params.model,
-        riskScoringConfig: riskScoringConfig ?? undefined,
+        includeTimeOfDay: true,
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
@@ -173,22 +172,16 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       setSpatialData(response.spatialRows ?? []);
       setSeasonalPredictions(response.seasonalPredictions ?? []);
 
-      const compositeLookup = new Map<string, number>();
-      (response.forecasts || []).forEach((r: any) => {
-        const key = `${r.precinct}-${r.crimeType}-${new Date(r.timestamp).getTime()}`;
-        if (r.compositeRiskScore != null) compositeLookup.set(key, r.compositeRiskScore);
-      });
-
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
         (series.forecasts || []).map((f: any) => {
           const year = new Date(f.timestamp).getFullYear();
           const month = new Date(f.timestamp).getMonth() + 1;
-          const lookupKey = `${series.precinct}-${series.crimeType}-${new Date(f.timestamp).getTime()}`;
           return {
             year,
             month,
             precinct: series.precinct,
             crimeType: series.crimeType,
+            shift: series.shift,
             predictedCount: Math.max(0, f.forecast),
             confidence: f.confidence ?? 0,
             lowerBound: f.lowerBound != null ? f.lowerBound : undefined,
@@ -196,7 +189,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
             lastYearActual: historicalLookup.get(`${year - 1}-${month}-${series.precinct}-${series.crimeType}`),
             trend: f.trend || 'stable',
             riskLevel: f.riskLevel || 'medium',
-            compositeRiskScore: compositeLookup.get(lookupKey),
           };
         })
       ).sort((a: ForecastData, b: ForecastData) =>
@@ -248,7 +240,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       const snapshot = {
         name,
         forecastPeriod: forecastData.length > 0 ? new Date(Math.max(...forecastData.map(f => new Date(f.year, f.month).getTime()))).getMonth() - new Date().getMonth() + 1 : 6,
-        params: { forecastPeriod: 6, model: 'linear' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true },
+        params: { forecastPeriod: 6, model: 'ssa' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true },
         predictions: forecastData,
         metrics: forecastMetrics,
         clusterData: clusters.map(c => ({
@@ -267,7 +259,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         metadata: {
           totalClusters: clusters.length,
           totalPredictions: forecastData.length,
-          activeModel: 'Linear',
+          activeModel: 'SSA',
           precincts: [...new Set(forecastData.map(f => f.precinct))],
           crimeTypes: [...new Set(forecastData.map(f => f.crimeType))],
         },

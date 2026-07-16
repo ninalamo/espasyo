@@ -6,8 +6,7 @@ import Link from 'next/link';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import InfoBadge from '../../components/InfoBadge';
 import DataQualityModal from './modals/DataQualityModal';
-import type { HistoricalData, ForecastData, ForecastParams, ForecastMetrics, ForecastEvaluationResult, RiskScoringConfig } from '../../types/forecast/ForecastBaseTypes';
-import RiskExplanation from './RiskExplanation';
+import type { HistoricalData, ForecastData, ForecastParams, ForecastMetrics, ForecastEvaluationResult } from '../../types/forecast/ForecastBaseTypes';
 
 const MODEL_LABEL = 'Singular Spectrum Analysis';
 
@@ -18,12 +17,9 @@ interface Props {
   createdAt?: string;
   metrics?: ForecastMetrics | null;
   evaluation?: ForecastEvaluationResult | null;
-  averageCompositeRiskScore?: number;
-  maxCompositeRiskScore?: number;
-  riskScoringConfig?: RiskScoringConfig;
 }
 
-const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, createdAt, metrics, evaluation, averageCompositeRiskScore, maxCompositeRiskScore, riskScoringConfig }) => {
+const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params, createdAt, metrics, evaluation }) => {
   const [isDataQualityModalOpen, setIsDataQualityModalOpen] = useState(false);
   
   const summary = useMemo(() => {
@@ -122,17 +118,6 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
 
     // Note: Manpower allocation details are available in the dedicated Manpower Allocation tab
 
-    // Composite risk score stats
-    const allCompositeScores = forecastData
-      .map(f => f.compositeRiskScore)
-      .filter((s): s is number => s != null);
-    const avgCompositeRiskScore = allCompositeScores.length > 0
-      ? allCompositeScores.reduce((a, b) => a + b, 0) / allCompositeScores.length
-      : undefined;
-    const maxCompositeRiskScoreLocal = allCompositeScores.length > 0
-      ? Math.max(...allCompositeScores)
-      : undefined;
-
     return {
       totalPredicted,
       avgMonthly,
@@ -149,8 +134,6 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
       topCrimeTypes,
       monthlyForecast,
       changeFromHistorical: ((totalPredicted / params.forecastPeriod) - historicalAvgMonthly) / historicalAvgMonthly * 100,
-      avgCompositeRiskScore,
-      maxCompositeRiskScoreLocal,
     };
   }, [forecastData, historicalData, params]);
 
@@ -259,29 +242,6 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             </div>
           </div>
         </div>
-
-        {/* Composite Risk Score */}
-        {summary.avgCompositeRiskScore != null && (
-          <div className="bg-gradient-to-r from-violet-50 to-purple-50 p-4 rounded-lg border border-violet-200">
-            <div className="flex items-center">
-              <div className="p-2 bg-violet-600 rounded-lg">
-                <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-violet-800">Composite Risk Score</p>
-                <p className="text-2xl font-bold text-violet-900">
-                  {summary.avgCompositeRiskScore.toFixed(3)}
-                </p>
-                <p className="text-xs text-violet-600 mt-1">
-                  Max: {summary.maxCompositeRiskScoreLocal?.toFixed(3) ?? 'N/A'}
-                  {riskScoringConfig && <span className="ml-1">· Configurable in advanced settings</span>}
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Year-over-Year Comparison */}
         <div className={`bg-gradient-to-r p-4 rounded-lg border ${
@@ -566,17 +526,8 @@ const ForecastSummary: React.FC<Props> = ({ historicalData, forecastData, params
             </div>
           </div>
 
-          {/* Composite Risk Score Explanation / RiskExplanation */}
-          {summary.avgCompositeRiskScore != null && (
-            <RiskExplanation
-              forecastData={forecastData}
-              averageCompositeRiskScore={summary.avgCompositeRiskScore}
-              maxCompositeRiskScore={summary.maxCompositeRiskScoreLocal}
-              riskScoringConfig={riskScoringConfig}
-            />
-          )}
+          </div>
         </div>
-      </div>
 
       {/* Top Risk Areas and Crime Types */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

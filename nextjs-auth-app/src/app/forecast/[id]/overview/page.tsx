@@ -141,8 +141,8 @@ export default function OverviewPage() {
             {/* Seasonal Tab */}
             <TabPanel className="p-6 space-y-6">
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-medium text-gray-800 mb-2">Seasonal Pattern Predictions</h3>
-                <p className="text-sm text-gray-600">Monthly decomposition showing peak/trough crime periods and seasonal strength per precinct and crime type.</p>
+                <h3 className="font-medium text-gray-800 mb-2">Shift-Level Forecast Patterns</h3>
+                <p className="text-sm text-gray-600">Predicted crime volume by precinct and shift (Morning/Afternoon/Evening). Use this to plan patrol visibility allocation across shifts.</p>
               </div>
 
               {apiResponse?.explanation?.trendAnalysis && (
@@ -151,80 +151,123 @@ export default function OverviewPage() {
                 </div>
               )}
 
-              {apiResponse?.temporalPatterns && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {apiResponse.temporalPatterns.peakTimeOfDay && (
-                    <div className="bg-blue-50 rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-blue-700 capitalize">{apiResponse.temporalPatterns.peakTimeOfDay}</div>
-                      <div className="text-xs text-blue-600">Peak Time of Day</div>
-                    </div>
-                  )}
-                  {apiResponse.temporalPatterns.peakMonth && (
-                    <div className="bg-red-50 rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-red-700">{monthNames[apiResponse.temporalPatterns.peakMonth - 1]}</div>
-                      <div className="text-xs text-red-600">Peak Month</div>
-                    </div>
-                  )}
-                  {apiResponse.temporalPatterns.troughMonth && (
-                    <div className="bg-green-50 rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-green-700">{monthNames[apiResponse.temporalPatterns.troughMonth - 1]}</div>
-                      <div className="text-xs text-green-600">Trough Month</div>
-                    </div>
-                  )}
-                  {apiResponse.temporalPatterns.weekendEffect != null && (
-                    <div className="bg-purple-50 rounded-lg p-3 text-center">
-                      <div className="text-lg font-bold text-purple-700">{apiResponse.temporalPatterns.weekendEffect > 1 ? `${((apiResponse.temporalPatterns.weekendEffect - 1) * 100).toFixed(0)}% higher` : `${((1 - apiResponse.temporalPatterns.weekendEffect) * 100).toFixed(0)}% lower`}</div>
-                      <div className="text-xs text-purple-600">Weekend Effect</div>
-                    </div>
-                  )}
-                </div>
-              )}
+              {(() => {
+                const shiftData = new Map<string, { precinct: number; shift: string; totalPredicted: number; avgMonthly: number; trend: string }[]>();
+                const precincts = [...new Set(forecastData.map(f => f.precinct))].sort();
+                const shifts = ['Morning', 'Afternoon', 'Evening'];
+                const months = new Set(forecastData.map(f => `${f.year}-${f.month}`));
+                const monthCount = months.size;
 
-              {seasonalPredictions.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50 border-b">
-                        <th className="text-left px-3 py-2 font-medium text-gray-600">Precinct</th>
-                        <th className="text-left px-3 py-2 font-medium text-gray-600">Crime Type</th>
-                        <th className="text-center px-3 py-2 font-medium text-gray-600">Peak Month</th>
-                        <th className="text-center px-3 py-2 font-medium text-gray-600">Trough Month</th>
-                        <th className="text-center px-3 py-2 font-medium text-gray-600">Seasonal Strength</th>
-                        <th className="text-left px-3 py-2 font-medium text-gray-600">Monthly Pattern</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {seasonalPredictions.map((sp: any, i: number) => (
-                        <tr key={i} className="border-b hover:bg-gray-50">
-                          <td className="px-3 py-2">{GetPrecinctsDictionary[sp.precinct] || sp.precinct}</td>
-                          <td className="px-3 py-2">{CrimeTypesDictionary[sp.crimeType] || sp.crimeType}</td>
-                          <td className="px-3 py-2 text-center font-medium text-red-600">{monthNames[sp.peakMonth - 1]}</td>
-                          <td className="px-3 py-2 text-center font-medium text-green-600">{monthNames[sp.troughMonth - 1]}</td>
-                          <td className="px-3 py-2 text-center">
-                            <span className="font-medium">{sp.strength?.seasonal != null ? (sp.strength.seasonal * 100).toFixed(0) + '%' : '-'}</span>
-                          </td>
-                          <td className="px-3 py-2">
-                            {sp.seasonal && (
-                              <div className="flex items-end gap-0.5 h-6" title={sp.seasonal.map((v: number, mi: number) => `${monthNames[mi]}: ${(v * 100).toFixed(0)}%`).join(', ')}>
-                                {sp.seasonal.map((v: number, mi: number) => (
-                                  <div
-                                    key={mi}
-                                    className="w-4 bg-indigo-400 rounded-t"
-                                    style={{ height: `${Math.max(4, Math.min(32, Math.round(v * 20)))}px` }}
-                                  />
-                                ))}
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <p>No seasonal prediction data available for this forecast.</p>
-                </div>
+                for (const p of precincts) {
+                  const rows: typeof shiftData extends Map<string, infer V> ? V : never = [];
+                  const precinctItems = forecastData.filter(f => f.precinct === p);
+                  for (const s of shifts) {
+                    const shiftItems = precinctItems.filter(f => f.shift === s);
+                    if (shiftItems.length === 0) continue;
+                    const totalPredicted = shiftItems.reduce((sum, f) => sum + f.predictedCount, 0);
+                    const avgMonthly = totalPredicted / monthCount;
+                    const inc = shiftItems.filter(f => f.trend === 'increasing').length;
+                    const dec = shiftItems.filter(f => f.trend === 'decreasing').length;
+                    const trend = inc > dec ? 'increasing' : dec > inc ? 'decreasing' : 'stable';
+                    rows.push({ precinct: p, shift: s, totalPredicted, avgMonthly, trend });
+                  }
+                  shiftData.set(p.toString(), rows);
+                }
+
+                const maxAvg = Math.max(...Array.from(shiftData.values()).flat().map(r => r.avgMonthly), 1);
+
+                return (
+                  <div className="space-y-4">
+                    {precincts.map(p => {
+                      const rows = shiftData.get(p.toString()) || [];
+                      if (rows.length === 0) return null;
+                      const precinctName = GetPrecinctsDictionary[p] || `Precinct ${p}`;
+                      const totalAvg = rows.reduce((s, r) => s + r.avgMonthly, 0);
+
+                      return (
+                        <div key={p} className="bg-white border border-gray-200 rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-semibold text-gray-800">{precinctName}</h4>
+                            <span className="text-sm text-gray-500">Avg {Math.round(totalAvg)} incidents/month across shifts</span>
+                          </div>
+                          <div className="grid grid-cols-3 gap-4">
+                            {rows.map(r => {
+                              const pct = (r.avgMonthly / maxAvg) * 100;
+                              const trendColor = r.trend === 'increasing' ? 'text-red-600' : r.trend === 'decreasing' ? 'text-green-600' : 'text-gray-500';
+                              const trendIcon = r.trend === 'increasing' ? '↑' : r.trend === 'decreasing' ? '↓' : '→';
+                              return (
+                                <div key={r.shift} className="space-y-2">
+                                  <div className="text-sm font-medium text-gray-700">{r.shift}</div>
+                                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                      className="h-full rounded-full bg-ubuntu-500 transition-all"
+                                      style={{ width: `${Math.max(pct, 4)}%` }}
+                                    />
+                                  </div>
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="font-semibold text-gray-900">{Math.round(r.avgMonthly)}/mo</span>
+                                    <span className={trendColor}>{trendIcon} {r.trend}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
+
+              {/* Month-of-Year Decomposition (secondary) */}
+              {seasonalPredictions.length > 0 && (
+                <details className="border border-gray-200 rounded-lg">
+                  <summary className="px-4 py-3 bg-gray-50 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Month-of-Year Decomposition (historical patterns)
+                  </summary>
+                  <div className="p-4">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b">
+                            <th className="text-left px-3 py-2 font-medium text-gray-600">Precinct</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600">Crime Type</th>
+                            <th className="text-center px-3 py-2 font-medium text-gray-600">Peak Month</th>
+                            <th className="text-center px-3 py-2 font-medium text-gray-600">Trough Month</th>
+                            <th className="text-center px-3 py-2 font-medium text-gray-600">Seasonal Strength</th>
+                            <th className="text-left px-3 py-2 font-medium text-gray-600">Monthly Pattern</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {seasonalPredictions.map((sp: any, i: number) => (
+                            <tr key={i} className="border-b hover:bg-gray-50">
+                              <td className="px-3 py-2">{GetPrecinctsDictionary[sp.precinct] || sp.precinct}</td>
+                              <td className="px-3 py-2">{CrimeTypesDictionary[sp.crimeType] || sp.crimeType}</td>
+                              <td className="px-3 py-2 text-center font-medium text-red-600">{monthNames[sp.peakMonth - 1]}</td>
+                              <td className="px-3 py-2 text-center font-medium text-green-600">{monthNames[sp.troughMonth - 1]}</td>
+                              <td className="px-3 py-2 text-center">
+                                <span className="font-medium">{sp.strength?.seasonal != null ? (sp.strength.seasonal * 100).toFixed(0) + '%' : '-'}</span>
+                              </td>
+                              <td className="px-3 py-2">
+                                {sp.seasonal && (
+                                  <div className="flex items-end gap-0.5 h-6" title={sp.seasonal.map((v: number, mi: number) => `${monthNames[mi]}: ${(v * 100).toFixed(0)}%`).join(', ')}>
+                                    {sp.seasonal.map((v: number, mi: number) => (
+                                      <div
+                                        key={mi}
+                                        className="w-4 bg-indigo-400 rounded-t"
+                                        style={{ height: `${Math.max(4, Math.min(32, Math.round(v * 20)))}px` }}
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </details>
               )}
 
               {apiResponse?.explanation?.confidenceExplanation && (

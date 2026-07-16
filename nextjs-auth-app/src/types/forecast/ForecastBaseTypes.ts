@@ -3,6 +3,7 @@ export interface ForecastData {
   month: number;
   precinct: number;
   crimeType: number;
+  shift?: 'Morning' | 'Afternoon' | 'Evening';
   predictedCount: number;
   confidence: number;
   lowerBound?: number;
@@ -10,30 +11,8 @@ export interface ForecastData {
   lastYearActual?: number;
   trend: 'increasing' | 'decreasing' | 'stable';
   riskLevel: 'low' | 'medium' | 'high' | 'critical';
-  compositeRiskScore?: number;
-  shiftBreakdown?: ShiftBreakdown;
-  dominantShift?: string;
 }
 
-export interface RiskScoringConfig {
-  heinousBoostFactor?: number;
-  heinousPresenceFactor?: number;
-  crimeTypeSeverityScores?: Record<number, number>;
-  precinctCrimeRiskFactors?: Record<number, number>;
-  heinousCrimeTypeIds?: number[];
-}
-
-export interface ShiftBreakdown {
-  Morning: ShiftDetail;
-  Afternoon: ShiftDetail;
-  Night: ShiftDetail;
-}
-
-export interface ShiftDetail {
-  predicted: number;
-  percentage: number;
-  riskLevel: string;
-}
 
 export interface HistoricalData {
   year: number;

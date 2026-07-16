@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import type { Cluster } from '../../../types/analysis/ClusterDto';
-import type { ForecastData, ForecastMetrics, ForecastParams, RiskScoringConfig } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastData, ForecastMetrics, ForecastParams } from '../../../types/forecast/ForecastBaseTypes';
 import { format } from 'date-fns';
 import { CrimeTypesDictionary, GetPrecinctsDictionary } from '../../../constants/consts';
 import { apiService } from '../../api/utils/apiService';
@@ -44,21 +44,6 @@ export default withAuth(function NewForecastPage() {
     includeSeasonality: true,
     weightRecentData: true,
   });
-
-  const [riskScoringConfig, setRiskScoringConfig] = useState<RiskScoringConfig>({
-    crimeTypeSeverityScores: {
-      0: 6, 1: 3, 2: 3, 3: 7, 4: 4, 5: 4, 6: 4, 7: 6, 8: 5, 9: 5,
-      10: 4, 11: 9, 12: 9, 13: 4, 14: 8, 15: 10, 16: 8, 17: 5, 18: 2, 19: 1,
-    },
-    precinctCrimeRiskFactors: {
-      0: 1.8, 1: 0.7, 2: 0.6, 3: 0.6, 4: 0.9, 5: 0.7, 6: 0.8, 7: 0.5, 8: 1.2,
-    },
-  });
-
-  const [severityUniform, setSeverityUniform] = useState(false);
-  const [severityUniformValue, setSeverityUniformValue] = useState(5);
-  const [precinctUniform, setPrecinctUniform] = useState(false);
-  const [precinctUniformValue, setPrecinctUniformValue] = useState(1.0);
 
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [forecastMetrics, setForecastMetrics] = useState<ForecastMetrics | null>(null);
@@ -163,7 +148,7 @@ export default withAuth(function NewForecastPage() {
         horizon: forecastParams.forecastPeriod,
         confidenceLevel: forecastParams.confidence,
         modelType: forecastParams.model,
-        riskScoringConfig: riskScoringConfig,
+        includeTimeOfDay: true,
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
@@ -171,22 +156,16 @@ export default withAuth(function NewForecastPage() {
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
 
-      const compositeLookup = new Map<string, number>();
-      (response.forecasts || []).forEach((r: any) => {
-        const key = `${r.precinct}-${r.crimeType}-${new Date(r.timestamp).getTime()}`;
-        if (r.compositeRiskScore != null) compositeLookup.set(key, r.compositeRiskScore);
-      });
-
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
         (series.forecasts || []).map((f: any) => {
           const year = new Date(f.timestamp).getFullYear();
           const month = new Date(f.timestamp).getMonth() + 1;
-          const lookupKey = `${series.precinct}-${series.crimeType}-${new Date(f.timestamp).getTime()}`;
           return {
             year,
             month,
             precinct: series.precinct,
             crimeType: series.crimeType,
+            shift: series.shift,
             predictedCount: Math.max(0, f.forecast),
             confidence: f.confidence || forecastParams.confidence,
             lowerBound: f.lowerBound != null ? f.lowerBound : undefined,
@@ -194,7 +173,6 @@ export default withAuth(function NewForecastPage() {
             lastYearActual: historicalLookup.get(`${year - 1}-${month}-${series.precinct}-${series.crimeType}`),
             trend: f.trend || 'stable',
             riskLevel: f.riskLevel || 'medium',
-            compositeRiskScore: compositeLookup.get(lookupKey),
           };
         })
       ).sort((a: ForecastData, b: ForecastData) =>
@@ -211,7 +189,7 @@ export default withAuth(function NewForecastPage() {
     } finally {
       setLoading(false);
     }
-  }, [analysisLoaded, clusters, forecastParams, riskScoringConfig]);
+  }, [analysisLoaded, clusters, forecastParams]);
 
   const buildNameSuffix = (data: ForecastData[]) => {
     if (data.length === 0) return '';
@@ -392,231 +370,7 @@ export default withAuth(function NewForecastPage() {
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
               <p className="text-xs text-gray-500 mt-1">Recommended: 3-6 months</p>
-            </div>
-
-            {/* Advanced Risk Scoring */}
-            <details className="mt-6 border border-gray-200 rounded-lg">
-              <summary className="px-4 py-3 bg-gray-50 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
-                Advanced: Composite Risk Scoring
-              </summary>
-              <div className="p-4 space-y-4">
-                <div className="p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
-                  <strong>Formula:</strong> CompositeRiskScore = (severity / 10) &times; geographicRiskFactor
-                </div>
-
-                <details className="border border-indigo-200 rounded-lg">
-                  <summary className="px-3 py-2 bg-indigo-50 cursor-pointer text-xs font-medium text-indigo-700 hover:bg-indigo-100 rounded-lg">
-                    Composite Risk Score Matrix
-                  </summary>
-                  <div className="p-3 space-y-2">
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      This matrix shows how the configured inputs (crime type severity scores and geographic risk factors) combine into the Composite Risk Score formula. It is not a biased weighting &mdash; it simply reflects how each crime type &times; precinct combination will be scored in the forecast output, giving you visibility into what drives the risk levels.
-                    </p>
-                    <div className="overflow-x-auto">
-                      <table className="text-xs text-gray-700 w-full border-collapse">
-                        <thead>
-                          <tr>
-                            <th className="text-left px-1.5 py-1 border border-indigo-100 bg-indigo-100 font-medium text-indigo-800 sticky left-0">Crime Type</th>
-                            {Object.entries(GetPrecinctsDictionary).map(([, name]) => (
-                              <th key={name} className="px-1.5 py-1 border border-indigo-100 bg-indigo-100 font-medium text-indigo-800 text-center min-w-[72px]">{name}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.entries(CrimeTypesDictionary).filter(([k]) => k !== '-1').map(([id, crimeName]) => {
-                            const cid = parseInt(id);
-                            const severity = riskScoringConfig.crimeTypeSeverityScores?.[cid] ?? 5;
-                            return (
-                              <tr key={id}>
-                                <td className="px-1.5 py-1 border border-indigo-100 font-medium text-gray-800 sticky left-0 bg-indigo-50 whitespace-nowrap">
-                                  {crimeName}
-                                </td>
-                                {Object.entries(GetPrecinctsDictionary).map(([pid]) => {
-                                  const gFactor = riskScoringConfig.precinctCrimeRiskFactors?.[parseInt(pid)] ?? 1.0;
-                                  const score = (severity / 10) * gFactor;
-                                  const bg = score >= 1.5 ? 'bg-red-100 text-red-800' : score >= 1.0 ? 'bg-orange-100 text-orange-800' : score >= 0.5 ? 'bg-yellow-50 text-yellow-800' : 'bg-green-50 text-green-800';
-                                  return (
-                                    <td key={pid} className={`px-1.5 py-1 border border-indigo-100 text-center font-medium ${bg}`}>
-                                      {score.toFixed(3)}
-                                    </td>
-                                  );
-                                })}
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                </details>
-
-                {/* Crime Type Severity Scores */}
-                <details className="border border-gray-200 rounded">
-                  <summary className="px-3 py-2 bg-gray-50 cursor-pointer text-xs font-medium text-gray-600 hover:bg-gray-100 rounded">
-                    Crime Type Severity Scores (1&ndash;10)
-                  </summary>
-                  <div className="p-3 space-y-3">
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      How serious each crime type is on a 1&ndash;10 scale. This is your judgment of relative impact &mdash;
-                      it feeds into the formula as <strong className="text-gray-700">severity &divide; 10</strong>.
-                      A Murder at severity 10 contributes <strong>1.0 &times;</strong> the precinct risk factor,
-                      while Vandalism at severity 1 contributes only <strong>0.1 &times;</strong>.
-                      The sliders start at the built-in defaults (Murder = 10, Theft = 2, etc.).
-                    </p>
-
-                    {/* Uniform toggle */}
-                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
-                      <input type="checkbox" checked={severityUniform}
-                        onChange={e => {
-                          setSeverityUniform(e.target.checked);
-                          if (e.target.checked) {
-                            const firstScore = Object.values(riskScoringConfig.crimeTypeSeverityScores ?? {})[0] ?? 5;
-                            setSeverityUniformValue(firstScore);
-                          }
-                        }}
-                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      Apply same severity to all crime types
-                    </label>
-
-                    {/* Uniform slider */}
-                    {severityUniform ? (
-                      <div className="flex items-center gap-3 px-1">
-                        <span className="text-xs text-gray-500 whitespace-nowrap">All types:</span>
-                        <input type="range" min="1" max="10" step="0.5"
-                          value={severityUniformValue}
-                          onChange={e => {
-                            const val = parseFloat(e.target.value);
-                            setSeverityUniformValue(val);
-                            const updated: Record<number, number> = {};
-                            Object.keys(riskScoringConfig.crimeTypeSeverityScores ?? {}).forEach(k => {
-                              updated[parseInt(k)] = val;
-                            });
-                            setRiskScoringConfig({ ...riskScoringConfig, crimeTypeSeverityScores: updated });
-                          }}
-                          className="flex-1 max-w-xs h-1.5 accent-indigo-600"
-                        />
-                        <span className="text-xs font-medium text-gray-700 w-16 text-right">
-                          {severityUniformValue >= 9 ? 'Severe' : severityUniformValue >= 7 ? 'High' : severityUniformValue >= 5 ? 'Notable' : severityUniformValue >= 3 ? 'Moderate' : 'Low'} ({severityUniformValue})
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-2 max-h-72 overflow-y-auto">
-                        {Object.entries(CrimeTypesDictionary).filter(([k]) => k !== '-1').map(([id, name]) => {
-                          const numId = parseInt(id);
-                          const score = riskScoringConfig.crimeTypeSeverityScores?.[numId] ?? 2;
-                          return (
-                            <div key={id} className="flex items-center gap-2">
-                              <span className="text-xs text-gray-600 w-24 truncate" title={name}>{name}</span>
-                              <input type="range" min="1" max="10" step="0.5"
-                                value={score}
-                                onChange={e => {
-                                  const newVal = parseFloat(e.target.value);
-                                  setRiskScoringConfig({
-                                    ...riskScoringConfig,
-                                    crimeTypeSeverityScores: {
-                                      ...riskScoringConfig.crimeTypeSeverityScores,
-                                      [numId]: newVal,
-                                    },
-                                  });
-                                }}
-                                className="flex-1 h-1.5 accent-indigo-600"
-                              />
-                              <span className="text-xs font-medium text-gray-700 w-16 text-right">
-                                {score >= 9 ? 'Severe' : score >= 7 ? 'High' : score >= 5 ? 'Notable' : score >= 3 ? 'Moderate' : 'Low'} ({score})
-                              </span>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </details>
-
-                {/* Precinct Risk Factors */}
-                <details className="border border-gray-200 rounded">
-                  <summary className="px-3 py-2 bg-gray-50 cursor-pointer text-xs font-medium text-gray-600 hover:bg-gray-100 rounded">
-                    Geographic Risk Factors per Precinct (0.5&ndash;2.0)
-                  </summary>
-                  <div className="p-3 space-y-3">
-                    <p className="text-xs text-gray-500 leading-relaxed">
-                      Baseline crime risk for each precinct. A factor of <strong>1.0</strong> means neutral;
-                      above 1.0 amplifies the composite score (riskier area), below 1.0 reduces it.
-                      Alabang defaults to 1.8&times; (highest historical volume), Ayala Alabang to 0.5&times; (lowest).
-                      This multiplies directly into the formula: <strong className="text-gray-700">(severity/10) &times; geographicRiskFactor &times; heinousMultiplier</strong>.
-                    </p>
-
-                    {/* Uniform toggle */}
-                    <label className="flex items-center gap-2 text-xs text-gray-600 cursor-pointer select-none">
-                      <input type="checkbox" checked={precinctUniform}
-                        onChange={e => {
-                          setPrecinctUniform(e.target.checked);
-                          if (e.target.checked) {
-                            const firstFactor = Object.values(riskScoringConfig.precinctCrimeRiskFactors ?? {})[0] ?? 1.0;
-                            setPrecinctUniformValue(firstFactor);
-                          }
-                        }}
-                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      Apply same risk factor to all precincts
-                    </label>
-
-                    {/* Uniform slider */}
-                    {precinctUniform ? (
-                      <div className="flex items-center gap-3 px-1">
-                        <span className="text-xs text-gray-500 whitespace-nowrap">All precincts:</span>
-                        <input type="range" min="0.3" max="2.0" step="0.1"
-                          value={precinctUniformValue}
-                          onChange={e => {
-                            const val = parseFloat(e.target.value);
-                            setPrecinctUniformValue(val);
-                            const updated: Record<number, number> = {};
-                            Object.keys(riskScoringConfig.precinctCrimeRiskFactors ?? {}).forEach(k => {
-                              updated[parseInt(k)] = val;
-                            });
-                            setRiskScoringConfig({ ...riskScoringConfig, precinctCrimeRiskFactors: updated });
-                          }}
-                          className="flex-1 max-w-xs h-1.5 accent-indigo-600"
-                        />
-                        <span className="text-xs font-medium text-gray-700 w-20 text-right">
-                          {precinctUniformValue >= 1.6 ? 'Very High' : precinctUniformValue >= 1.3 ? 'High' : precinctUniformValue >= 1.0 ? 'Elevated' : precinctUniformValue >= 0.7 ? 'Moderate' : 'Low'} ({precinctUniformValue.toFixed(1)})
-                        </span>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-x-6 gap-y-2">
-                        {Object.entries(GetPrecinctsDictionary).map(([id, name]) => {
-                      const numId = parseInt(id);
-                      const factor = riskScoringConfig.precinctCrimeRiskFactors?.[numId] ?? 1.0;
-                      return (
-                        <div key={id} className="flex items-center gap-2">
-                          <span className="text-xs text-gray-600 w-24 truncate" title={name}>{name}</span>
-                          <input type="range" min="0.3" max="2.0" step="0.1"
-                            value={factor}
-                            onChange={e => {
-                              const newVal = parseFloat(e.target.value);
-                              setRiskScoringConfig({
-                                ...riskScoringConfig,
-                                precinctCrimeRiskFactors: {
-                                  ...riskScoringConfig.precinctCrimeRiskFactors,
-                                  [numId]: newVal,
-                                },
-                              });
-                            }}
-                            className="flex-1 h-1.5 accent-indigo-600"
-                          />
-                          <span className="text-xs font-medium text-gray-700 w-20 text-right">
-                            {factor >= 1.6 ? 'Very High' : factor >= 1.3 ? 'High' : factor >= 1.0 ? 'Elevated' : factor >= 0.7 ? 'Moderate' : 'Low'} ({factor.toFixed(1)})
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                    )}
-                  </div>
-                </details>
-
               </div>
-            </details>
           </div>
 
           <div className="mt-6 flex justify-between">
