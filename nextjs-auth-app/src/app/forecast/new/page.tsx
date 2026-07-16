@@ -39,16 +39,13 @@ export default withAuth(function NewForecastPage() {
 
   const [forecastParams, setForecastParams] = useState<ForecastParams>({
     forecastPeriod: 6,
-    model: 'linear',
+    model: 'ssa',
     confidence: 0.95,
     includeSeasonality: true,
     weightRecentData: true,
   });
 
   const [riskScoringConfig, setRiskScoringConfig] = useState<RiskScoringConfig>({
-    heinousBoostFactor: 1.5,
-    heinousPresenceFactor: 1.2,
-    heinousCrimeTypeIds: [7, 11, 12, 14, 15, 16],
     crimeTypeSeverityScores: {
       0: 6, 1: 3, 2: 3, 3: 7, 4: 4, 5: 4, 6: 4, 7: 6, 8: 5, 9: 5,
       10: 4, 11: 9, 12: 9, 13: 4, 14: 8, 15: 10, 16: 8, 17: 5, 18: 2, 19: 1,
@@ -397,30 +394,6 @@ export default withAuth(function NewForecastPage() {
               <p className="text-xs text-gray-500 mt-1">Recommended: 3-6 months</p>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
-              <div className="flex flex-wrap gap-2">
-                {([
-                  { id: 'linear', label: 'Linear', desc: 'straight-line OLS trend' },
-                  { id: 'seasonal', label: 'Seasonal', desc: 'linear trend × monthly multipliers' },
-                  { id: 'ssa', label: 'SSA', desc: 'trend + seasonal + noise decomposition' },
-                  { id: 'ensemble', label: 'Ensemble', desc: 'average of SSA, Seasonal & Linear' },
-                ] as const).map(m => (
-                  <button key={m.id}
-                    onClick={() => setForecastParams({ ...forecastParams, model: m.id })}
-                    className={`px-3 py-2 rounded-md border text-sm font-medium transition ${
-                      forecastParams.model === m.id
-                        ? 'bg-indigo-600 text-white border-indigo-600'
-                        : 'bg-gray-50 text-gray-700 border-gray-200 hover:border-indigo-300'
-                    }`}
-                  >
-                    <span className="block">{m.label}</span>
-                    <span className={`block text-xs mt-0.5 ${forecastParams.model === m.id ? 'text-indigo-200' : 'text-gray-400'}`}>{m.desc}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
             {/* Advanced Risk Scoring */}
             <details className="mt-6 border border-gray-200 rounded-lg">
               <summary className="px-4 py-3 bg-gray-50 cursor-pointer text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg">
@@ -428,8 +401,54 @@ export default withAuth(function NewForecastPage() {
               </summary>
               <div className="p-4 space-y-4">
                 <div className="p-2 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
-                  <strong>Formula:</strong> CompositeRiskScore = (severity / 10) &times; precinctRisk &times; heinousMultiplier
+                  <strong>Formula:</strong> CompositeRiskScore = (severity / 10) &times; geographicRiskFactor
                 </div>
+
+                <details className="border border-indigo-200 rounded-lg">
+                  <summary className="px-3 py-2 bg-indigo-50 cursor-pointer text-xs font-medium text-indigo-700 hover:bg-indigo-100 rounded-lg">
+                    Composite Risk Score Matrix
+                  </summary>
+                  <div className="p-3 space-y-2">
+                    <p className="text-xs text-gray-500 leading-relaxed">
+                      This matrix shows how the configured inputs (crime type severity scores and geographic risk factors) combine into the Composite Risk Score formula. It is not a biased weighting &mdash; it simply reflects how each crime type &times; precinct combination will be scored in the forecast output, giving you visibility into what drives the risk levels.
+                    </p>
+                    <div className="overflow-x-auto">
+                      <table className="text-xs text-gray-700 w-full border-collapse">
+                        <thead>
+                          <tr>
+                            <th className="text-left px-1.5 py-1 border border-indigo-100 bg-indigo-100 font-medium text-indigo-800 sticky left-0">Crime Type</th>
+                            {Object.entries(GetPrecinctsDictionary).map(([, name]) => (
+                              <th key={name} className="px-1.5 py-1 border border-indigo-100 bg-indigo-100 font-medium text-indigo-800 text-center min-w-[72px]">{name}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {Object.entries(CrimeTypesDictionary).filter(([k]) => k !== '-1').map(([id, crimeName]) => {
+                            const cid = parseInt(id);
+                            const severity = riskScoringConfig.crimeTypeSeverityScores?.[cid] ?? 5;
+                            return (
+                              <tr key={id}>
+                                <td className="px-1.5 py-1 border border-indigo-100 font-medium text-gray-800 sticky left-0 bg-indigo-50 whitespace-nowrap">
+                                  {crimeName}
+                                </td>
+                                {Object.entries(GetPrecinctsDictionary).map(([pid]) => {
+                                  const gFactor = riskScoringConfig.precinctCrimeRiskFactors?.[parseInt(pid)] ?? 1.0;
+                                  const score = (severity / 10) * gFactor;
+                                  const bg = score >= 1.5 ? 'bg-red-100 text-red-800' : score >= 1.0 ? 'bg-orange-100 text-orange-800' : score >= 0.5 ? 'bg-yellow-50 text-yellow-800' : 'bg-green-50 text-green-800';
+                                  return (
+                                    <td key={pid} className={`px-1.5 py-1 border border-indigo-100 text-center font-medium ${bg}`}>
+                                      {score.toFixed(3)}
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </details>
 
                 {/* Crime Type Severity Scores */}
                 <details className="border border-gray-200 rounded">
@@ -524,7 +543,7 @@ export default withAuth(function NewForecastPage() {
                       Baseline crime risk for each precinct. A factor of <strong>1.0</strong> means neutral;
                       above 1.0 amplifies the composite score (riskier area), below 1.0 reduces it.
                       Alabang defaults to 1.8&times; (highest historical volume), Ayala Alabang to 0.5&times; (lowest).
-                      This multiplies directly into the formula: <strong className="text-gray-700">(severity/10) &times; precinctRisk &times; heinousMultiplier</strong>.
+                      This multiplies directly into the formula: <strong className="text-gray-700">(severity/10) &times; geographicRiskFactor &times; heinousMultiplier</strong>.
                     </p>
 
                     {/* Uniform toggle */}
@@ -596,52 +615,6 @@ export default withAuth(function NewForecastPage() {
                   </div>
                 </details>
 
-                {/* Heinous Controls */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Heinous Boost Factor</label>
-                    <input type="number" step="0.1" min="1.0" max="3.0"
-                      value={riskScoringConfig.heinousBoostFactor ?? 1.5}
-                      onChange={e => setRiskScoringConfig({ ...riskScoringConfig, heinousBoostFactor: parseFloat(e.target.value) || 1.5 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <p className="text-xs text-gray-400 mt-0.5">Multiplier for heinous crimes (default: 1.5)</p>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Heinous Presence Factor</label>
-                    <input type="number" step="0.1" min="1.0" max="2.0"
-                      value={riskScoringConfig.heinousPresenceFactor ?? 1.2}
-                      onChange={e => setRiskScoringConfig({ ...riskScoringConfig, heinousPresenceFactor: parseFloat(e.target.value) || 1.2 })}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    />
-                    <p className="text-xs text-gray-400 mt-0.5">Applied to non-heinous crimes when heinous present (default: 1.2)</p>
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-600 mb-1">Heinous Crime Types</label>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-40 overflow-y-auto border border-gray-200 rounded p-2">
-                    {Object.entries(CrimeTypesDictionary).filter(([k]) => k !== '-1').map(([id, name]) => {
-                      const numId = parseInt(id);
-                      const isHeinous = riskScoringConfig.heinousCrimeTypeIds?.includes(numId) ?? false;
-                      return (
-                        <label key={id} className="flex items-center gap-1.5 text-xs text-gray-700 cursor-pointer hover:bg-gray-50 rounded px-1 py-0.5">
-                          <input type="checkbox" checked={isHeinous}
-                            onChange={() => {
-                              const current = riskScoringConfig.heinousCrimeTypeIds ?? [];
-                              const updated = isHeinous
-                                ? current.filter(h => h !== numId)
-                                : [...current, numId];
-                              setRiskScoringConfig({ ...riskScoringConfig, heinousCrimeTypeIds: updated });
-                            }}
-                            className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          {name}
-                        </label>
-                      );
-                    })}
-                  </div>
-                  <p className="text-xs text-gray-400 mt-0.5">Crime types that get the heinous boost factor</p>
-                </div>
               </div>
             </details>
           </div>
@@ -694,7 +667,7 @@ export default withAuth(function NewForecastPage() {
               </div>
               <div className="bg-green-50 rounded-lg p-4 text-center">
                 <div className="text-2xl font-bold text-green-700">
-                  {{ linear: 'Linear', seasonal: 'Seasonal', ssa: 'SSA', ensemble: 'Ensemble' }[forecastParams.model]}
+                  SSA
                 </div>
                 <div className="text-xs text-green-600">Model Used</div>
               </div>

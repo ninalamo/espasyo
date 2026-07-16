@@ -215,7 +215,7 @@ class ForecastApiService {
         })),
         params: {
           forecastPeriod: 6,
-          model: 'linear',
+          model: 'ssa',
           confidence: 0.95,
           includeSeasonality: true,
           weightRecentData: true,

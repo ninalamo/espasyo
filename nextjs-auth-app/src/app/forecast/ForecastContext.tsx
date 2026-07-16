@@ -66,7 +66,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const forecastParams: ForecastParams = useMemo(
     () => forecast?.params || {
       forecastPeriod: 6,
-      model: 'linear',
+      model: 'ssa',
       confidence: 0.95,
       includeSeasonality: true,
       weightRecentData: true,
