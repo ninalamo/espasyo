@@ -112,14 +112,14 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
 
   const toRender = selected !== null ? [selected] : precincts;
 
-  const applySideFilters = (items: typeof filteredData, f: SideFilters) => {
+  const applySideFilters = useCallback((items: typeof filteredData, f: SideFilters) => {
     if (f.precincts.length > 0) items = items.filter(d => f.precincts.includes(d.precinct));
     if (f.years.length > 0) items = items.filter(d => f.years.includes(d.year));
     if (f.months.length > 0) items = items.filter(d => f.months.includes(d.month));
     if (f.timeOfDay.length > 0) items = items.filter(d => f.timeOfDay.includes(d.timeOfDay));
     if (f.crimeTypes.length > 0) items = items.filter(d => f.crimeTypes.includes(d.crimeType));
     return items;
-  };
+  }, []);
 
   const selectedPrecinctSummary = useMemo(() => {
     if (selected === null) return null;
@@ -193,7 +193,7 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
     const explanation = parts.join(' ');
 
     return { total, dateRange, years, timeOfDayDist, crimeTypeDist, sideCountA: itemsA.length, sideCountB: itemsB?.length, explanation };
-  }, [selected, filteredData, compareMode, sideAFilters, sideBFilters]);
+  }, [selected, filteredData, compareMode, sideAFilters, sideBFilters, applySideFilters]);
 
   const makeChartData = (counts: Record<number, Record<string, number>>, colors: Record<string, string>) => ({
     labels: months.map(m => m.label),
@@ -359,6 +359,7 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
           </div>
         </div>
       );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isReady, filteredData, sideAFilters, sideBFilters, months]);
 
     return (
@@ -392,6 +393,7 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
       return () => clearTimeout(timer);
     }, []);
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     const items = useMemo(() => filteredData.filter(d => d.precinct === precinct), [filteredData, precinct]);
 
     const chartContent = useMemo(() => {
@@ -449,6 +451,7 @@ export const BarangayMonthlyChart: React.FC<Props> = ({ clusters, timeOfDayColor
           <Chart type="bar" data={data} options={chartOptions} />
         </div>
       );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isReady, items, months, compareMode, sideAFilters, sideBFilters, timeOfDayColors]);
 
     return (

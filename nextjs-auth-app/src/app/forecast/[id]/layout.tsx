@@ -7,7 +7,6 @@ import { ForecastProvider, useForecast } from '../ForecastContext';
 
 const TAB_NAV = [
   { key: 'overview', label: 'Overview', icon: '📊' },
-  { key: 'map', label: 'Forecast Map', icon: '🗺️' },
 ] as const;
 
 function ForecastDetailInner({ children }: { children: React.ReactNode }) {

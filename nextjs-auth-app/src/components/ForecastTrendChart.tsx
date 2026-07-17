@@ -316,7 +316,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     });
 
     return { labels, datasets };
-  }, [filteredHistorical, filteredForecast, timeline, displayYears, interval, showYearly, mode, selectedCrimeTypes, normalizedTimeline, currentYear]);
+  }, [filteredHistorical, filteredForecast, timeline, displayYears, interval, showYearly, mode, selectedCrimeTypes, normalizedTimeline, currentYear, forecastMonths, projectedLabel, selectedPrecincts]);
 
   const chartMax = useMemo(() => {
     const key = (y: number, m: number) => `${y}-${m}`;
@@ -490,7 +490,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
                         ? 'bg-white text-ubuntu-700 shadow-sm border'
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
-                  >by {s}'s</button>
+                  >by {s}&apos;s</button>
                 ))}
               </div>
             </div>
@@ -525,13 +525,13 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
       <div className="mt-3 bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600 space-y-1">
         <p className="font-medium text-gray-700">How this prediction is computed</p>
         <p>
-          For each precinct and crime type, the system uses Singular Spectrum Analysis (SSA) via ML.NET's{' '}
+          For each precinct and crime type, the system uses Singular Spectrum Analysis (SSA) via ML.NET&apos;s{' '}
           <code>ForecastBySsa</code>. SSA decomposes the historical monthly incident counts into trend, seasonality,
           and noise components, reconstructs each, and projects them forward from the current calendar month.
-          The window size is capped at 12 (or half the series length, whichever is smaller) to satisfy SSA's
+          The window size is capped at 12 (or half the series length, whichever is smaller) to satisfy SSA&apos;s
           internal constraints. Predicted values are capped so they cannot exceed roughly twice the long-term
           average, preventing runaway extrapolation on sparse or noisy series. If the forecast horizon exceeds
-          SSA's limit, it falls back to a simple linear trend model.
+          SSA&apos;s limit, it falls back to a simple linear trend model.
         </p>
         <p>
           Lines for past years are shown faded (older years are lighter) for year-over-year comparison, while the solid

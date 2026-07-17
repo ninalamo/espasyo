@@ -245,7 +245,7 @@ export const CrimeTrendChart: React.FC<Props> = ({ clusters, dateFrom, dateTo })
     });
 
     return { labels, datasets };
-  }, [filteredItems, interval, selectedCrimeTypes]);
+  }, [filteredItems, interval, selectedCrimeTypes, filterDateFrom, filterDateTo]);
 
   const options: ChartOptions<'line'> = {
     responsive: true,
