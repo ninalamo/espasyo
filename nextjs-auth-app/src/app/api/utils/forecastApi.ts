@@ -123,6 +123,7 @@ interface ForecastResultDto {
   id: string;
   precinct: string;
   crimeType: string;
+  shift?: string;
   month: number;
   year: number;
   predictedValue: number;
@@ -208,6 +209,7 @@ class ForecastApiService {
           month: r.month,
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
           crimeType: toCrimeTypeInt(r.crimeType),
+          shift: (r.shift === 'Morning' || r.shift === 'Afternoon' || r.shift === 'Evening' ? r.shift : undefined) as ForecastData['shift'],
           predictedCount: Math.max(0, Math.round(r.predictedValue)),
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
@@ -254,6 +256,7 @@ class ForecastApiService {
               confidence: p.confidence,
               riskLevel: p.riskLevel,
               trend: p.trend,
+              shift: p.shift,
             })),
             spatialPredictions: (data.spatialData || []).map(s => {
               const dt = s.timestamp ? new Date(s.timestamp) : null;
@@ -376,6 +379,7 @@ class ForecastApiService {
           month: r.month,
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
           crimeType: toCrimeTypeInt(r.crimeType),
+          shift: (r.shift === 'Morning' || r.shift === 'Afternoon' || r.shift === 'Evening' ? r.shift : undefined) as ForecastData['shift'],
           predictedCount: Math.max(0, Math.round(r.predictedValue)),
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],

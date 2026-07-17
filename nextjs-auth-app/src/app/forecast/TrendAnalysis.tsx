@@ -343,8 +343,8 @@ const TrendAnalysis: React.FC<Props> = ({ historicalData, forecastData, forecast
           <div className="mt-3 text-xs text-gray-500">
             Click a precinct to see its crime type breakdown &nbsp;·&nbsp; 👮 = suggested officers
           </div>
-          <a href={forecastId ? `/manpower?forecastId=${forecastId}` : '/manpower'} className="mt-2 inline-block text-xs text-ubuntu-600 hover:text-blue-800">
-            → View on Manpower Allocation page
+          <a href={forecastId ? `/precincts?forecastId=${forecastId}` : '/precincts'} className="mt-2 inline-block text-xs text-ubuntu-600 hover:text-blue-800">
+            → Manage officer allocations
           </a>
         </div>
 

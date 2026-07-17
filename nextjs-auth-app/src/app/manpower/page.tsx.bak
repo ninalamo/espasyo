@@ -5,14 +5,15 @@ import { useSearchParams } from 'next/navigation';
 import { MapPin, Users, TrendingUp, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import Link from 'next/link';
 import { toast } from 'react-toastify';
-import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
+import { GetPrecinctsDictionary, PrecinctNumberToNameMap, CrimeTypesDictionary } from '../../constants/consts';
 import { forecastApi } from '../api/utils/forecastApi';
+import { manpowerApi } from '../../utils/manpowerApi';
 import withAuth from '../hoc/withAuth';
 import { Skeleton, CardSkeleton, TableSkeleton } from '../../components/ui/skeleton';
 import type { ForecastData } from '../../types/forecast/ForecastBaseTypes';
 
-const PATROL_CAPACITY_KEY = 'manpowerPatrolCapacity';
-const DEFAULT_PATROL_CAPACITY = 15;
+const OFFICER_BUDGET_KEY = 'manpowerOfficerBudget';
+const MANPOWER_CASES_PER_OFFICER = 15;
 
 interface ShiftAllocation {
   shift: string;
@@ -37,22 +38,57 @@ const SHIFT_LABELS: Record<string, string> = {
   Evening: 'Evening (10PM–6AM)',
 };
 
+const BACKEND_SHIFT_TO_FORECAST: Record<string, string> = {
+  Morning: 'Morning',
+  Evening: 'Afternoon',   // backend "Evening" (2PM-10PM) → forecast "Afternoon"
+  Night: 'Evening',       // backend "Night" (10PM-6AM) → forecast "Evening"
+};
+
+const PRECINCT_NAME_TO_NUMBER: Record<string, number> = Object.fromEntries(
+  Object.entries(PrecinctNumberToNameMap).map(([num, name]) => [name, parseInt(num)])
+);
+
+function evenSplit(total: number, bins: number): number[] {
+  if (total <= 0 || bins <= 0) return Array(bins).fill(0);
+  const base = Math.floor(total / bins);
+  const rem = total % bins;
+  return Array.from({ length: bins }, (_, i) => base + (i < rem ? 1 : 0));
+}
+
+function allocateProportional(shares: number[], total: number): number[] {
+  if (total <= 0 || shares.length === 0) return shares.map(() => 0);
+  const raw = shares.map(s => s * total);
+  const floors = raw.map(r => Math.floor(r));
+  let remaining = total - floors.reduce((a, b) => a + b, 0);
+  const order = raw
+    .map((r, i) => ({ i, frac: r - Math.floor(r) }))
+    .sort((a, b) => b.frac - a.frac);
+  const result = [...floors];
+  for (let k = 0; k < order.length && remaining > 0; k++) {
+    result[order[k].i] += 1;
+    remaining--;
+  }
+  return result;
+}
+
 function ManpowerProposalPage() {
   const searchParams = useSearchParams();
   const forecastId = searchParams.get('forecastId');
 
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [forecastName, setForecastName] = useState('');
+  const [apiResponse, setApiResponse] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [patrolCapacity, setPatrolCapacity] = useState(() => {
+  const [officerBudget, setOfficerBudget] = useState<number | null>(() => {
     try {
-      const saved = localStorage.getItem(PATROL_CAPACITY_KEY);
-      return saved ? parseInt(saved) : DEFAULT_PATROL_CAPACITY;
-    } catch {
-      return DEFAULT_PATROL_CAPACITY;
-    }
+      const saved = localStorage.getItem(OFFICER_BUDGET_KEY);
+      if (saved) return parseInt(saved);
+    } catch {}
+    return null;
   });
   const [expandedPrecinct, setExpandedPrecinct] = useState<number | null>(null);
+  const [currentManpower, setCurrentManpower] = useState<Map<number, Map<string, number>>>(new Map());
+  const [manpowerLoaded, setManpowerLoaded] = useState(false);
 
   useEffect(() => {
     if (!forecastId) { setLoading(false); return; }
@@ -61,15 +97,62 @@ function ManpowerProposalPage() {
         const snapshot = await forecastApi.getById(forecastId);
         setForecastData(snapshot.predictions || []);
         setForecastName(snapshot.name);
+        setApiResponse(snapshot.apiResponse ?? null);
       } catch { toast.error('Failed to load forecast data'); }
       finally { setLoading(false); }
     })();
   }, [forecastId]);
 
-  const updatePatrolCapacity = useCallback((val: number) => {
-    setPatrolCapacity(val);
-    try { localStorage.setItem(PATROL_CAPACITY_KEY, String(val)); } catch {}
+  // Fetch current officer deployment for comparison
+  useEffect(() => {
+    (async () => {
+      try {
+        const allocations = await manpowerApi.getAllManpower();
+        const map = new Map<number, Map<string, number>>();
+        for (const a of allocations) {
+          const name = a.precinctName || '';
+          const precinctNum = PRECINCT_NAME_TO_NUMBER[name];
+          if (precinctNum === undefined) continue;
+          if (!map.has(precinctNum)) map.set(precinctNum, new Map());
+          const shiftForecast = BACKEND_SHIFT_TO_FORECAST[a.shift || ''] || 'Morning';
+          const sm = map.get(precinctNum)!;
+          sm.set(shiftForecast, (sm.get(shiftForecast) || 0) + (a.headCount || 0));
+        }
+        setCurrentManpower(map);
+      } catch {} // silently fail — current data is optional
+      finally { setManpowerLoaded(true); }
+    })();
   }, []);
+
+  const updateOfficerBudget = useCallback((val: number) => {
+    setOfficerBudget(val);
+    try { localStorage.setItem(OFFICER_BUDGET_KEY, String(val)); } catch {}
+  }, []);
+
+  const derivedBudget = useMemo(() => {
+    if (forecastData.length === 0) return 60;
+    const months = new Set(forecastData.map(f => `${f.year}-${f.month}`));
+    const monthCount = months.size || 1;
+    const total = forecastData.reduce((s, f) => s + f.predictedCount, 0);
+    return Math.max(1, Math.round(total / monthCount / MANPOWER_CASES_PER_OFFICER));
+  }, [forecastData]);
+
+  const effectiveBudget = officerBudget ?? derivedBudget;
+
+  const shiftCrimeByPrecinct = useMemo(() => {
+    const fc = apiResponse?.forecasts as any[] | undefined;
+    if (!fc) return null;
+    const map = new Map<number, Map<string, number>>();
+    for (const f of fc) {
+      const tod = f.timeOfDay;
+      if (!tod) continue;
+      const p = f.precinct as number;
+      if (!map.has(p)) map.set(p, new Map());
+      const pm = map.get(p)!;
+      pm.set(tod, (pm.get(tod) || 0) + Math.max(0, f.forecast ?? 0));
+    }
+    return map;
+  }, [apiResponse]);
 
   const precinctAllocations = useMemo((): PrecinctAllocation[] => {
     if (forecastData.length === 0) return [];
@@ -82,49 +165,68 @@ function ManpowerProposalPage() {
     }
 
     const allMonths = new Set(forecastData.map(f => `${f.year}-${f.month}`));
-    const monthCount = allMonths.size;
+    const monthCount = allMonths.size || 1;
 
-    return Array.from(byPrecinct.entries())
-      .map(([num, items]) => {
-        const name = GetPrecinctsDictionary[num] || `Precinct ${num}`;
-        const totalPredicted = items.reduce((s, i) => s + i.predictedCount, 0);
-        const avgMonthly = totalPredicted / monthCount;
+    const grandTotalPredicted = forecastData.reduce((s, f) => s + f.predictedCount, 0) || 1;
 
-        const byShift = new Map<string, ForecastData[]>();
-        for (const f of items) {
-          const shift = f.shift || 'Unknown';
-          const arr = byShift.get(shift) || [];
-          arr.push(f);
-          byShift.set(shift, arr);
+    const base = Array.from(byPrecinct.entries()).map(([num, items]) => {
+      const name = GetPrecinctsDictionary[num] || `Precinct ${num}`;
+      const totalPredicted = items.reduce((s, i) => s + i.predictedCount, 0);
+      const avgMonthly = totalPredicted / monthCount;
+
+      const shiftForecast = shiftCrimeByPrecinct?.get(num);
+      const byShift = new Map<string, number>();
+      if (shiftForecast) {
+        for (const s of SHIFT_ORDER) {
+          byShift.set(s, shiftForecast.get(s) || 0);
         }
+      } else {
+        for (const s of SHIFT_ORDER) {
+          byShift.set(s, 1);
+        }
+      }
 
-        const shiftAllocs: ShiftAllocation[] = SHIFT_ORDER
-          .map(shift => {
-            const shiftItems = byShift.get(shift) || [];
-            const shiftTotal = shiftItems.reduce((s, f) => s + f.predictedCount, 0);
-            const avgMonthlyIncidents = shiftTotal / monthCount;
-            const officers = Math.max(1, Math.ceil(avgMonthlyIncidents / patrolCapacity));
-            return { shift, avgMonthlyIncidents, officers };
-          });
+      const inc = items.filter(i => i.trend === 'increasing').length;
+      const dec = items.filter(i => i.trend === 'decreasing').length;
+      const trend: 'up' | 'down' | 'stable' = inc > dec ? 'up' : dec > inc ? 'down' : 'stable';
 
-        const totalOfficers = shiftAllocs.reduce((s, a) => s + a.officers, 0);
+      return { num, name, totalPredicted, avgMonthly, byShift, trend, hasRealShift: !!shiftForecast };
+    });
 
-        const inc = items.filter(i => i.trend === 'increasing').length;
-        const dec = items.filter(i => i.trend === 'decreasing').length;
-        const trend: 'up' | 'down' | 'stable' = inc > dec ? 'up' : dec > inc ? 'down' : 'stable';
+    // Proportional officer allocation across precincts (largest-remainder method)
+    const precinctOfficers = allocateProportional(
+      base.map(b => b.totalPredicted / grandTotalPredicted),
+      effectiveBudget
+    );
+
+    return base
+      .map((b, idx) => {
+        const officers = precinctOfficers[idx];
+        const shiftTotals = SHIFT_ORDER.map(s => b.byShift.get(s) || 0);
+        const shiftSum = shiftTotals.reduce((a, c) => a + c, 0);
+        const hasRealShift = (b as any).hasRealShift as boolean;
+        const shiftOfficers = hasRealShift && shiftSum > 0
+          ? allocateProportional(shiftTotals.map(t => t / shiftSum), officers)
+          : evenSplit(officers, SHIFT_ORDER.length);
+
+        const shiftAllocs: ShiftAllocation[] = SHIFT_ORDER.map((shift, i) => ({
+          shift,
+          avgMonthlyIncidents: (b as any).hasRealShift ? shiftTotals[i] / monthCount : b.avgMonthly / 3,
+          officers: shiftOfficers[i],
+        }));
 
         return {
-          precinctNumber: num,
-          precinctName: name,
-          avgMonthlyCrimes: Math.round(avgMonthly),
-          totalPredicted,
+          precinctNumber: b.num,
+          precinctName: b.name,
+          avgMonthlyCrimes: Math.round(b.avgMonthly),
+          totalPredicted: b.totalPredicted,
           shiftAllocations: shiftAllocs,
-          totalOfficers,
-          trend,
+          totalOfficers: officers,
+          trend: b.trend,
         };
       })
-      .sort((a, b) => b.totalOfficers - a.totalOfficers);
-  }, [forecastData, patrolCapacity]);
+      .sort((a, b) => b.totalPredicted - a.totalPredicted);
+  }, [forecastData, effectiveBudget]);
 
   const totalOfficers = useMemo(
     () => precinctAllocations.reduce((s, p) => s + p.totalOfficers, 0),
@@ -135,6 +237,16 @@ function ManpowerProposalPage() {
     () => precinctAllocations.reduce((s, p) => s + p.avgMonthlyCrimes, 0),
     [precinctAllocations]
   );
+
+  const totalCurrentOfficers = useMemo(() => {
+    let total = 0;
+    for (const shiftMap of currentManpower.values()) {
+      for (const count of shiftMap.values()) total += count;
+    }
+    return total;
+  }, [currentManpower]);
+
+  const totalVariance = totalOfficers - totalCurrentOfficers;
 
   const maxOfficers = useMemo(
     () => Math.max(...precinctAllocations.map(p => p.totalOfficers), 1),
@@ -255,23 +367,30 @@ function ManpowerProposalPage() {
         <div className="px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm font-medium text-gray-700">
             <Settings className="w-4 h-4" />
-            Patrol Capacity
+            Available Officers
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-500">incidents per officer per month</span>
+            <span className="text-xs text-gray-500">total officers to allocate</span>
             <input
               type="number"
-              value={patrolCapacity}
-              onChange={e => updatePatrolCapacity(Math.max(1, parseInt(e.target.value) || 1))}
+              value={officerBudget ?? derivedBudget}
+              onChange={e => updateOfficerBudget(Math.max(1, parseInt(e.target.value) || 1))}
               className="w-20 px-2 py-1 border rounded text-right text-sm"
               min={1}
               step={1}
             />
           </div>
         </div>
-        <div className="px-4 pb-3 text-xs text-gray-500">
-          Each patrolling officer covers approximately <strong>{patrolCapacity}</strong> predicted incidents per month.
-          Officers are allocated per precinct per shift proportional to predicted crime volume.
+        <div className="px-4 pb-3 text-xs text-gray-500 space-y-1">
+          <p>
+            Your <strong>{effectiveBudget}</strong> available officers are distributed across precincts and shifts
+            in proportion to predicted crime volume — precincts with higher forecasted crime receive more officers.
+          </p>
+          {officerBudget === null && (
+            <p className="text-gray-400">
+              Default derived from forecast: total predicted crimes/month ÷ {MANPOWER_CASES_PER_OFFICER} cases-per-officer. Adjust as needed.
+            </p>
+          )}
         </div>
       </div>
 
@@ -310,8 +429,8 @@ function ManpowerProposalPage() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div>
-              <div className="text-2xl font-bold text-gray-900">{patrolCapacity}</div>
-              <div className="text-xs text-gray-500">Capacity / Officer / Month</div>
+              <div className="text-2xl font-bold text-gray-900">{effectiveBudget}</div>
+              <div className="text-xs text-gray-500">Available Officers</div>
             </div>
           </div>
         </div>
@@ -348,8 +467,10 @@ function ManpowerProposalPage() {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Precinct</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Predicted Crimes / Month</th>
-                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Officers</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Predicted / Mo</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Current</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Proposed</th>
+                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Δ</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Shift Distribution</th>
               </tr>
             </thead>
@@ -359,9 +480,17 @@ function ManpowerProposalPage() {
                 const maxCrimes = Math.max(...precinctAllocations.map(p => p.avgMonthlyCrimes), 1);
                 const crimeBarPct = (pa.avgMonthlyCrimes / maxCrimes) * 100;
 
+                const shiftCurrent = currentManpower.get(pa.precinctNumber);
+                const currentTotal = shiftCurrent ? [...shiftCurrent.values()].reduce((a, b) => a + b, 0) : 0;
+                const variance = pa.totalOfficers - currentTotal;
+
                 const morning = pa.shiftAllocations.find(a => a.shift === 'Morning')?.officers ?? 0;
                 const afternoon = pa.shiftAllocations.find(a => a.shift === 'Afternoon')?.officers ?? 0;
                 const evening = pa.shiftAllocations.find(a => a.shift === 'Evening')?.officers ?? 0;
+
+                const morningCurrent = shiftCurrent?.get('Morning') ?? 0;
+                const afternoonCurrent = shiftCurrent?.get('Afternoon') ?? 0;
+                const eveningCurrent = shiftCurrent?.get('Evening') ?? 0;
 
                 return (
                   <Fragment key={pa.precinctNumber}>
@@ -389,41 +518,63 @@ function ManpowerProposalPage() {
                           <span className="font-semibold text-gray-900 w-10 text-right">{pa.avgMonthlyCrimes}</span>
                         </div>
                       </td>
+                      <td className="px-4 py-3 text-right text-gray-600">
+                        {manpowerLoaded ? currentTotal : <span className="text-gray-300">—</span>}
+                      </td>
                       <td className="px-4 py-3 text-right font-bold text-gray-900">{pa.totalOfficers}</td>
+                      <td className={`px-4 py-3 text-right font-semibold ${
+                        variance > 0 ? 'text-emerald-600' : variance < 0 ? 'text-red-600' : 'text-gray-400'
+                      }`}>
+                        {manpowerLoaded ? (variance > 0 ? `+${variance}` : variance < 0 ? `${variance}` : '0') : <span className="text-gray-300">—</span>}
+                      </td>
                       <td className="px-4 py-3 text-center text-sm text-gray-600">
                         Morning {morning} &middot; Afternoon {afternoon} &middot; Evening {evening}
                       </td>
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={4} className="px-6 py-4 bg-gray-50">
+                        <td colSpan={6} className="px-6 py-4 bg-gray-50">
                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 text-sm">
 
-                            {/* Shift breakdown */}
+                             {/* Shift breakdown */}
                             <div>
                               <h4 className="font-semibold text-gray-800 mb-2">Shift Allocation</h4>
                               <table className="w-full text-xs">
                                 <thead>
                                   <tr className="text-gray-500 border-b">
                                     <th className="text-left py-1 pr-2">Shift</th>
-                                    <th className="text-right px-2">Avg Incidents/Mo</th>
-                                    <th className="text-right pl-2">Officers</th>
+                                    <th className="text-right px-1">Current</th>
+                                    <th className="text-right px-1">Proposed</th>
+                                    <th className="text-right px-1">Δ</th>
+                                    <th className="text-right pl-2">Avg Incidents/Mo</th>
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {pa.shiftAllocations.map(sa => (
-                                    <tr key={sa.shift} className="border-b border-gray-100">
-                                      <td className="py-1 pr-2 text-gray-700">{SHIFT_LABELS[sa.shift] || sa.shift}</td>
-                                      <td className="text-right px-2">{Math.round(sa.avgMonthlyIncidents)}</td>
-                                      <td className="text-right pl-2 font-medium">{sa.officers}</td>
-                                    </tr>
-                                  ))}
+                                  {pa.shiftAllocations.map(sa => {
+                                    const cur = shiftCurrent?.get(sa.shift) ?? 0;
+                                    const shiftVar = sa.officers - cur;
+                                    return (
+                                      <tr key={sa.shift} className="border-b border-gray-100">
+                                        <td className="py-1 pr-2 text-gray-700">{SHIFT_LABELS[sa.shift] || sa.shift}</td>
+                                        <td className="text-right px-1 text-gray-500">{manpowerLoaded ? cur : '—'}</td>
+                                        <td className="text-right px-1 font-medium">{sa.officers}</td>
+                                        <td className={`text-right px-1 font-medium ${shiftVar > 0 ? 'text-emerald-600' : shiftVar < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                                          {manpowerLoaded ? (shiftVar > 0 ? `+${shiftVar}` : shiftVar < 0 ? `${shiftVar}` : '0') : '—'}
+                                        </td>
+                                        <td className="text-right pl-2">{Math.round(sa.avgMonthlyIncidents)}</td>
+                                      </tr>
+                                    );
+                                  })}
                                 </tbody>
                                 <tfoot className="font-semibold">
                                   <tr>
                                     <td className="py-1 pr-2">Total</td>
-                                    <td className="text-right px-2">{pa.avgMonthlyCrimes}</td>
-                                    <td className="text-right pl-2">{pa.totalOfficers}</td>
+                                    <td className="text-right px-1">{manpowerLoaded ? currentTotal : '—'}</td>
+                                    <td className="text-right px-1">{pa.totalOfficers}</td>
+                                    <td className={`text-right px-1 ${variance > 0 ? 'text-emerald-600' : variance < 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                                      {manpowerLoaded ? (variance > 0 ? `+${variance}` : variance < 0 ? `${variance}` : '0') : '—'}
+                                    </td>
+                                    <td className="text-right pl-2">{pa.avgMonthlyCrimes}</td>
                                   </tr>
                                 </tfoot>
                               </table>
@@ -473,7 +624,22 @@ function ManpowerProposalPage() {
               <tr>
                 <td className="px-4 py-3 text-gray-700">Total</td>
                 <td className="px-4 py-3 text-right text-gray-900">{totalMonthlyCrimes}</td>
+                <td className="px-4 py-3 text-right text-gray-600">
+                  {manpowerLoaded ? (() => {
+                    const t = [...currentManpower.values()].reduce((s, sm) => s + [...sm.values()].reduce((a, b) => a + b, 0), 0);
+                    return t;
+                  })() : '—'}
+                </td>
                 <td className="px-4 py-3 text-right text-gray-900">{totalOfficers}</td>
+                <td className={`px-4 py-3 text-right ${
+                  manpowerLoaded ? (totalOfficers - (() => { const t = [...currentManpower.values()].reduce((s, sm) => s + [...sm.values()].reduce((a, b) => a + b, 0), 0); return t; })() > 0 ? 'text-emerald-600' : totalOfficers - (() => { const t = [...currentManpower.values()].reduce((s, sm) => s + [...sm.values()].reduce((a, b) => a + b, 0), 0); return t; })() < 0 ? 'text-red-600' : 'text-gray-400') : 'text-gray-400'
+                }`}>
+                  {manpowerLoaded ? (() => {
+                    const currentTotal = [...currentManpower.values()].reduce((s, sm) => s + [...sm.values()].reduce((a, b) => a + b, 0), 0);
+                    const v = totalOfficers - currentTotal;
+                    return v > 0 ? `+${v}` : v < 0 ? `${v}` : '0';
+                  })() : '—'}
+                </td>
                 <td className="px-4 py-3 text-center text-sm text-gray-600">
                   {(() => {
                     const m = precinctAllocations.reduce((s, p) => s + (p.shiftAllocations.find(a => a.shift === 'Morning')?.officers ?? 0), 0);

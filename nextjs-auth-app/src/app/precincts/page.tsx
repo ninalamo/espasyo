@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   Users, 
   MapPin, 
@@ -40,6 +41,17 @@ function getOverallRisk(avgPerMonth: number): string {
 const HARDCODED_SHIFT = 'Morning';
 
 export default function PrecinctsPage() {
+  return (
+    <Suspense fallback={<div className="p-6 space-y-6"><CardSkeleton /><TableSkeleton rows={10} /></div>}>
+      <PrecinctsPageContent />
+    </Suspense>
+  );
+}
+
+function PrecinctsPageContent() {
+  const searchParams = useSearchParams();
+  const forecastIdFromUrl = searchParams.get('forecastId');
+
   const [manpowerAllocations, setManpowerAllocations] = useState<ManpowerAllocation[]>([]);
   const [precincts, setPrecincts] = useState<Array<{ id: string; name: string; code: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +59,7 @@ export default function PrecinctsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState<number>(0);
   const [forecasts, setForecasts] = useState<Array<{ id: string; name: string }>>([]);
-  const [selectedForecastId, setSelectedForecastId] = useState('');
+  const [selectedForecastId, setSelectedForecastId] = useState(forecastIdFromUrl || '');
   const [suggestedByPrecinct, setSuggestedByPrecinct] = useState<Map<string, number>>(new Map());
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [precinctAreas, setPrecinctAreas] = useState<Map<number, number>>(new Map());
