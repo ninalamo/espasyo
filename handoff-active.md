@@ -1,6 +1,10 @@
 # Handoff — Active Task
 
-**Status:** Step 1: Bulk Upload module activated. Figure #3 (crime data upload) is the core data input mechanism; all downstream modules (analysis, forecast, manpower) depend on valid incident data. No GA-01 or GA-05 dependencies.  
+**Status:** Step 1: Bulk Upload module activated. Figure #3 (crime data upload) is the core data input mechanism; all downstream modules (analysis, forecast, manpower) depend on valid incident data. No GA-01 or GA-05 dependencies.
+
+**Completed sub-tasks (Step 1):**
+- F-02: Fix stale API base URL fallback in 3 frontend files ✅
+- F-01: Attach Bearer token to forecastApi.ts and manpowerApi.ts ✅  
 **Convention:** Only one item may be active at a time. When work begins, replace this file's content with the active sub-task's ID, description, files to touch, and acceptance criteria. When complete, move the item to `handoff-dead.md` and reset this file to the next step.  
 **Mirrored at:** workspace root, `espasyo/`, `nin-architecture/`
 
