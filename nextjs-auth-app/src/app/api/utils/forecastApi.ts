@@ -1,4 +1,5 @@
 import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
+import { getSession } from 'next-auth/react';
 
 const FORECAST_NAMES_KEY = 'forecastCustomNames';
 const FORECAST_CACHE_KEY = 'forecastLocalCache';
@@ -91,7 +92,7 @@ function toCrimeTypeInt(value: string | number): number {
   throw new Error(`Unknown crimeType name: "${value}"`);
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7007/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5041/api';
 
 /* Backend response shapes (api/ForecastRun) */
 interface ForecastRunResult {
@@ -138,9 +139,14 @@ class ForecastApiService {
   private async fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
+    const session = await getSession();
+    const token = session?.user?.token;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
     const response = await fetch(url, {
       headers: {
-        'Content-Type': 'application/json',
+        ...headers,
         ...options.headers,
       },
       ...options,
