@@ -10,6 +10,7 @@ import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import { BarangayMonthlyChart } from '../../components/BarangayMonthlyChart';
 import { CrimeTrendChart } from '../../components/CrimeTrendChart';
 import { TimeOfDayDistributionChart } from '../../components/TimeOfDayDistributionChart';
+import PreprocessingVisualization from '../../components/PreprocessingVisualization';
 import IncidentDatasetTable from '../../components/IncidentDatasetTable';
 
 const parseCsvRow = (line: string): string[] => {
@@ -89,6 +90,7 @@ interface Props {
     onImport?: (data: any) => void;
     incidents?: any[];
     incidentsLoading?: boolean;
+    preprocessing?: any;
 }
 
 const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImport, incidents, incidentsLoading }) => {
@@ -170,6 +172,7 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImp
                         { key: 'Monthly Chart', label: 'Seasonal', icon: '🌙' },
                         { key: 'Time of Day', label: 'Time of Day', icon: '⏰' },
                         { key: 'Dataset', label: 'Dataset', icon: '📋' },
+                        { key: 'Preprocessing', label: 'Preprocessing', icon: '📊' },
                     ].map(tab => (
                         <Tab
                             key={tab.key}
@@ -245,6 +248,18 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImp
                         <IncidentDatasetTable
                             incidents={incidents ?? []}
                             isLoading={incidentsLoading ?? false}
+                        />
+                    </TabPanel>
+
+                    <TabPanel className="p-6">
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h3 className="font-medium text-gray-800 mb-2">Temporal Preprocessing</h3>
+                            <p className="text-sm text-gray-600">
+                                Visualize the raw data → aggregation → SSA input pipeline for crime forecasting.
+                            </p>
+                        </div>
+                        <PreprocessingVisualization
+                            incidents={incidents ?? []}
                         />
                     </TabPanel>
                 </TabPanels>
