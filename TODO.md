@@ -25,7 +25,7 @@
 | F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | done |
 | F-07 | Full crime incident dataset table with temporal attributes (month, day, year, timeOfDay, precinct, crimeType) | #6 | None | **2** | done |
 | F-08 | Align temporal preprocessing visualization with the actual backend forecast aggregation and input (monthly counts by precinct/crime type) | #7 | None | **2** | done |
-| F-09 | Dedicated hotspots → crime prevention recommendations summary screen | #10 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
+| F-09 | Dedicated hotspots → crime prevention recommendations summary screen | #10 | None (recommendations only; manpower allocation remains separate) | **2** (unblocked per GA-01 decisions) | done |
 | F-10 | High-risk time periods + action plan screen (aggregate risk levels into time periods) | #11 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
 
 **Status key (calibration items):** `done` = verified complete; `partial` = some criterion remains incomplete; `todo` = not implemented.
@@ -51,7 +51,7 @@
 - Files are mirrored at workspace root and inside both `espasyo/` and `nin-architecture/`.
 - Only one item may be active at a time. When an item is complete, move it from active to dead and update TODO.md status.
 
-**Current active step:** Step 2 — Analysis Module. No sub-task is active. F-07 and F-08 are complete. Next: F-05 — frontend geocoding UI (Figure #2).
+**Current active step:** Step 2 — Analysis Module. No sub-task is active. F-07, F-08, and F-09 are complete. Next: F-05 — frontend geocoding UI (Figure #2).
 
 ***Figure Status (all 12 vs. study objectives RQ1–RQ5)***
 
@@ -66,7 +66,7 @@
 | 7 | Temporal data preprocessing & transformation | CORRECT (Preprocessing tab shows current analysis records, observed counts grouped by calendar year-month/precinct/crime type, and a model-neutral monthly input preview with backend-equivalent chronological ordering and zero-filled gaps) | No | No | 2 |
 | 8 | Crime hotspot map filtered by selected time period | CORRECT | No | No | 2 |
 | 9 | Generated temporal analysis report | CORRECT | No | No | 2 |
-| 10 | Summary of identified hotspots → crime prevention recommendations | CORRECT (output w/ manpower allocation) | Yes (decisions recorded) | Yes (patrol allocation model) | 2 / 4 |
+| 10 | Summary of identified hotspots → crime prevention recommendations | CORRECT (dedicated screen shows API risk summary, recommendations, and hotspot details; no personnel allocation) | Yes (decisions recorded) | Separate allocation remains gated | 2 |
 | 11 | High-risk time periods + action plan | CORRECT (count + heinous weight; action plan = manpower basis) | Yes (decisions recorded) | Yes (patrol allocation: yes but not alone) | 2 / 4 |
 | 12 | Sample prediction / forecasted crime pattern | INCORRECT (SSA vs. regression model mismatch) | Yes (deferred to post-initial phase) | No | 3 |
 

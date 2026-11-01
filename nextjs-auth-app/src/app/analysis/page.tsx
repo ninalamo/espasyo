@@ -599,6 +599,13 @@ const AnalysisPage = () => {
                   </svg>
                   Use for Forecasting
                 </Link>
+                <Link
+                  href="/analysis/recommendations"
+                  className="bg-amber-100 text-amber-800 px-3 py-1 rounded-md hover:bg-amber-200 transition text-sm flex items-center"
+                  title="Generate hotspot prevention recommendations from these clusters"
+                >
+                  Hotspot Recommendations
+                </Link>
                 <button
                   onClick={clearAnalysisData}
                   className="bg-red-100 text-red-700 px-3 py-1 rounded-md hover:bg-red-200 transition text-sm flex items-center"

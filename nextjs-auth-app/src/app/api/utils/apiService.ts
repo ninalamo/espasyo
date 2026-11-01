@@ -8,10 +8,25 @@ async function handleResponse(response: Response, method: string, endpoint: stri
   if (!response.ok) {
     let errorMessage = `${method} ${endpoint} failed`;
     try {
-      const errorBody = await response.json();
-      errorMessage = errorBody?.message || errorMessage;
+      const responseBody = await response.text();
+      if (responseBody) {
+        try {
+          const errorBody: unknown = JSON.parse(responseBody);
+          if (typeof errorBody === "string") {
+            errorMessage = errorBody;
+          } else if (typeof errorBody === "object" && errorBody !== null) {
+            const details = errorBody as Record<string, unknown>;
+            const message = details.message ?? details.detail ?? details.title;
+            if (typeof message === "string" && message.length > 0) errorMessage = message;
+          } else {
+            errorMessage = responseBody;
+          }
+        } catch {
+          errorMessage = responseBody;
+        }
+      }
     } catch {
-      // Fallback to default errorMessage
+      // Keep the method and endpoint in the error if the response body cannot be read.
     }
     throw new Error(errorMessage);
   }
