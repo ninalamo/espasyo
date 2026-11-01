@@ -1,7 +1,7 @@
 # TODO — Espasyo Calibration Backlog
 
 **Source:** Frontend code calibration vs. figure requirements (login, geocoding, upload, time-of-day distribution, temporal filtering, temporal attributes dataset, preprocessing visualization, hotspot map, temporal report, hotspots→recommendations, high-risk periods+action plan, forecast pattern).  
-**Mirror:** `espasyo/TODO.md` and `nin-architecture/TODO.md` are identical copies.  
+**Mirrors:** `espasyo/TODO.md` and `nin-architecture/TODO.md` are maintained copies; keep status decisions synchronized.
 **GA-01 gate:** Items marked [GA-01] require thesis evaluation protocol sign-off before implementation thresholds can be set. Items without that tag have no GA-01 dependency.
 
 ***Implementation Module Strategy (4-step plan)***
@@ -17,16 +17,18 @@
 
 | ID | Item | Figures | Depends on | Step | Status |
 |----|------|---------|------------|------|--------|
-| F-01 | Attach Bearer token to `forecastApi.ts` and `manpowerApi.ts` (currently raw `fetch`, no auth header) | #1 | None | **3** | done |
-| F-02 | Fix stale API base URL fallback `https://localhost:7007/api` in `apiConfig.ts`, `forecastApi.ts`, `manpowerApi.ts`; surface missing config explicitly | #1 | None | **1** | done |
+| F-01 | Attach the session JWT to requests from `forecastApi.ts` and `manpowerApi.ts` when available | #1 | None | **3** | done |
+| F-02 | Replace stale API base URL fallbacks; explicitly report when `NEXT_PUBLIC_API_URL` is unset (the current clients silently use a fallback) | #1 | None | **1** | partial |
 | F-03 | Correct forecast model identity — `list()` labels all runs `Linear`, `getById()` hardcodes `forecastPeriod: 6` / `model: 'ssa'`, `save()` submits `modelType: 'Linear'`; read actual model/horizon/params from persisted data | #12 | None | **3** | done |
 | F-04 | Remove silent localStorage fallback when snapshot endpoint fails; visibly report server-not-persisted; separate local drafts | #12 | None | **2** or **3** | done |
-| F-05 | Geocoding UI — address → coordinates via GIS service | #2 | None | **2** | done |
+| F-05 | Frontend geocoding UI — address → coordinates via GIS service (backend endpoint exists; frontend UI/client missing) | #2 | None | **2** | todo |
 | F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | done |
 | F-07 | Full crime incident dataset table with temporal attributes (month, day, year, timeOfDay, precinct, crimeType) | #6 | None | **2** | done |
-| F-08 | Temporal data preprocessing & transformation visualization (raw → aggregated → SSA input) | #7 | None | **2** | done |
+| F-08 | Align temporal preprocessing visualization with the actual backend forecast aggregation and input (monthly counts by precinct/crime type) | #7 | None | **2** | partial |
 | F-09 | Dedicated hotspots → crime prevention recommendations summary screen | #10 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
 | F-10 | High-risk time periods + action plan screen (aggregate risk levels into time periods) | #11 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
+
+**Status key (calibration items):** `done` = verified complete; `partial` = some criterion remains incomplete; `todo` = not implemented.
 
 ## GA-01 decision record items (owner/adviser sign-off pending)
 
@@ -49,19 +51,19 @@
 - Files are mirrored at workspace root and inside both `espasyo/` and `nin-architecture/`.
 - Only one item may be active at a time. When an item is complete, move it from active to dead and update TODO.md status.
 
-**Current active step:** Step 2 — Analysis Module. F-07 (Full crime incident dataset table with temporal attributes, Figure #6) is complete. Next sub-task: F-08 — Temporal data preprocessing & transformation visualization (Figure #7).
+**Current active step:** Step 2 — Analysis Module. No sub-task is active. F-07 is complete; F-08 is partial. Next: F-05 — frontend geocoding UI (Figure #2).
 
 ***Figure Status (all 12 vs. study objectives RQ1–RQ5)***
 
 | # | Figure requirement | Status | GA-01 | GA-05 | Step |
 |---|-------------------|--------|-------|-------|------|
-| 1 | Secured login module — controlled access, protected crime data | INCORRECT (Bearer token missing on forecastApi/manpowerApi) | — | — | 3 |
-| 2 | Geocoding process — addresses → coordinates via GIS | MISSING (no UI/module) | — | — | 2 |
+| 1 | Secured login module - controlled access, protected crime data | INCORRECT (API data access is not enforced server-side; frontend route guards and optional bearer headers do not protect unannotated controllers) | - | - | 3 |
+| 2 | Geocoding process — addresses → coordinates via GIS | MISSING (backend endpoint exists; no frontend UI/client) | — | — | 2 |
 | 3 | Crime data upload module — import police reports | CORRECT | No | No | 1 |
 | 4 | Distribution of crime incidents by time of day | CORRECT (raw counts, barangay-only, k-value pending) | Yes (decisions recorded) | No | 2 |
 | 5 | Temporal filtering — analyze trends across selected periods | CORRECT | No | No | 2 |
 | 6 | Crime incident dataset with temporal attributes | CORRECT (full incident dataset table with month/day/year/timeOfDay/precinct/crimeType columns added as Dataset tab in Analysis module; temporal attributes decomposed client-side mirroring backend Incident.GetTimeOfDay/GetYear/GetMonth) | No | No | 2 |
-| 7 | Temporal data preprocessing & transformation | CORRECT (Preprocessing tab in Analysis module with three views: Raw Data (incidents with temporal attributes), Aggregated Data (counts by month/time-of-day), and SSA Input Format (records formatted for MachineLearningService forecasting)); mirrors backend Incident.GetTimeOfDay/GetYear/GetMonth logic (Incident.cs:79-88) and MachineLearningService expectations) | No | No | 2 |
+| 7 | Temporal data preprocessing & transformation | INCORRECT (Preprocessing tab exists, but its SSA Input view lists per-incident rows; the backend forecast pipeline aggregates monthly counts by precinct and crime type) | No | No | 2 |
 | 8 | Crime hotspot map filtered by selected time period | CORRECT | No | No | 2 |
 | 9 | Generated temporal analysis report | CORRECT | No | No | 2 |
 | 10 | Summary of identified hotspots → crime prevention recommendations | CORRECT (output w/ manpower allocation) | Yes (decisions recorded) | Yes (patrol allocation model) | 2 / 4 |
