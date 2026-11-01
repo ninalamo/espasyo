@@ -1,4 +1,6 @@
 import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
+import type { MonthlyForecastRiskPeriodDto } from '../../../types/analysis/RiskPeriodsDto';
+import { getSession } from 'next-auth/react';
 
 const FORECAST_NAMES_KEY = 'forecastCustomNames';
 const FORECAST_CACHE_KEY = 'forecastLocalCache';
@@ -91,7 +93,7 @@ function toCrimeTypeInt(value: string | number): number {
   throw new Error(`Unknown crimeType name: "${value}"`);
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://localhost:7007/api';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:5041/api';
 
 /* Backend response shapes (api/ForecastRun) */
 interface ForecastRunResult {
@@ -117,6 +119,7 @@ interface SaveForecastSnapshotResponse {
   name: string;
   createdAt: string;
   totalPredictions: number;
+  monthlyRiskPeriods: MonthlyForecastRiskPeriodDto[];
 }
 
 interface ForecastResultDto {
@@ -138,9 +141,14 @@ class ForecastApiService {
   private async fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
 
+    const session = await getSession();
+    const token = session?.user?.token;
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
     const response = await fetch(url, {
       headers: {
-        'Content-Type': 'application/json',
+        ...headers,
         ...options.headers,
       },
       ...options,
@@ -168,7 +176,7 @@ class ForecastApiService {
       createdAt: r.runAt,
       forecastPeriod: r.horizon,
       totalPredictions: r.totalSeries,
-      activeModel: 'Linear',
+      activeModel: r.modelType,
       precinctCount: 1,
       crimeTypeCount: 0,
     }));
@@ -193,31 +201,40 @@ class ForecastApiService {
     if (local) return local;
 
     try {
-      const results = await this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`);
+      const runsResponse = await this.fetchApi<GetForecastRunsResponse>('/ForecastRun');
+      const run = runsResponse.runs.find(r => r.id === id);
+      const [results, monthlyRiskPeriods] = await Promise.all([
+        this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`),
+        this.fetchApi<MonthlyForecastRiskPeriodDto[]>(`/ForecastRun/${id}/monthly-risk-periods`),
+      ]);
+
+      const forecastPeriod = run?.horizon ?? 6;
+      const modelType = run?.modelType ?? 'ssa';
+      const storedNames = getStoredNames();
 
       const precincts = [...new Set(results.map(r => BARANGAY_NAME_TO_INT[r.precinct] ?? 0))];
       const crimeTypes = [...new Set(results.map(r => toCrimeTypeInt(r.crimeType)))];
-      const storedNames = getStoredNames();
 
       return {
         id,
         name: storedNames[id] || `Forecast ${id.slice(0, 8)}`,
-        createdAt: new Date().toISOString(),
-        forecastPeriod: 6,
+        createdAt: run?.runAt ?? new Date().toISOString(),
+        forecastPeriod,
         predictions: results.map(r => ({
           year: r.year,
           month: r.month,
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
           crimeType: toCrimeTypeInt(r.crimeType),
           shift: (r.shift === 'Morning' || r.shift === 'Afternoon' || r.shift === 'Evening' ? r.shift : undefined) as ForecastData['shift'],
-          predictedCount: Math.max(0, Math.round(r.predictedValue)),
+          predictedCount: Math.max(0, r.predictedValue),
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
         })),
+        monthlyRiskPeriods,
         params: {
-          forecastPeriod: 6,
-          model: 'ssa',
+          forecastPeriod,
+          model: modelType,
           confidence: 0.95,
           includeSeasonality: true,
           weightRecentData: true,
@@ -225,7 +242,7 @@ class ForecastApiService {
         metadata: {
           totalClusters: 0,
           totalPredictions: results.length,
-          activeModel: 'Linear',
+          activeModel: modelType,
           precincts,
           crimeTypes,
         },
@@ -297,6 +314,7 @@ class ForecastApiService {
           createdAt: response.createdAt,
           forecastPeriod: data.forecastPeriod,
           predictions: data.predictions,
+          monthlyRiskPeriods: response.monthlyRiskPeriods,
           metrics: data.metrics,
           params: data.params,
           spatialData: data.spatialData,
@@ -313,32 +331,8 @@ class ForecastApiService {
         addToLocalCache(snapshot);
         return snapshot;
       } catch (error) {
-        console.warn('Snapshot endpoint unavailable, saving locally:', error);
+        throw new Error(`Failed to save forecast snapshot: ${error instanceof Error ? error.message : String(error)}`);
       }
-
-      const localId = generateId();
-      const snapshot: ForecastSnapshot = {
-        id: localId,
-        name: data.name,
-        createdAt: new Date().toISOString(),
-        forecastPeriod: data.forecastPeriod,
-        predictions: data.predictions,
-        metrics: data.metrics ?? null,
-        params: data.params,
-        spatialData: data.spatialData,
-        seasonalPredictions: data.seasonalPredictions,
-        apiResponse: data.apiResponse,
-        metadata: {
-          ...data.metadata,
-          totalPredictions: data.predictions.length,
-          precincts: [...new Set(data.predictions.map(f => f.precinct))],
-          crimeTypes: [...new Set(data.predictions.map(f => f.crimeType))],
-        },
-        historicalData: data.historicalData,
-      };
-      storeName(localId, data.name);
-      addToLocalCache(snapshot);
-      return snapshot;
     }
 
     if (data.clusterData?.length) {
@@ -363,7 +357,7 @@ class ForecastApiService {
               precinctId,
               horizon: data.params.forecastPeriod,
               confidenceLevel: data.params.confidence,
-              modelType: 'Linear',
+              modelType: data.params.model,
               name: data.name,
               includeSeasonality: data.params.includeSeasonality,
               weightRecentData: data.params.weightRecentData,
@@ -380,7 +374,7 @@ class ForecastApiService {
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
           crimeType: toCrimeTypeInt(r.crimeType),
           shift: (r.shift === 'Morning' || r.shift === 'Afternoon' || r.shift === 'Evening' ? r.shift : undefined) as ForecastData['shift'],
-          predictedCount: Math.max(0, Math.round(r.predictedValue)),
+          predictedCount: Math.max(0, r.predictedValue),
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
@@ -433,5 +427,3 @@ class ForecastApiService {
 }
 
 export const forecastApi = new ForecastApiService();
-
-

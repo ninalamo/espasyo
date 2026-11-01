@@ -73,7 +73,7 @@ const authOptions: NextAuthOptions = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 60,
+    maxAge: 60 * 60 * 24 * 7, // 7 days — survives app restarts (was 30 min)
   },
   cookies: {
     sessionToken: {
@@ -83,7 +83,7 @@ const authOptions: NextAuthOptions = {
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
-        maxAge: 30 * 60,
+        maxAge: 60 * 60 * 24 * 7, // keep in sync with session.maxAge
       },
     },
   },
@@ -112,6 +112,12 @@ const authOptions: NextAuthOptions = {
 };
 
 // Export NextAuth handler for both GET and POST requests
+// Dev-only: warn when the signing secret is missing — without a stable
+// NEXTAUTH_SECRET, session cookies cannot survive a server restart.
+if (process.env.NODE_ENV !== "production" && !process.env.NEXTAUTH_SECRET) {
+  console.warn("[next-auth] NEXTAUTH_SECRET is not set — sessions will not persist across restarts.");
+}
+
 const handler = NextAuth(authOptions);
 export { handler as GET, handler as POST };
 

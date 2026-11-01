@@ -543,7 +543,7 @@ const AnalysisPage = () => {
                 </svg>
                 Analysis Results
               </h2>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="text-sm text-gray-500">
                   Generated {clusters.length} clusters • {clusters.reduce((sum, c) => sum + (c.clusterCount || 0), 0)} total cases
                 </div>
@@ -555,7 +555,14 @@ const AnalysisPage = () => {
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Use for Forecasting
+                  Forecast
+                </Link>
+                <Link
+                  href="/analysis/recommendations"
+                  className="bg-amber-100 text-amber-800 px-3 py-1 rounded-md hover:bg-amber-200 transition text-sm flex items-center"
+                  title="Generate hotspot prevention recommendations from these clusters"
+                >
+                  Hotspot Recommendation
                 </Link>
                 <button
                   onClick={clearAnalysisData}

@@ -9,6 +9,8 @@ import { apiService } from "../../api/utils/apiService"; // API service for HTTP
 import { validateIncident } from "../../api/utils/validators/createIncidentValidator"; // Custom validation function
 import { fetchCachedData } from "../../api/utils/fetchCachedData";
 import { FormSkeleton } from "../../../components/ui/skeleton";
+import GeocodingLookup from "../../../components/GeocodingLookup";
+import { GeocodingResult } from "../../../types/geocoding/GeocodingResult";
 
 // Import precinct types
 import { PrecinctDto } from '../../../types/PrecinctDto';
@@ -67,6 +69,7 @@ const AddCrimePage = () => {
 
   // State to hold any error message from API calls or custom validation
   const [error, setError] = useState<string | null>(null);
+  const [geocodedAddress, setGeocodedAddress] = useState<string | null>(null);
 
   // Loading state to indicate if the dropdown data is still being fetched
   const [isLoading, setIsLoading] = useState(true);
@@ -140,6 +143,7 @@ const AddCrimePage = () => {
   const watchLocation = watch("location");
   const watchPrecinctId = watch("precinctId");
   const watchStreet = watch("street");
+  const watchAddress = watch("address");
 
   // useEffect to update the 'address' field whenever location, precinct, or street changes.
   useEffect(() => {
@@ -169,13 +173,24 @@ const AddCrimePage = () => {
     }
     try {
       // Post the valid form data to the API.
-      await apiService.post("/incident", data);
+      const payload: AddIncidentDto = {
+        ...data,
+        latitude: geocodedAddress === data.address ? data.latitude : undefined,
+        longitude: geocodedAddress === data.address ? data.longitude : undefined,
+      };
+      await apiService.post("/incident", payload);
       // On success, navigate to the crime-record page.
       router.push("/crime-record");
     } catch (err) {
       // If API call fails, set an error message.
       setError("Failed to save crime record");
     }
+  };
+
+  const handleGeocodingResult = (result: GeocodingResult | null, address: string) => {
+    setGeocodedAddress(result ? address : null);
+    setValue("latitude", result?.latitude);
+    setValue("longitude", result?.longitude);
   };
 
   // Filter the streets based on the selected precinct ID.
@@ -293,6 +308,10 @@ const AddCrimePage = () => {
             <p className="text-gray-600 text-sm">
               Generated Address: {watch("address")}
             </p>
+            <GeocodingLookup
+              address={watchAddress}
+              onResultChange={handleGeocodingResult}
+            />
 
             {/* Crime Type & Severity Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

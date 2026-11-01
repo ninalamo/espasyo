@@ -17,7 +17,13 @@ export interface ClusterItem {
   month: number;
   day: number;
   year: number;
-  timeOfDay: string;
+  // Time-of-day bucket from the backend API.
+  // Backend uses DateTimeExtensions.GetTimeOfDay (3 categories):
+  //   Morning (<12h), Afternoon (<18h), Evening (>=18h).
+  // Hours 00:00-05:59 are reported as "Morning", NOT "Night".
+  // (MachineLearningService.GetTimeOfDay(long) has a 4th "Night" category
+  // but its result is overwritten by GetGroupedClustersQueryHandler.)
+  timeOfDay: 'Morning' | 'Afternoon' | 'Evening';
   precinct: number;
   crimeType: number;
   severity?: number;
