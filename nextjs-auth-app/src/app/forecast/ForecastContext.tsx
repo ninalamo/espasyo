@@ -84,15 +84,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       const histData = data.historicalData || [];
       setHistoricalData(histData);
 
-      const historicalLookup = new Map<string, number>();
-      histData.forEach((h: HistoricalData) => {
-        historicalLookup.set(`${h.year}-${h.month}-${h.precinct}-${h.crimeType}`, h.count);
-      });
-
-      const predictions = (data.predictions || []).map(f => ({
-        ...f,
-        lastYearActual: f.lastYearActual ?? historicalLookup.get(`${f.year - 1}-${f.month}-${f.precinct}-${f.crimeType}`),
-      }));
+      const predictions = data.predictions || [];
       setForecastData(predictions);
       setForecastMetrics(data.metrics ?? null);
       setSpatialData(data.spatialData ?? []);
@@ -140,11 +132,6 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       }
       setHistoricalData(aggregated);
 
-      const historicalLookup = new Map<string, number>();
-      aggregated.forEach(h => {
-        historicalLookup.set(`${h.year}-${h.month}-${h.precinct}-${h.crimeType}`, h.count);
-      });
-
       const clusterGroups = clustersData.map(c => ({
         clusterId: c.clusterId,
         clusterItems: c.clusterItems.map(i => ({
@@ -186,7 +173,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
             confidence: f.confidence ?? 0,
             lowerBound: f.lowerBound != null ? f.lowerBound : undefined,
             upperBound: f.upperBound != null ? f.upperBound : undefined,
-            lastYearActual: historicalLookup.get(`${year - 1}-${month}-${series.precinct}-${series.crimeType}`),
+            lastYearActual: f.lastYearActual ?? undefined,
             trend: f.trend || 'stable',
             riskLevel: f.riskLevel || 'medium',
           };
@@ -242,6 +229,9 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         name,
         forecastPeriod: effectiveParams.forecastPeriod,
         params: { ...effectiveParams, model: effectiveParams.model || 'ssa' },
+        requestedModelType: apiResponse?.requestedModel || effectiveParams.model || 'ssa',
+        effectiveModelType: apiResponse?.effectiveModel || apiResponse?.modelUsed || effectiveParams.model || 'ssa',
+        modelFallbackReason: apiResponse?.fallbackReason || undefined,
         predictions: forecastData,
         metrics: forecastMetrics,
         clusterData: clusters.map(c => ({
@@ -304,7 +294,14 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     loading, forecastId, forecast, clusters, historicalData,
     forecastData, forecastMetrics, spatialData, seasonalPredictions, apiResponse,
     extendedForecastData, forecastMapPoints,
-    activeModelLabel: forecast?.params?.model || forecastParams.model || 'ssa', dataQuality,
+    activeModelLabel: (() => {
+      const requested = apiResponse?.requestedModel || forecast?.params?.model || forecastParams.model || 'ssa';
+      const effective = apiResponse?.effectiveModel || apiResponse?.modelUsed || forecast?.params?.model || forecastParams.model || 'ssa';
+      if (requested && effective && requested.toLowerCase() !== effective.toLowerCase()) {
+        return `${requested} → ${effective}`;
+      }
+      return effective;
+    })(), dataQuality,
     analysisLoaded, forecastParams,
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   }), [

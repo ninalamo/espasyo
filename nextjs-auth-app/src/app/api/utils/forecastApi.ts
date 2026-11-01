@@ -1,4 +1,4 @@
-import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult, HistoricalData } from '../../../types/forecast/ForecastBaseTypes';
 import type { MonthlyForecastRiskPeriodDto } from '../../../types/analysis/RiskPeriodsDto';
 import { getSession } from 'next-auth/react';
 
@@ -69,6 +69,9 @@ interface ForecastRunResult {
   runAt: string;
   horizon: number;
   modelType: string;
+  requestedModelType?: string;
+  effectiveModelType?: string;
+  modelFallbackReason?: string;
   status: string;
   totalSeries: number;
   generatedById: string;
@@ -85,7 +88,11 @@ interface SaveForecastSnapshotResponse {
   name: string;
   createdAt: string;
   totalPredictions: number;
+  requestedModelType?: string;
+  effectiveModelType?: string;
+  modelFallbackReason?: string;
   monthlyRiskPeriods: MonthlyForecastRiskPeriodDto[];
+  historicalData?: HistoricalData[];
 }
 
 interface ForecastResultDto {
@@ -96,6 +103,7 @@ interface ForecastResultDto {
   month: number;
   year: number;
   predictedValue: number;
+  lastYearActual?: number | null;
   lowerBound: number;
   upperBound: number;
   confidence: number;
@@ -153,13 +161,14 @@ class ForecastApiService {
         throw new Error('Forecast not found');
       }
 
-      const [results, monthlyRiskPeriods] = await Promise.all([
+      const [results, monthlyRiskPeriods, historicalData] = await Promise.all([
         this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`),
         this.fetchApi<MonthlyForecastRiskPeriodDto[]>(`/ForecastRun/${id}/monthly-risk-periods`),
+        this.fetchApi<HistoricalData[]>(`/ForecastRun/${id}/historical-data`).catch(() => []),
       ]);
 
       const forecastPeriod = run.horizon;
-      const modelType = run.modelType;
+      const modelType = run.modelType || run.effectiveModelType || run.requestedModelType || 'ssa';
       const storedNames = getStoredNames();
 
       const precincts = [...new Set(results.map(r => BARANGAY_NAME_TO_INT[r.precinct] ?? 0))];
@@ -177,6 +186,7 @@ class ForecastApiService {
           crimeType: toCrimeTypeInt(r.crimeType),
           shift: (r.shift === 'Morning' || r.shift === 'Afternoon' || r.shift === 'Evening' ? r.shift : undefined) as ForecastData['shift'],
           predictedCount: Math.max(0, r.predictedValue),
+          lastYearActual: r.lastYearActual ?? undefined,
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
@@ -184,7 +194,7 @@ class ForecastApiService {
         monthlyRiskPeriods,
         params: {
           forecastPeriod,
-          model: modelType,
+          model: run.effectiveModelType || run.modelType || modelType,
           confidence: 0.95,
           includeSeasonality: true,
           weightRecentData: true,
@@ -196,7 +206,14 @@ class ForecastApiService {
           precincts,
           crimeTypes,
         },
-        historicalData: undefined,
+        historicalData,
+        apiResponse: {
+          requestedModel: run.requestedModelType || run.modelType || modelType,
+          effectiveModel: run.effectiveModelType || run.modelType || modelType,
+          modelUsed: run.effectiveModelType || run.modelType || modelType,
+          fallbackReason: run.modelFallbackReason,
+          monthlyRiskPeriods,
+        },
       };
     } catch {
       throw new Error(`Forecast ${id} not found`);
@@ -213,6 +230,18 @@ class ForecastApiService {
             forecastPeriod: data.forecastPeriod,
             confidenceLevel: data.params.confidence,
             modelType: data.params.model,
+            requestedModelType: data.requestedModelType || data.params.model,
+            effectiveModelType: data.effectiveModelType || data.apiResponse?.effectiveModel || data.apiResponse?.modelUsed || data.params.model,
+            modelFallbackReason: data.modelFallbackReason || data.apiResponse?.fallbackReason,
+            historicalData: (data.historicalData || []).map(h => ({
+              precinct: h.precinct,
+              crimeType: h.crimeType,
+              month: h.month,
+              year: h.year,
+              count: h.count,
+              timeOfDay: h.timeOfDay,
+              clusterId: h.clusterId,
+            })),
             predictions: data.predictions.map(p => ({
               precinct: p.precinct,
               crimeType: p.crimeType,
@@ -267,10 +296,19 @@ class ForecastApiService {
           predictions: data.predictions,
           monthlyRiskPeriods: response.monthlyRiskPeriods,
           metrics: data.metrics,
-          params: data.params,
+          params: {
+            ...data.params,
+            model: response.effectiveModelType || response.requestedModelType || data.params.model,
+          },
           spatialData: data.spatialData,
           seasonalPredictions: data.seasonalPredictions,
-          apiResponse: data.apiResponse,
+          apiResponse: {
+            ...data.apiResponse,
+            requestedModel: response.requestedModelType || data.requestedModelType || data.params.model,
+            effectiveModel: response.effectiveModelType || data.effectiveModelType || data.apiResponse?.effectiveModel || data.apiResponse?.modelUsed || data.params.model,
+            modelUsed: response.effectiveModelType || data.effectiveModelType || data.apiResponse?.effectiveModel || data.apiResponse?.modelUsed || data.params.model,
+            fallbackReason: response.modelFallbackReason || data.modelFallbackReason || data.apiResponse?.fallbackReason,
+          },
           metadata: {
             ...data.metadata,
             totalPredictions: response.totalPredictions,

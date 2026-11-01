@@ -5,9 +5,32 @@ export interface StatisticalForecastRowDto {
   precinct: number;
   crimeType: number;
   forecast: number;
+  lastYearActual?: number | null;
   riskLevel: ForecastRiskLevel;
   compositeRiskScore: number;
   timeOfDay?: string | null;
+}
+
+export interface ForecastPointDto {
+  timestamp: string;
+  forecast: number;
+  lastYearActual?: number | null;
+  lowerBound: number;
+  upperBound: number;
+  confidence: number;
+  trend: string;
+  riskLevel: ForecastRiskLevel;
+}
+
+export interface ForecastSeriesDto {
+  precinct: number;
+  crimeType: number;
+  shift?: string | null;
+  clusterId: number;
+  requestedModel: string;
+  effectiveModel: string;
+  fallbackReason?: string | null;
+  forecasts: ForecastPointDto[];
 }
 
 export interface StatisticalForecastSummaryDto {
@@ -24,6 +47,7 @@ export interface MonthlyForecastRiskPeriodDto {
 
 export interface StatisticalForecastResponseDto {
   forecasts: StatisticalForecastRowDto[];
+  series: ForecastSeriesDto[];
   summary: StatisticalForecastSummaryDto;
   monthlyRiskPeriods: MonthlyForecastRiskPeriodDto[];
 }
