@@ -24,7 +24,7 @@
 | F-05 | Frontend geocoding UI — address → coordinates via GIS service (backend endpoint exists; frontend UI/client missing) | #2 | None | **2** | todo |
 | F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | done |
 | F-07 | Full crime incident dataset table with temporal attributes (month, day, year, timeOfDay, precinct, crimeType) | #6 | None | **2** | done |
-| F-08 | Align temporal preprocessing visualization with the actual backend forecast aggregation and input (monthly counts by precinct/crime type) | #7 | None | **2** | partial |
+| F-08 | Align temporal preprocessing visualization with the actual backend forecast aggregation and input (monthly counts by precinct/crime type) | #7 | None | **2** | done |
 | F-09 | Dedicated hotspots → crime prevention recommendations summary screen | #10 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
 | F-10 | High-risk time periods + action plan screen (aggregate risk levels into time periods) | #11 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
 
@@ -51,7 +51,7 @@
 - Files are mirrored at workspace root and inside both `espasyo/` and `nin-architecture/`.
 - Only one item may be active at a time. When an item is complete, move it from active to dead and update TODO.md status.
 
-**Current active step:** Step 2 — Analysis Module. No sub-task is active. F-07 is complete; F-08 is partial. Next: F-05 — frontend geocoding UI (Figure #2).
+**Current active step:** Step 2 — Analysis Module. No sub-task is active. F-07 and F-08 are complete. Next: F-05 — frontend geocoding UI (Figure #2).
 
 ***Figure Status (all 12 vs. study objectives RQ1–RQ5)***
 
@@ -63,7 +63,7 @@
 | 4 | Distribution of crime incidents by time of day | CORRECT (raw counts, barangay-only, k-value pending) | Yes (decisions recorded) | No | 2 |
 | 5 | Temporal filtering — analyze trends across selected periods | CORRECT | No | No | 2 |
 | 6 | Crime incident dataset with temporal attributes | CORRECT (full incident dataset table with month/day/year/timeOfDay/precinct/crimeType columns added as Dataset tab in Analysis module; temporal attributes decomposed client-side mirroring backend Incident.GetTimeOfDay/GetYear/GetMonth) | No | No | 2 |
-| 7 | Temporal data preprocessing & transformation | INCORRECT (Preprocessing tab exists, but its SSA Input view lists per-incident rows; the backend forecast pipeline aggregates monthly counts by precinct and crime type) | No | No | 2 |
+| 7 | Temporal data preprocessing & transformation | CORRECT (Preprocessing tab shows current analysis records, observed counts grouped by calendar year-month/precinct/crime type, and a model-neutral monthly input preview with backend-equivalent chronological ordering and zero-filled gaps) | No | No | 2 |
 | 8 | Crime hotspot map filtered by selected time period | CORRECT | No | No | 2 |
 | 9 | Generated temporal analysis report | CORRECT | No | No | 2 |
 | 10 | Summary of identified hotspots → crime prevention recommendations | CORRECT (output w/ manpower allocation) | Yes (decisions recorded) | Yes (patrol allocation model) | 2 / 4 |

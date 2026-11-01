@@ -1,244 +1,222 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
-import { IncidentDto } from '../types/crime-record/IncidentDto';
-import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../constants/consts';
-
-interface PreprocessingView {
-  type: 'raw' | 'aggregated' | 'ssa-input';
-  title: string;
-}
+import { Cluster } from '../types/analysis/ClusterDto';
+import { CrimeTypesDictionary, GetPrecinctsDictionary } from '../constants/consts';
+import {
+  buildTemporalPreprocessingData,
+  MonthlyCrimeCount,
+} from '../utils/temporalPreprocessing';
 
 interface PreprocessingVisualizationProps {
-  incidents: IncidentDto[];
+  clusters: Cluster[];
 }
 
-const PreprocessingVisualization: React.FC<PreprocessingVisualizationProps> = ({ incidents }) => {
-  const [view, setView] = useState<'raw' | 'aggregated' | 'ssa-input'>('raw');
+type PreprocessingView = 'raw' | 'aggregated' | 'forecast-input';
 
-  const processedData = useMemo(() => {
-    return incidents.map((incident) => {
-      const ts = incident.timeStamp;
-      const date = new Date(ts);
-      const month = date.getMonth() + 1;
-      const day = date.getDate();
-      const year = date.getFullYear();
-      const hour = date.getHours();
-      const timeOfDay: 'Morning' | 'Afternoon' | 'Evening' = hour >= 0 && hour < 12
-        ? 'Morning'
-        : hour >= 12 && hour < 18
-          ? 'Afternoon'
-          : 'Evening';
-      const precinct = GetPrecinctsDictionary[incident.policeDistrict] ?? `Precinct ${incident.policeDistrict}`;
-      const crimeType = CrimeTypesDictionary[incident.crimeType] ?? `Type ${incident.crimeType}`;
+const formatMonth = (year: number, month: number) =>
+  `${year}-${String(month).padStart(2, '0')}`;
 
-      return {
-        caseId: incident.caseId,
-        month,
-        day,
-        year,
-        timeOfDay,
-        precinct,
-        crimeType,
-        severity: incident.severity,
-        address: incident.address,
-        timestamp: ts,
-      };
-    });
-  }, [incidents]);
+const getPrecinctName = (precinct: number) =>
+  GetPrecinctsDictionary[precinct] ?? `Precinct ${precinct}`;
 
-  const rawData = useMemo(() => processedData, [processedData]);
+const getCrimeTypeName = (crimeType: number) =>
+  CrimeTypesDictionary[crimeType] ?? `Type ${crimeType}`;
 
-  // Aggregate by month
-  const aggregatedByMonth = useMemo(() => {
-    const counts: Record<number, number> = {};
-    processedData.forEach((item) => {
-      counts[item.month] = (counts[item.month] || 0) + 1;
-    });
-    // Sort by month
-    const sorted = Object.entries(counts).sort(([a], [b]) => Number(a) - Number(b));
-    return sorted.map(([month, count]) => ({ month: Number(month), count }));
-  }, [processedData]);
+const MonthlyCountsTable: React.FC<{
+  rows: MonthlyCrimeCount[];
+  emptyMessage: string;
+}> = ({ rows, emptyMessage }) => (
+  <div className="overflow-x-auto">
+    <table className="min-w-full table-auto border-collapse">
+      <thead className="bg-gray-100 text-sm">
+        <tr>
+          <th className="px-4 py-2 border text-left">Precinct</th>
+          <th className="px-4 py-2 border text-left">Crime Type</th>
+          <th className="px-4 py-2 border text-left">Month</th>
+          <th className="px-4 py-2 border text-right">Incident Count</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.length > 0 ? rows.map((row) => (
+          <tr
+            key={`${row.precinct}-${row.crimeType}-${row.year}-${row.month}`}
+            className="text-sm"
+          >
+            <td className="px-4 py-2 border">{getPrecinctName(row.precinct)}</td>
+            <td className="px-4 py-2 border">{getCrimeTypeName(row.crimeType)}</td>
+            <td className="px-4 py-2 border">{formatMonth(row.year, row.month)}</td>
+            <td className="px-4 py-2 border text-right">{row.count}</td>
+          </tr>
+        )) : (
+          <tr>
+            <td colSpan={4} className="text-center py-4 text-gray-500">{emptyMessage}</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+);
 
-  // Aggregate by time-of-day
-  const aggregatedByTimeOfDay = useMemo(() => {
+const PreprocessingVisualization: React.FC<PreprocessingVisualizationProps> = ({ clusters }) => {
+  const [view, setView] = useState<PreprocessingView>('raw');
+  const data = useMemo(() => buildTemporalPreprocessingData(clusters), [clusters]);
+
+  const timeOfDayCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    processedData.forEach((item) => {
-      counts[item.timeOfDay] = (counts[item.timeOfDay] || 0) + 1;
+    data.incidents.forEach((incident) => {
+      if (incident.timeOfDay) {
+        counts[incident.timeOfDay] = (counts[incident.timeOfDay] ?? 0) + 1;
+      }
     });
-    return Object.entries(counts).map(([timeOfDay, count]) => ({
-      timeOfDay,
-      count,
-    }));
-  }, [processedData]);
+    return Object.entries(counts).sort(([left], [right]) => left.localeCompare(right));
+  }, [data.incidents]);
 
-  // SSA input format (mirrors backend MachineLearningService expectations)
-  const ssaInput = useMemo(() => {
-    return processedData.map((item) => ({
-      caseId: item.caseId,
-      month: item.month, // 1-12
-      day: item.day,     // 1-31
-      year: item.year,   // e.g. 2024
-      timeOfDay: item.timeOfDay, // 'Morning' | 'Afternoon' | 'Evening'
-      precinct: item.precinct,
-      crimeType: item.crimeType, // int mapping from CrimeTypesDictionary
-      severity: item.severity,
-    }));
-  }, [processedData]);
+  const views: { id: PreprocessingView; label: string }[] = [
+    { id: 'raw', label: 'Analysis Records' },
+    { id: 'aggregated', label: 'Monthly Aggregation' },
+    { id: 'forecast-input', label: 'Monthly Forecast Input' },
+  ];
 
-  if (view === 'raw') {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">Raw Incident Data</h3>
-          <span className="text-sm text-gray-500">{rawData.length} incidents</span>
+  return (
+    <section className="bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="px-6 py-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800">Temporal Preprocessing</h3>
+        <p className="mt-1 text-sm text-gray-600">
+          The records below come from the current analysis result and match the cluster data sent
+          when generating a forecast. The separately loaded full incident dataset is not used for
+          this forecast preview.
+        </p>
+        <div className="mt-4 flex flex-wrap gap-2" aria-label="Preprocessing views">
+          {views.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              aria-pressed={view === item.id}
+              onClick={() => setView(item.id)}
+              className={`rounded-md px-3 py-2 text-sm font-medium transition ${
+                view === item.id
+                  ? 'bg-ubuntu-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
         </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto border-collapse">
-            <thead className="bg-gray-100 text-sm">
-              <tr>
-                <th className="px-4 py-2 border">Case ID</th>
-                <th className="px-4 py-2 border">Month</th>
-                <th className="px-4 py-2 border">Day</th>
-                <th className="px-4 py-2 border">Year</th>
-                <th className="px-4 py-2 border">Time of Day</th>
-                <th className="px-4 py-2 border">Precinct</th>
-                <th className="px-4 py-2 border">Crime Type</th>
-                <th className="px-4 py-2 border">Severity</th>
-                <th className="px-4 py-2 border">Address</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rawData.length > 0 ? (
-                rawData.map((item) => (
-                  <tr key={item.caseId} className="text-sm">
-                    <td className="px-4 py-2 border">{item.caseId}</td>
-                    <td className="px-4 py-2 border">{item.month}</td>
-                    <td className="px-4 py-2 border">{item.day}</td>
-                    <td className="px-4 py-2 border">{item.year}</td>
-                    <td className="px-4 py-2 border">{item.timeOfDay}</td>
-                    <td className="px-4 py-2 border">{item.precinct}</td>
-                    <td className="px-4 py-2 border">{item.crimeType}</td>
-                    <td className="px-4 py-2 border">{item.severity}</td>
-                    <td className="px-4 py-2 border">{item.address}</td>
-                  </tr>
-                ))
-              ) : (
+      </div>
+
+      {data.invalidDateCount > 0 && (
+        <p role="status" className="mx-6 mt-4 rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+          {data.invalidDateCount} record{data.invalidDateCount === 1 ? '' : 's'} with an invalid
+          year or month {data.invalidDateCount === 1 ? 'is' : 'are'} omitted from this monthly
+          preview. The records remain in the analysis input and may cause the backend forecast to
+          fail until corrected.
+        </p>
+      )}
+
+      {view === 'raw' && (
+        <>
+          <div className="px-6 py-3 text-sm text-gray-500">
+            {data.incidents.length} records in the current analysis clusters
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto border-collapse">
+              <thead className="bg-gray-100 text-sm">
                 <tr>
-                  <td colSpan={9} className="text-center py-4 text-gray-500">No incident data available</td>
+                  <th className="px-4 py-2 border text-left">Case ID</th>
+                  <th className="px-4 py-2 border text-left">Year</th>
+                  <th className="px-4 py-2 border text-left">Month</th>
+                  <th className="px-4 py-2 border text-left">Day</th>
+                  <th className="px-4 py-2 border text-left">Time of Day</th>
+                  <th className="px-4 py-2 border text-left">Precinct</th>
+                  <th className="px-4 py-2 border text-left">Crime Type</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
-
-  if (view === 'aggregated') {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">Aggregated Data</h3>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setView('raw')}
-              className="text-ubuntu-600 hover:text-blue-800 transition text-xs"
-            >
-              Raw
-            </button>
-            <button
-              onClick={() => setView('ssa-input')}
-              className="text-ubuntu-600 hover:text-blue-800 transition text-xs"
-            >
-              SSA Input
-            </button>
-            <button
-              onClick={() => setView('aggregated')}
-              className="text-ubuntu-600 hover:text-blue-800 transition text-xs font-medium"
-            >
-              Aggregated
-            </button>
-          </div>
-        </div>
-
-        {/* Aggregated by Month */}
-        <div className="p-4">
-          <h4 className="font-medium text-gray-700 mb-3">By Month</h4>
-          <div className="space-y-2">
-            {aggregatedByMonth.map((item) => (
-              <div key={item.month} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">{item.month}:</span>
-                <span className="font-medium">{item.count} incidents</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Aggregated by Time-of-Day */}
-        <div className="p-4">
-          <h4 className="font-medium text-gray-700 mb-3">By Time of Day</h4>
-          <div className="space-y-2">
-            {aggregatedByTimeOfDay.map((item) => (
-              <div key={item.timeOfDay} className="flex items-center justify-between text-sm">
-                <span className="text-gray-600">{item.timeOfDay}:</span>
-                <span className="font-medium">{item.count} incidents</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (view === 'ssa-input') {
-    return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-800">SSA Input Format</h3>
-          <span className="text-sm text-gray-500">{ssaInput.length} records</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="min-w-full table-auto border-collapse">
-            <thead className="bg-gray-100 text-sm">
-              <tr>
-                <th className="px-4 py-2 border">Case ID</th>
-                <th className="px-4 py-2 border">Month</th>
-                <th className="px-4 py-2 border">Day</th>
-                <th className="px-4 py-2 border">Year</th>
-                <th className="px-4 py-2 border">Time of Day</th>
-                <th className="px-4 py-2 border">Precinct</th>
-                <th className="px-4 py-2 border">Crime Type</th>
-                <th className="px-4 py-2 border">Severity</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ssaInput.length > 0 ? (
-                ssaInput.map((item) => (
-                  <tr key={item.caseId} className="text-sm">
-                    <td className="px-4 py-2 border">{item.caseId}</td>
-                    <td className="px-4 py-2 border">{item.month}</td>
-                    <td className="px-4 py-2 border">{item.day}</td>
-                    <td className="px-4 py-2 border">{item.year}</td>
-                    <td className="px-4 py-2 border">{item.timeOfDay}</td>
-                    <td className="px-4 py-2 border">{item.precinct}</td>
-                    <td className="px-4 py-2 border">{item.crimeType}</td>
-                    <td className="px-4 py-2 border">{item.severity}</td>
+              </thead>
+              <tbody>
+                {data.incidents.length > 0 ? data.incidents.map((incident, index) => (
+                  <tr key={`${incident.caseId}-${index}`} className="text-sm">
+                    <td className="px-4 py-2 border">{incident.caseId}</td>
+                    <td className="px-4 py-2 border">{incident.year || 'Invalid'}</td>
+                    <td className="px-4 py-2 border">{incident.month || 'Invalid'}</td>
+                    <td className="px-4 py-2 border">{incident.day || '—'}</td>
+                    <td className="px-4 py-2 border">{incident.timeOfDay || '—'}</td>
+                    <td className="px-4 py-2 border">{getPrecinctName(incident.precinct)}</td>
+                    <td className="px-4 py-2 border">{getCrimeTypeName(incident.crimeType)}</td>
                   </tr>
-                ))
-              ) : (
-                <tr>
-                  <td colSpan={8} className="text-center py-4 text-gray-500">No SSA input data</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    );
-  }
+                )) : (
+                  <tr>
+                    <td colSpan={7} className="text-center py-4 text-gray-500">
+                      No analysis records available. Run or import an analysis first.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
-  return null;
+      {view === 'aggregated' && (
+        <div className="p-6 space-y-6">
+          <div>
+            <h4 className="font-medium text-gray-800">Observed monthly counts</h4>
+            <p className="mt-1 mb-3 text-sm text-gray-600">
+              One incident contributes one count, grouped by calendar year-month, precinct, and
+              crime type. Rows are ordered chronologically within each series.
+            </p>
+            <MonthlyCountsTable
+              rows={data.aggregatedMonths}
+              emptyMessage="No valid dated analysis records to aggregate."
+            />
+          </div>
+
+          <div>
+            <h4 className="font-medium text-gray-800">Supplemental time-of-day breakdown</h4>
+            <p className="mt-1 mb-3 text-sm text-gray-600">
+              Descriptive counts from the same analysis records; this is separate from the
+              backend&apos;s monthly count series.
+            </p>
+            {timeOfDayCounts.length > 0 ? (
+              <ul className="divide-y divide-gray-100 rounded-md border border-gray-200 px-4">
+                {timeOfDayCounts.map(([timeOfDay, count]) => (
+                  <li key={timeOfDay} className="flex justify-between py-2 text-sm">
+                    <span className="text-gray-600">{timeOfDay}</span>
+                    <span className="font-medium">{count}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-gray-500">No time-of-day values available.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      {view === 'forecast-input' && (
+        <>
+          <div className="px-6 py-4">
+            <h4 className="font-medium text-gray-800">Monthly Forecast Input Preview</h4>
+            <p className="mt-1 text-sm text-gray-600">
+              This model-neutral preview mirrors the backend preprocessing: monthly incident
+              counts grouped by precinct and crime type, sorted by year-month, with missing months
+              between each series&apos; first and last incident filled with zero. The backend,
+              not this view, runs the selected forecasting model.
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              {data.forecastInput.length} monthly values across {data.aggregatedMonths.length > 0
+                ? new Set(data.aggregatedMonths.map(row => `${row.precinct}-${row.crimeType}`)).size
+                : 0} precinct/crime-type series
+            </p>
+          </div>
+          <MonthlyCountsTable
+            rows={data.forecastInput}
+            emptyMessage="No valid dated analysis records are available for the monthly forecast preview."
+          />
+        </>
+      )}
+    </section>
+  );
 };
 
 export default PreprocessingVisualization;

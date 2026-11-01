@@ -255,11 +255,12 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImp
                         <div className="bg-gray-50 rounded-lg p-4 mb-4">
                             <h3 className="font-medium text-gray-800 mb-2">Temporal Preprocessing</h3>
                             <p className="text-sm text-gray-600">
-                                Visualize the raw data → aggregation → SSA input pipeline for crime forecasting.
+                                Follow current analysis records through monthly aggregation and the gap-filled,
+                                model-neutral input preview used by the backend forecast pipeline.
                             </p>
                         </div>
                         <PreprocessingVisualization
-                            incidents={incidents ?? []}
+                            clusters={clusters}
                         />
                     </TabPanel>
                 </TabPanels>
