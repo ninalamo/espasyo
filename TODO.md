@@ -21,11 +21,11 @@
 | F-02 | Replace stale API base URL fallbacks; explicitly report when `NEXT_PUBLIC_API_URL` is unset (the current clients silently use a fallback) | #1 | None | **1** | partial |
 | F-03 | Correct forecast model identity — `list()` labels all runs `Linear`, `getById()` hardcodes `forecastPeriod: 6` / `model: 'ssa'`, `save()` submits `modelType: 'Linear'`; read actual model/horizon/params from persisted data | #12 | None | **3** | done |
 | F-04 | Remove silent localStorage fallback when snapshot endpoint fails; visibly report server-not-persisted; separate local drafts | #12 | None | **2** or **3** | done |
-| F-05 | Frontend geocoding UI — address → coordinates via GIS service (backend endpoint exists; frontend UI/client missing) | #2 | None | **2** | todo |
+| F-05 | Frontend geocoding lookup and incident-coordinate validation — verify address matches on a map and submit returned coordinates when creating an incident | #2 | None | **2** | done |
 | F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | done |
 | F-07 | Full crime incident dataset table with temporal attributes (month, day, year, timeOfDay, precinct, crimeType) | #6 | None | **2** | done |
 | F-08 | Align temporal preprocessing visualization with the actual backend forecast aggregation and input (monthly counts by precinct/crime type) | #7 | None | **2** | done |
-| F-09 | Dedicated hotspots → crime prevention recommendations summary screen | #10 | None (recommendations only; manpower allocation remains separate) | **2** (unblocked per GA-01 decisions) | done |
+| F-09 | Dedicated hotspot recommendations screen; match forecast series to source incidents by precinct/crime type and handle empty results | #10 | None (recommendations only; manpower allocation remains separate) | **2** (unblocked per GA-01 decisions) | done |
 | F-10 | High-risk time periods + action plan screen (aggregate risk levels into time periods) | #11 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
 
 **Status key (calibration items):** `done` = verified complete; `partial` = some criterion remains incomplete; `todo` = not implemented.
@@ -58,7 +58,7 @@
 | # | Figure requirement | Status | GA-01 | GA-05 | Step |
 |---|-------------------|--------|-------|-------|------|
 | 1 | Secured login module - controlled access, protected crime data | INCORRECT (API data access is not enforced server-side; frontend route guards and optional bearer headers do not protect unannotated controllers) | - | - | 3 |
-| 2 | Geocoding process — addresses → coordinates via GIS | MISSING (backend endpoint exists; no frontend UI/client) | — | — | 2 |
+| 2 | Geocoding process — addresses → coordinates via GIS | CORRECT (authenticated frontend lookup uses the existing API; incident entry can validate the matched address and submit its returned coordinates) | — | — | 2 |
 | 3 | Crime data upload module — import police reports | CORRECT | No | No | 1 |
 | 4 | Distribution of crime incidents by time of day | CORRECT (raw counts, barangay-only, k-value pending) | Yes (decisions recorded) | No | 2 |
 | 5 | Temporal filtering — analyze trends across selected periods | CORRECT | No | No | 2 |
@@ -66,7 +66,7 @@
 | 7 | Temporal data preprocessing & transformation | CORRECT (Preprocessing tab shows current analysis records, observed counts grouped by calendar year-month/precinct/crime type, and a model-neutral monthly input preview with backend-equivalent chronological ordering and zero-filled gaps) | No | No | 2 |
 | 8 | Crime hotspot map filtered by selected time period | CORRECT | No | No | 2 |
 | 9 | Generated temporal analysis report | CORRECT | No | No | 2 |
-| 10 | Summary of identified hotspots → crime prevention recommendations | CORRECT (dedicated screen shows API risk summary, recommendations, and hotspot details; no personnel allocation) | Yes (decisions recorded) | Separate allocation remains gated | 2 |
+| 10 | Summary of identified hotspots → crime prevention recommendations | CORRECT (dedicated screen shows API risk summary, recommendations, and hotspot details; backend matches forecast series to source incidents by precinct/crime type; empty results handled explicitly; no personnel allocation) | Yes (decisions recorded) | Separate allocation remains gated | 2 |
 | 11 | High-risk time periods + action plan | CORRECT (count + heinous weight; action plan = manpower basis) | Yes (decisions recorded) | Yes (patrol allocation: yes but not alone) | 2 / 4 |
 | 12 | Sample prediction / forecasted crime pattern | INCORRECT (SSA vs. regression model mismatch) | Yes (deferred to post-initial phase) | No | 3 |
 

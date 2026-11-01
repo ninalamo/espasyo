@@ -10,4 +10,6 @@ export interface AddIncidentDto {
   weather: number;
   precinctId: string;
   additionalInfo: string;
+  latitude?: number;
+  longitude?: number;
 }

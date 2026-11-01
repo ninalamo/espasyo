@@ -65,6 +65,12 @@ const navigationGroups: NavigationGroup[] = [
           href: '/precincts',
           icon: MapPin,
           description: 'Manage precinct details'
+        },
+        {
+          name: 'Geocoding',
+          href: '/geocoding',
+          icon: MapPin,
+          description: 'Validate address coordinates'
         }
       ]
     }
