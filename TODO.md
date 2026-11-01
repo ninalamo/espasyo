@@ -24,7 +24,7 @@
 | F-05 | Geocoding UI — address → coordinates via GIS service | #2 | None | **2** | done |
 | F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | done |
 | F-07 | Full crime incident dataset table with temporal attributes (month, day, year, timeOfDay, precinct, crimeType) | #6 | None | **2** | done |
-| F-08 | Temporal data preprocessing & transformation visualization (raw → aggregated → SSA input) | #7 | None | **2** | todo |
+| F-08 | Temporal data preprocessing & transformation visualization (raw → aggregated → SSA input) | #7 | None | **2** | done |
 | F-09 | Dedicated hotspots → crime prevention recommendations summary screen | #10 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
 | F-10 | High-risk time periods + action plan screen (aggregate risk levels into time periods) | #11 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
 
@@ -61,7 +61,7 @@
 | 4 | Distribution of crime incidents by time of day | CORRECT (raw counts, barangay-only, k-value pending) | Yes (decisions recorded) | No | 2 |
 | 5 | Temporal filtering — analyze trends across selected periods | CORRECT | No | No | 2 |
 | 6 | Crime incident dataset with temporal attributes | CORRECT (full incident dataset table with month/day/year/timeOfDay/precinct/crimeType columns added as Dataset tab in Analysis module; temporal attributes decomposed client-side mirroring backend Incident.GetTimeOfDay/GetYear/GetMonth) | No | No | 2 |
-| 7 | Temporal data preprocessing & transformation | INCORRECT (text explanation only, no visual pipeline) | No | No | 2 |
+| 7 | Temporal data preprocessing & transformation | CORRECT (Preprocessing tab in Analysis module with three views: Raw Data (incidents with temporal attributes), Aggregated Data (counts by month/time-of-day), and SSA Input Format (records formatted for MachineLearningService forecasting)); mirrors backend Incident.GetTimeOfDay/GetYear/GetMonth logic (Incident.cs:79-88) and MachineLearningService expectations) | No | No | 2 |
 | 8 | Crime hotspot map filtered by selected time period | CORRECT | No | No | 2 |
 | 9 | Generated temporal analysis report | CORRECT | No | No | 2 |
 | 10 | Summary of identified hotspots → crime prevention recommendations | CORRECT (output w/ manpower allocation) | Yes (decisions recorded) | Yes (patrol allocation model) | 2 / 4 |
