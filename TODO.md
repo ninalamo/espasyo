@@ -19,8 +19,8 @@
 |----|------|---------|------------|------|--------|
 | F-01 | Attach Bearer token to `forecastApi.ts` and `manpowerApi.ts` (currently raw `fetch`, no auth header) | #1 | None | **3** | todo |
 | F-02 | Fix stale API base URL fallback `https://localhost:7007/api` in `apiConfig.ts`, `forecastApi.ts`, `manpowerApi.ts`; surface missing config explicitly | #1 | None | **1** | todo |
-| F-03 | Correct forecast model identity — `list()` labels all runs `Linear`, `getById()` hardcodes `forecastPeriod: 6` / `model: 'ssa'`, `save()` submits `modelType: 'Linear'`; read actual model/horizon/params from persisted data | #12 | None | **3** | todo |
-| F-04 | Remove silent localStorage fallback when snapshot endpoint fails; visibly report server-not-persisted; separate local drafts | #12 | None | **2** or **3** | todo |
+| F-03 | Correct forecast model identity — `list()` labels all runs `Linear`, `getById()` hardcodes `forecastPeriod: 6` / `model: 'ssa'`, `save()` submits `modelType: 'Linear'`; read actual model/horizon/params from persisted data | #12 | None | **3** | done |
+| F-04 | Remove silent localStorage fallback when snapshot endpoint fails; visibly report server-not-persisted; separate local drafts | #12 | None | **2** or **3** | done |
 | F-05 | Geocoding UI — address → coordinates via GIS service | #2 | None | **2** | todo |
 | F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | todo |
 | F-07 | Full crime incident dataset table with temporal attributes (month, day, year, timeOfDay, precinct, crimeType) | #6 | None | **2** | todo |
