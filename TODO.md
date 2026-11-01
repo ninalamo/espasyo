@@ -17,12 +17,12 @@
 
 | ID | Item | Figures | Depends on | Step | Status |
 |----|------|---------|------------|------|--------|
-| F-01 | Attach Bearer token to `forecastApi.ts` and `manpowerApi.ts` (currently raw `fetch`, no auth header) | #1 | None | **3** | todo |
-| F-02 | Fix stale API base URL fallback `https://localhost:7007/api` in `apiConfig.ts`, `forecastApi.ts`, `manpowerApi.ts`; surface missing config explicitly | #1 | None | **1** | todo |
+| F-01 | Attach Bearer token to `forecastApi.ts` and `manpowerApi.ts` (currently raw `fetch`, no auth header) | #1 | None | **3** | done |
+| F-02 | Fix stale API base URL fallback `https://localhost:7007/api` in `apiConfig.ts`, `forecastApi.ts`, `manpowerApi.ts`; surface missing config explicitly | #1 | None | **1** | done |
 | F-03 | Correct forecast model identity — `list()` labels all runs `Linear`, `getById()` hardcodes `forecastPeriod: 6` / `model: 'ssa'`, `save()` submits `modelType: 'Linear'`; read actual model/horizon/params from persisted data | #12 | None | **3** | done |
 | F-04 | Remove silent localStorage fallback when snapshot endpoint fails; visibly report server-not-persisted; separate local drafts | #12 | None | **2** or **3** | done |
-| F-05 | Geocoding UI — address → coordinates via GIS service | #2 | None | **2** | todo |
-| F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | todo |
+| F-05 | Geocoding UI — address → coordinates via GIS service | #2 | None | **2** | done |
+| F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | in_progress |
 | F-07 | Full crime incident dataset table with temporal attributes (month, day, year, timeOfDay, precinct, crimeType) | #6 | None | **2** | todo |
 | F-08 | Temporal data preprocessing & transformation visualization (raw → aggregated → SSA input) | #7 | None | **2** | todo |
 | F-09 | Dedicated hotspots → crime prevention recommendations summary screen | #10 | GA-01 (GA-05 patrol allocation) | **2** (now unblocked per GA-01 decisions) | todo |
@@ -49,7 +49,7 @@
 - Files are mirrored at workspace root and inside both `espasyo/` and `nin-architecture/`.
 - Only one item may be active at a time. When an item is complete, move it from active to dead and update TODO.md status.
 
-**Current active step:** Step 1 — Bulk Upload / Insert (Figure #3). All subsequent steps (2–4) are queued pending completion of the prior step.
+**Current active step:** Step 2 — Analysis Module. Active sub-task: F-06 — Time-of-day distribution chart (Figure #4). F-05 (Geocoding UI) is complete.
 
 ***Figure Status (all 12 vs. study objectives RQ1–RQ5)***
 
