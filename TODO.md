@@ -23,7 +23,7 @@
 | F-04 | Remove silent localStorage fallback when snapshot endpoint fails; visibly report server-not-persisted; separate local drafts | #12 | None | **2** or **3** | done |
 | F-05 | Frontend geocoding lookup and incident-coordinate validation — verify address matches on a map and submit returned coordinates when creating an incident | #2 | None | **2** | done |
 | F-06 | Time-of-day distribution chart (standalone view of all incidents by Morning/Afternoon/Evening) | #4 | None | **2** | done |
-| F-07 | Show crime incident temporal attributes within Preprocessing; no redundant separate Dataset tab | #6 | None | **2** | done |
+| F-07 | Show searchable, filterable crime incident temporal attributes within Preprocessing; export all filtered analysis records as CSV without a separate Dataset tab | #6 | None | **2** | done |
 | F-08 | Align temporal preprocessing visualization with the actual backend forecast aggregation and input (monthly counts by precinct/crime type) | #7 | None | **2** | done |
 | F-09 | Dedicated hotspot recommendations screen; match forecast series to source incidents by precinct/crime type and handle empty results | #10 | None (recommendations only; manpower allocation remains separate) | **2** (unblocked per GA-01 decisions) | done |
 | F-10 | Unified Analysis-launched Forecast workflow with backend-generated monthly projected volume by existing risk band, available for saved forecasts; separate spatial hotspot recommendations | #11 | GA-01 decisions recorded; GA-05 patrol allocation remains separately gated | **2** | done |
@@ -62,7 +62,7 @@
 | 3 | Crime data upload module — import police reports | CORRECT | No | No | 1 |
 | 4 | Distribution of crime incidents by time of day | CORRECT (raw counts, barangay-only, k-value pending) | Yes (decisions recorded) | No | 2 |
 | 5 | Temporal filtering — analyze trends across selected periods | CORRECT | No | No | 2 |
-| 6 | Crime incident dataset with temporal attributes | CORRECT (Preprocessing Analysis Records view shows month/day/year/timeOfDay/precinct/crimeType for the same current analysis clusters; no redundant separate Dataset tab) | No | No | 2 |
+| 6 | Crime incident dataset with temporal attributes | CORRECT (Preprocessing Analysis Records view shows month/day/year/timeOfDay/precinct/crimeType for current analysis clusters; supports case/precinct/crime-type search, time/month/year filters, pagination, and CSV export of all filtered records; no separate Dataset tab) | No | No | 2 |
 | 7 | Temporal data preprocessing & transformation | CORRECT (Preprocessing tab shows current analysis records, observed counts grouped by calendar year-month/precinct/crime type, and a model-neutral monthly input preview with backend-equivalent chronological ordering and zero-filled gaps) | No | No | 2 |
 | 8 | Crime hotspot map filtered by selected time period | CORRECT | No | No | 2 |
 | 9 | Generated temporal analysis report | CORRECT | No | No | 2 |

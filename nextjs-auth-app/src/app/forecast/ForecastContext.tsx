@@ -236,11 +236,12 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const saveCurrentForecast = useCallback(async (name: string): Promise<string | null> => {
     try {
       const session = await getSession();
+      const effectiveParams = forecast?.params ?? forecastParams;
       name = `${name}${buildNameSuffix(forecastData)}`;
       const snapshot = {
         name,
-        forecastPeriod: forecastData.length > 0 ? new Date(Math.max(...forecastData.map(f => new Date(f.year, f.month).getTime()))).getMonth() - new Date().getMonth() + 1 : 6,
-        params: { forecastPeriod: 6, model: 'ssa' as const, confidence: 0.95, includeSeasonality: true, weightRecentData: true },
+        forecastPeriod: effectiveParams.forecastPeriod,
+        params: { ...effectiveParams, model: effectiveParams.model || 'ssa' },
         predictions: forecastData,
         metrics: forecastMetrics,
         clusterData: clusters.map(c => ({
@@ -259,7 +260,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         metadata: {
           totalClusters: clusters.length,
           totalPredictions: forecastData.length,
-          activeModel: 'SSA',
+          activeModel: effectiveParams.model || 'ssa',
           precincts: [...new Set(forecastData.map(f => f.precinct))],
           crimeTypes: [...new Set(forecastData.map(f => f.crimeType))],
         },
@@ -275,7 +276,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       toast.error(`Failed to save forecast: ${err.message}`);
       return null;
     }
-  }, [forecastData, clusters, historicalData, forecastMetrics, spatialData, seasonalPredictions, apiResponse]);
+  }, [forecast, forecastData, forecastParams, clusters, historicalData, forecastMetrics, spatialData, seasonalPredictions, apiResponse]);
 
   const clearForecast = useCallback(() => {
     setForecast(null);
@@ -303,7 +304,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     loading, forecastId, forecast, clusters, historicalData,
     forecastData, forecastMetrics, spatialData, seasonalPredictions, apiResponse,
     extendedForecastData, forecastMapPoints,
-    activeModelLabel: 'Linear', dataQuality,
+    activeModelLabel: forecast?.params?.model || forecastParams.model || 'ssa', dataQuality,
     analysisLoaded, forecastParams,
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   }), [
