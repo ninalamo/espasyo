@@ -9,6 +9,7 @@ import { Tab, TabGroup, TabList, TabPanel, TabPanels } from '@headlessui/react';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import { BarangayMonthlyChart } from '../../components/BarangayMonthlyChart';
 import { CrimeTrendChart } from '../../components/CrimeTrendChart';
+import { TimeOfDayDistributionChart } from '../../components/TimeOfDayDistributionChart';
 
 const parseCsvRow = (line: string): string[] => {
     const values: string[] = [];
@@ -164,6 +165,7 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImp
                         { key: 'Map', label: 'Spatial', icon: '🗺️' },
                         { key: 'Trend Chart', label: 'Temporal', icon: '📈' },
                         { key: 'Monthly Chart', label: 'Seasonal', icon: '🌙' },
+                        { key: 'Time of Day', label: 'Time of Day', icon: '⏰' },
                     ].map(tab => (
                         <Tab
                             key={tab.key}
@@ -216,6 +218,16 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImp
                                 Afternoon: '#36A2EB',
                                 Evening: '#FF6384',
                             }}
+                        />
+                    </TabPanel>
+
+                    <TabPanel className="p-6">
+                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                            <h3 className="font-medium text-gray-800 mb-2">Time-of-Day Distribution</h3>
+                            <p className="text-sm text-gray-600">All incidents aggregated by Morning, Afternoon, and Evening.</p>
+                        </div>
+                        <TimeOfDayDistributionChart
+                            items={clusters.flatMap((c) => c.clusterItems)}
                         />
                     </TabPanel>
                 </TabPanels>
