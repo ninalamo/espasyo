@@ -10,8 +10,6 @@ import 'react-toastify/dist/ReactToastify.css';
 import { format, subMonths, subDays } from 'date-fns';
 import { ClusterGroupResponse, Cluster, BarangayDataItem, ClustedDataTableRow } from '../../types/analysis/ClusterDto';
 import { ErrorDto } from '../../types/ErrorDto';
-import { IncidentDto } from '../../types/crime-record/IncidentDto';
-import { CrimeListItemDto } from '../../types/crime-record/CrimeListItemDto';
 import { clusterColorsMapping } from '../../types/ClusterColorsMapping';
 import { GetPrecinctsDictionary, CrimeTypesDictionary } from '../../constants/consts';
 import QueryBar from './QueryBar';
@@ -34,8 +32,6 @@ const AnalysisPage = () => {
   const [numberOfRuns, setNumberOfRuns] = useState(1);
   const [filterState, setFilterState] = useState<FilterState>(initialFilterState);
   const [isImported, setIsImported] = useState(false);
-  const [incidents, setIncidents] = useState<IncidentDto[]>([]);
-  const [incidentsLoading, setIncidentsLoading] = useState(false);
 
   // Load existing analysis data from localStorage on component mount
   useEffect(() => {
@@ -148,44 +144,6 @@ const AnalysisPage = () => {
       setLoading(false);
     }
   }, [dateFrom, dateTo, selectedFeatures, numberOfClusters, numberOfRuns, buildFilters]);
-
-  // Fetch the full crime incident dataset (all pages) and decompose temporal
-  // attributes client-side (month, day, year, timeOfDay, precinct). Mirrors the
-  // backend Incident.GetTimeOfDay / GetYear / GetMonth logic (Incident.cs:79-88).
-  const fetchIncidents = useCallback(async () => {
-    setIncidentsLoading(true);
-    setIncidents([]);
-    try {
-      const pageSize = 500;
-      let pageNumber = 1;
-      let hasNextPage = true;
-      const allItems: IncidentDto[] = [];
-
-      while (hasNextPage) {
-        const result = await apiService.get<CrimeListItemDto>(
-          `/incident?search=&pageNumber=${pageNumber}&pageSize=${pageSize}`
-        );
-        allItems.push(...(result.items || []));
-        hasNextPage = Boolean(result.hasNextPage);
-        pageNumber += 1;
-      }
-
-      setIncidents(allItems);
-      toast.success(`Loaded ${allItems.length} incidents into the dataset table.`);
-    } catch (err: any) {
-      toast.error(`Failed to load incident dataset. ${err.message}`);
-      setIncidents([]);
-    } finally {
-      setIncidentsLoading(false);
-    }
-  }, []);
-
-  // Kick off incident dataset load whenever the analysis runs (date range is set).
-  useEffect(() => {
-    if (dateFrom && dateTo) {
-      fetchIncidents();
-    }
-  }, [dateFrom, dateTo, fetchIncidents]);
 
   const handleImportData = useCallback((data: any) => {
     if (!data.clusters || !Array.isArray(data.clusters)) {
@@ -585,7 +543,7 @@ const AnalysisPage = () => {
                 </svg>
                 Analysis Results
               </h2>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-wrap items-center gap-2">
                 <div className="text-sm text-gray-500">
                   Generated {clusters.length} clusters • {clusters.reduce((sum, c) => sum + (c.clusterCount || 0), 0)} total cases
                 </div>
@@ -597,14 +555,14 @@ const AnalysisPage = () => {
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Use for Forecasting
+                  Forecast
                 </Link>
                 <Link
                   href="/analysis/recommendations"
                   className="bg-amber-100 text-amber-800 px-3 py-1 rounded-md hover:bg-amber-200 transition text-sm flex items-center"
                   title="Generate hotspot prevention recommendations from these clusters"
                 >
-                  Hotspot Recommendations
+                  Hotspot Recommendation
                 </Link>
                 <button
                   onClick={clearAnalysisData}
@@ -672,8 +630,6 @@ const AnalysisPage = () => {
         mapKey={mapKey}
         analysisParams={lastAnalysisParams}
         onImport={handleImportData}
-        incidents={incidents}
-        incidentsLoading={incidentsLoading}
       />
 
     </div>

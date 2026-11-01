@@ -14,7 +14,7 @@ const ForecastMap = dynamic(() => import('../../../../components/ForecastMap'), 
 import { ForecastTrendChart } from '../../../../components/ForecastTrendChart';
 
 export default function OverviewPage() {
-  const { forecastData, forecastParams, historicalData, forecastId, loading, spatialData, apiResponse } = useForecast();
+  const { forecast, forecastData, forecastParams, historicalData, forecastId, loading, spatialData, apiResponse } = useForecast();
 
   if (loading || forecastData.length === 0) {
     return (
@@ -51,6 +51,49 @@ export default function OverviewPage() {
           Build Manpower Plan
         </Link>
       </div>
+
+      <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900">Monthly forecasted risk bands</h2>
+        <p className="mt-1 text-sm text-gray-600">
+          Projected incident volume grouped by the backend-assigned forecast risk label. These are projections, not observed incidents.
+        </p>
+        {forecast?.monthlyRiskPeriods?.length ? (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase text-gray-600">
+                <tr>
+                  <th scope="col" className="px-4 py-3">Month</th>
+                  <th scope="col" className="px-4 py-3">Projected incidents</th>
+                  <th scope="col" className="px-4 py-3">Low</th>
+                  <th scope="col" className="px-4 py-3">Medium</th>
+                  <th scope="col" className="px-4 py-3">High</th>
+                  <th scope="col" className="px-4 py-3">Critical</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {forecast.monthlyRiskPeriods.map(period => (
+                  <tr key={`${period.year}-${String(period.month).padStart(2, '0')}`}>
+                    <th scope="row" className="whitespace-nowrap px-4 py-3 font-medium text-gray-900">
+                      {new Date(Date.UTC(period.year, period.month - 1, 1)).toLocaleDateString(undefined, {
+                        month: 'long',
+                        year: 'numeric',
+                        timeZone: 'UTC',
+                      })}
+                    </th>
+                    <td className="px-4 py-3">{period.projectedIncidents.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-3">{period.forecastByRiskLevel.low.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-3">{period.forecastByRiskLevel.medium.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-3">{period.forecastByRiskLevel.high.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                    <td className="px-4 py-3">{period.forecastByRiskLevel.critical.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-gray-500">No backend monthly risk summary is available for this forecast.</p>
+        )}
+      </section>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <TabGroup>

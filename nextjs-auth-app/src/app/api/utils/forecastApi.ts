@@ -1,4 +1,5 @@
 import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
+import type { MonthlyForecastRiskPeriodDto } from '../../../types/analysis/RiskPeriodsDto';
 import { getSession } from 'next-auth/react';
 
 const FORECAST_NAMES_KEY = 'forecastCustomNames';
@@ -118,6 +119,7 @@ interface SaveForecastSnapshotResponse {
   name: string;
   createdAt: string;
   totalPredictions: number;
+  monthlyRiskPeriods: MonthlyForecastRiskPeriodDto[];
 }
 
 interface ForecastResultDto {
@@ -201,7 +203,10 @@ class ForecastApiService {
     try {
       const runsResponse = await this.fetchApi<GetForecastRunsResponse>('/ForecastRun');
       const run = runsResponse.runs.find(r => r.id === id);
-      const results = await this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`);
+      const [results, monthlyRiskPeriods] = await Promise.all([
+        this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`),
+        this.fetchApi<MonthlyForecastRiskPeriodDto[]>(`/ForecastRun/${id}/monthly-risk-periods`),
+      ]);
 
       const forecastPeriod = run?.horizon ?? 6;
       const modelType = run?.modelType ?? 'ssa';
@@ -221,11 +226,12 @@ class ForecastApiService {
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
           crimeType: toCrimeTypeInt(r.crimeType),
           shift: (r.shift === 'Morning' || r.shift === 'Afternoon' || r.shift === 'Evening' ? r.shift : undefined) as ForecastData['shift'],
-          predictedCount: Math.max(0, Math.round(r.predictedValue)),
+          predictedCount: Math.max(0, r.predictedValue),
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
         })),
+        monthlyRiskPeriods,
         params: {
           forecastPeriod,
           model: modelType,
@@ -308,6 +314,7 @@ class ForecastApiService {
           createdAt: response.createdAt,
           forecastPeriod: data.forecastPeriod,
           predictions: data.predictions,
+          monthlyRiskPeriods: response.monthlyRiskPeriods,
           metrics: data.metrics,
           params: data.params,
           spatialData: data.spatialData,
@@ -367,7 +374,7 @@ class ForecastApiService {
           precinct: BARANGAY_NAME_TO_INT[r.precinct] ?? 0,
           crimeType: toCrimeTypeInt(r.crimeType),
           shift: (r.shift === 'Morning' || r.shift === 'Afternoon' || r.shift === 'Evening' ? r.shift : undefined) as ForecastData['shift'],
-          predictedCount: Math.max(0, Math.round(r.predictedValue)),
+          predictedCount: Math.max(0, r.predictedValue),
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
@@ -420,5 +427,3 @@ class ForecastApiService {
 }
 
 export const forecastApi = new ForecastApiService();
-
-

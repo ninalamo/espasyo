@@ -8,6 +8,9 @@ import {
   MonthlyCrimeCount,
 } from '../utils/temporalPreprocessing';
 
+const PAGE_SIZE_OPTIONS = [25, 50, 100];
+const ALL_TIMES = ['Morning', 'Afternoon', 'Evening'] as const;
+
 interface PreprocessingVisualizationProps {
   clusters: Cluster[];
 }
@@ -60,7 +63,56 @@ const MonthlyCountsTable: React.FC<{
 
 const PreprocessingVisualization: React.FC<PreprocessingVisualizationProps> = ({ clusters }) => {
   const [view, setView] = useState<PreprocessingView>('raw');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [timeFilter, setTimeFilter] = useState<'' | typeof ALL_TIMES[number]>('');
+  const [monthFilter, setMonthFilter] = useState<number[]>([]);
+  const [yearFilter, setYearFilter] = useState<number[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
   const data = useMemo(() => buildTemporalPreprocessingData(clusters), [clusters]);
+
+  const allMonths = useMemo(
+    () => Array.from(new Set(data.incidents.map(incident => incident.month))).sort((a, b) => a - b),
+    [data.incidents]
+  );
+  const allYears = useMemo(
+    () => Array.from(new Set(data.incidents.map(incident => incident.year))).sort((a, b) => a - b),
+    [data.incidents]
+  );
+  const filteredIncidents = useMemo(() => {
+    const term = searchTerm.trim().toLocaleLowerCase();
+    return data.incidents.filter(incident => {
+      if (timeFilter && incident.timeOfDay !== timeFilter) return false;
+      if (monthFilter.length > 0 && !monthFilter.includes(incident.month)) return false;
+      if (yearFilter.length > 0 && !yearFilter.includes(incident.year)) return false;
+      if (!term) return true;
+
+      return incident.caseId.toLocaleLowerCase().includes(term)
+        || getPrecinctName(incident.precinct).toLocaleLowerCase().includes(term)
+        || getCrimeTypeName(incident.crimeType).toLocaleLowerCase().includes(term);
+    });
+  }, [data.incidents, monthFilter, searchTerm, timeFilter, yearFilter]);
+
+  const pageCount = Math.max(1, Math.ceil(filteredIncidents.length / pageSize));
+  const currentPageRows = useMemo(() => {
+    const safePage = Math.min(currentPage, pageCount);
+    const start = (safePage - 1) * pageSize;
+    return filteredIncidents.slice(start, start + pageSize);
+  }, [currentPage, filteredIncidents, pageCount, pageSize]);
+
+  const toggleMonth = (month: number) => {
+    setMonthFilter(current => current.includes(month)
+      ? current.filter(value => value !== month)
+      : [...current, month]);
+    setCurrentPage(1);
+  };
+
+  const toggleYear = (year: number) => {
+    setYearFilter(current => current.includes(year)
+      ? current.filter(value => value !== year)
+      : [...current, year]);
+    setCurrentPage(1);
+  };
 
   const timeOfDayCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -77,6 +129,32 @@ const PreprocessingVisualization: React.FC<PreprocessingVisualizationProps> = ({
     { id: 'aggregated', label: 'Monthly Aggregation' },
     { id: 'forecast-input', label: 'Monthly Forecast Input' },
   ];
+
+  const exportAnalysisRecords = () => {
+    const escapeCsv = (value: string | number) => {
+      const text = String(value);
+      return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+    };
+    const headers = ['Case ID', 'Year', 'Month', 'Day', 'Time of Day', 'Precinct', 'Crime Type'];
+    const rows = filteredIncidents.map((incident) => [
+      incident.caseId,
+      incident.year || 'Invalid',
+      incident.month || 'Invalid',
+      incident.day || '—',
+      incident.timeOfDay || '—',
+      getPrecinctName(incident.precinct),
+      getCrimeTypeName(incident.crimeType),
+    ].map(escapeCsv).join(','));
+    const blob = new Blob([[headers.join(','), ...rows].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analysis-records-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <section className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -117,8 +195,100 @@ const PreprocessingVisualization: React.FC<PreprocessingVisualizationProps> = ({
 
       {view === 'raw' && (
         <>
-          <div className="px-6 py-3 text-sm text-gray-500">
-            {data.incidents.length} records in the current analysis clusters
+          <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-3">
+            <p className="text-sm text-gray-500">
+              Showing {filteredIncidents.length} of {data.incidents.length} analysis records
+            </p>
+            <button
+              type="button"
+              onClick={exportAnalysisRecords}
+              disabled={filteredIncidents.length === 0}
+              className="rounded-md bg-ubuntu-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-ubuntu-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Export filtered records as CSV
+            </button>
+          </div>
+          <div className="mx-6 mb-4 space-y-4 rounded-md border border-gray-200 p-4">
+            <div className="flex flex-col gap-4 sm:flex-row">
+              <div className="flex-1">
+                <label htmlFor="analysis-record-search" className="mb-1 block text-sm font-medium">Search</label>
+                <input
+                  id="analysis-record-search"
+                  type="search"
+                  value={searchTerm}
+                  onChange={event => {
+                    setSearchTerm(event.target.value);
+                    setCurrentPage(1);
+                  }}
+                  placeholder="Case ID, precinct, or crime type"
+                  className="w-full rounded border px-3 py-2 text-sm"
+                />
+              </div>
+              <div className="sm:w-56">
+                <label htmlFor="analysis-record-time-filter" className="mb-1 block text-sm font-medium">Time of Day</label>
+                <select
+                  id="analysis-record-time-filter"
+                  value={timeFilter}
+                  onChange={event => {
+                    setTimeFilter(event.target.value as '' | typeof ALL_TIMES[number]);
+                    setCurrentPage(1);
+                  }}
+                  className="w-full rounded border px-3 py-2 text-sm"
+                >
+                  <option value="">All times</option>
+                  {ALL_TIMES.map(time => <option key={time} value={time}>{time}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <fieldset>
+                <legend className="mb-1 text-sm font-medium">Filter by Month</legend>
+                <div className="flex flex-wrap gap-1">
+                  {allMonths.map(month => (
+                    <button
+                      key={month}
+                      type="button"
+                      aria-pressed={monthFilter.includes(month)}
+                      onClick={() => toggleMonth(month)}
+                      className={`rounded border px-2 py-1 text-sm ${monthFilter.includes(month) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
+                    >
+                      {month}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+              <fieldset>
+                <legend className="mb-1 text-sm font-medium">Filter by Year</legend>
+                <div className="flex flex-wrap gap-1">
+                  {allYears.map(year => (
+                    <button
+                      key={year}
+                      type="button"
+                      aria-pressed={yearFilter.includes(year)}
+                      onClick={() => toggleYear(year)}
+                      className={`rounded border px-2 py-1 text-sm ${yearFilter.includes(year) ? 'bg-ubuntu-500 text-white' : 'bg-white'}`}
+                    >
+                      {year}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            </div>
+            {(searchTerm || timeFilter || monthFilter.length > 0 || yearFilter.length > 0) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setTimeFilter('');
+                  setMonthFilter([]);
+                  setYearFilter([]);
+                  setCurrentPage(1);
+                }}
+                className="text-sm font-medium text-ubuntu-700 hover:text-ubuntu-900"
+              >
+                Clear filters
+              </button>
+            )}
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full table-auto border-collapse">
@@ -134,7 +304,7 @@ const PreprocessingVisualization: React.FC<PreprocessingVisualizationProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {data.incidents.length > 0 ? data.incidents.map((incident, index) => (
+                {currentPageRows.length > 0 ? currentPageRows.map((incident, index) => (
                   <tr key={`${incident.caseId}-${index}`} className="text-sm">
                     <td className="px-4 py-2 border">{incident.caseId}</td>
                     <td className="px-4 py-2 border">{incident.year || 'Invalid'}</td>
@@ -147,12 +317,45 @@ const PreprocessingVisualization: React.FC<PreprocessingVisualizationProps> = ({
                 )) : (
                   <tr>
                     <td colSpan={7} className="text-center py-4 text-gray-500">
-                      No analysis records available. Run or import an analysis first.
+                      {data.incidents.length === 0
+                        ? 'No analysis records available. Run or import an analysis first.'
+                        : 'No records match the current search and filters.'}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-3 px-6 py-4">
+            <label htmlFor="analysis-record-page-size" className="text-sm">Rows per page</label>
+            <select
+              id="analysis-record-page-size"
+              value={pageSize}
+              onChange={event => {
+                setPageSize(Number(event.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded border px-2 py-1 text-sm"
+            >
+              {PAGE_SIZE_OPTIONS.map(size => <option key={size} value={size}>{size}</option>)}
+            </select>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.max(1, page - 1))}
+              disabled={currentPage <= 1}
+              className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm">Page {Math.min(currentPage, pageCount)} of {pageCount}</span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage(page => Math.min(pageCount, page + 1))}
+              disabled={currentPage >= pageCount}
+              className="rounded border px-3 py-1 text-sm disabled:opacity-50"
+            >
+              Next
+            </button>
           </div>
         </>
       )}

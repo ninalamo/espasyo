@@ -8,6 +8,10 @@ import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import type { Cluster } from '../../../types/analysis/ClusterDto';
 import type { ForecastData, ForecastMetrics, ForecastParams } from '../../../types/forecast/ForecastBaseTypes';
+import type {
+  MonthlyForecastRiskPeriodDto,
+  StatisticalForecastResponseDto,
+} from '../../../types/analysis/RiskPeriodsDto';
 import { format } from 'date-fns';
 import { CrimeTypesDictionary, GetPrecinctsDictionary } from '../../../constants/consts';
 import { apiService } from '../../api/utils/apiService';
@@ -47,9 +51,10 @@ export default withAuth(function NewForecastPage() {
 
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
   const [forecastMetrics, setForecastMetrics] = useState<ForecastMetrics | null>(null);
+  const [monthlyRiskPeriods, setMonthlyRiskPeriods] = useState<MonthlyForecastRiskPeriodDto[]>([]);
+  const [forecastRecommendations, setForecastRecommendations] = useState<string[]>([]);
   const [spatialData, setSpatialData] = useState<any[]>([]);
   const [seasonalPredictions, setSeasonalPredictions] = useState<any[]>([]);
-  const [rawApiResponse, setRawApiResponse] = useState<any>(null);
   const [historicalData, setHistoricalData] = useState<any[]>([]);
 
   const [forecastName, setForecastName] = useState('');
@@ -62,6 +67,7 @@ export default withAuth(function NewForecastPage() {
         const data = JSON.parse(saved);
         setClusters(data);
         setAnalysisLoaded(true);
+        if (Array.isArray(data) && data.length > 0) setStep('configure');
       } catch {}
     }
 
@@ -71,6 +77,7 @@ export default withAuth(function NewForecastPage() {
           const data = JSON.parse(e.newValue);
           setClusters(data);
           setAnalysisLoaded(true);
+          if (Array.isArray(data) && data.length > 0) setStep('configure');
           toast.success('New analysis data detected');
           setStep('configure');
         } catch {}
@@ -152,9 +159,25 @@ export default withAuth(function NewForecastPage() {
       }) as any;
 
       if (!response?.series) throw new Error('Invalid API response');
+      if (!Array.isArray(response.forecasts) || !response.summary || !Array.isArray(response.monthlyRiskPeriods)) {
+        throw new Error('The forecast response is missing its backend-generated risk summary.');
+      }
 
+      const statisticalResponse = response as StatisticalForecastResponseDto & {
+        series: unknown[];
+        metrics?: ForecastMetrics;
+        spatial?: unknown[];
+        seasonalPredictions?: unknown[];
+        modelUsed?: string;
+      };
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
+      setMonthlyRiskPeriods(statisticalResponse.monthlyRiskPeriods);
+      setForecastRecommendations(
+        Array.isArray(response.summary.recommendedActions)
+          ? response.summary.recommendedActions.filter((action: unknown): action is string => typeof action === 'string')
+          : [],
+      );
 
       const predictions: ForecastData[] = response.series.flatMap((series: any) =>
         (series.forecasts || []).map((f: any) => {
@@ -433,6 +456,72 @@ export default withAuth(function NewForecastPage() {
               <p className="text-xs text-gray-400">View detailed results in the overview page after saving.</p>
             </div>
           </div>
+
+          <section className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-4">
+              <p className="text-sm text-gray-600">
+                The monthly risk summary is optional. Review and save the forecast below without opening it.
+              </p>
+              <Link
+                href="/analysis/recommendations"
+                className="rounded-md bg-amber-100 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-200"
+              >
+                Open Hotspot Recommendation
+              </Link>
+            </div>
+            <details className="group border-t border-gray-200 pt-4">
+              <summary className="cursor-pointer list-none font-semibold text-gray-800 marker:content-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-600">
+                <span className="mr-2 inline-block transition-transform group-open:rotate-90" aria-hidden="true">▸</span>
+                Optional: monthly forecast by risk level
+              </summary>
+              <p className="mt-2 text-sm text-gray-600">
+                Risk-band columns show projected incident volume, not the number of precinct, crime-type, or shift forecast rows.
+              </p>
+              <div className="mt-4 overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200 text-left text-sm">
+                  <thead className="bg-gray-50 text-xs uppercase text-gray-600">
+                    <tr>
+                      <th scope="col" className="px-4 py-3">Month</th>
+                      <th scope="col" className="px-4 py-3">Projected incidents</th>
+                      <th scope="col" className="px-4 py-3">Low</th>
+                      <th scope="col" className="px-4 py-3">Medium</th>
+                      <th scope="col" className="px-4 py-3">High</th>
+                      <th scope="col" className="px-4 py-3">Critical</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {monthlyRiskPeriods.map(period => (
+                      <tr key={`${period.year}-${String(period.month).padStart(2, '0')}`}>
+                        <th scope="row" className="whitespace-nowrap px-4 py-3 font-medium text-gray-900">
+                          {new Date(Date.UTC(period.year, period.month - 1, 1)).toLocaleDateString(undefined, {
+                            month: 'long',
+                            year: 'numeric',
+                            timeZone: 'UTC',
+                          })}
+                        </th>
+                        <td className="px-4 py-3">{period.projectedIncidents.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3">{period.forecastByRiskLevel.low.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3">{period.forecastByRiskLevel.medium.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3">{period.forecastByRiskLevel.high.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-3">{period.forecastByRiskLevel.critical.toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {forecastRecommendations.length > 0 && (
+                <div className="mt-5 rounded-md border border-indigo-200 bg-indigo-50 p-4">
+                  <h3 className="font-semibold text-indigo-950">Forecast-based recommendations</h3>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-indigo-900">
+                    {forecastRecommendations.map((action, index) => <li key={`${index}-${action}`}>{action}</li>)}
+                  </ul>
+                  <p className="mt-2 text-xs text-indigo-800">
+                    These recommendations summarize the overall forecast; they are not specific to an individual month or hotspot and do not assign officers.
+                  </p>
+                </div>
+              )}
+            </details>
+          </section>
 
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <label className="block text-sm font-medium text-gray-700 mb-2">Forecast Name</label>

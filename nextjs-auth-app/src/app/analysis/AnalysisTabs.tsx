@@ -11,7 +11,6 @@ import { BarangayMonthlyChart } from '../../components/BarangayMonthlyChart';
 import { CrimeTrendChart } from '../../components/CrimeTrendChart';
 import { TimeOfDayDistributionChart } from '../../components/TimeOfDayDistributionChart';
 import PreprocessingVisualization from '../../components/PreprocessingVisualization';
-import IncidentDatasetTable from '../../components/IncidentDatasetTable';
 
 const parseCsvRow = (line: string): string[] => {
     const values: string[] = [];
@@ -88,12 +87,10 @@ interface Props {
     mapKey: number;
     analysisParams?: any;
     onImport?: (data: any) => void;
-    incidents?: any[];
-    incidentsLoading?: boolean;
     preprocessing?: any;
 }
 
-const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImport, incidents, incidentsLoading }) => {
+const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImport }) => {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleFileSelected = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -171,7 +168,6 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImp
                         { key: 'Trend Chart', label: 'Temporal', icon: '📈' },
                         { key: 'Monthly Chart', label: 'Seasonal', icon: '🌙' },
                         { key: 'Time of Day', label: 'Time of Day', icon: '⏰' },
-                        { key: 'Dataset', label: 'Dataset', icon: '📋' },
                         { key: 'Preprocessing', label: 'Preprocessing', icon: '📊' },
                     ].map(tab => (
                         <Tab
@@ -235,19 +231,6 @@ const AnalysisTabs: React.FC<Props> = ({ clusters, mapKey, analysisParams, onImp
                         </div>
                         <TimeOfDayDistributionChart
                             items={clusters.flatMap((c) => c.clusterItems)}
-                        />
-                    </TabPanel>
-
-                    <TabPanel className="p-6">
-                        <div className="bg-gray-50 rounded-lg p-4 mb-4">
-                            <h3 className="font-medium text-gray-800 mb-2">Full Incident Dataset</h3>
-                            <p className="text-sm text-gray-600">
-                                All crime incidents with temporal attributes (month, day, year, time of day, precinct, crime type).
-                            </p>
-                        </div>
-                        <IncidentDatasetTable
-                            incidents={incidents ?? []}
-                            isLoading={incidentsLoading ?? false}
                         />
                     </TabPanel>
 

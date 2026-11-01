@@ -1,3 +1,5 @@
+import type { MonthlyForecastRiskPeriodDto } from "../analysis/RiskPeriodsDto";
+
 export interface ForecastData {
   year: number;
   month: number;
@@ -77,6 +79,7 @@ export interface ForecastApiResponse {
   generatedAt?: string;
   modelUsed?: string;
   summary?: any;
+  monthlyRiskPeriods?: MonthlyForecastRiskPeriodDto[];
   explanation?: any;
   dynamicThresholds?: any;
   temporalPatterns?: any;
@@ -90,6 +93,7 @@ export interface ForecastSnapshot {
   forecastPeriod: number;
   clusterSourceId?: string;
   predictions: ForecastData[];
+  monthlyRiskPeriods?: MonthlyForecastRiskPeriodDto[];
   params: ForecastParams;
   dataQuality?: any;
   historicalData?: HistoricalData[];
