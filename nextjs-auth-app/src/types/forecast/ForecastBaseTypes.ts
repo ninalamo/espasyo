@@ -1,4 +1,8 @@
-import type { MonthlyForecastRiskPeriodDto } from "../analysis/RiskPeriodsDto";
+import type {
+  ForecastSeriesDto,
+  MonthlyForecastRiskPeriodDto,
+  StatisticalForecastRowDto,
+} from "../analysis/RiskPeriodsDto";
 
 export interface ForecastData {
   year: number;
@@ -72,12 +76,15 @@ export interface ForecastMetrics {
 }
 
 export interface ForecastApiResponse {
-  series?: any[];
-  forecasts?: any[];
+  series?: ForecastSeriesDto[];
+  forecasts?: StatisticalForecastRowDto[];
   spatial?: any[];
   metrics?: any;
   generatedAt?: string;
   modelUsed?: string;
+  requestedModel?: string;
+  effectiveModel?: string;
+  fallbackReason?: string;
   summary?: any;
   monthlyRiskPeriods?: MonthlyForecastRiskPeriodDto[];
   explanation?: any;
@@ -135,6 +142,9 @@ export interface CreateForecastRequest {
   forecastPeriod: number;
   clusterSourceId?: string;
   params: ForecastParams;
+  requestedModelType?: string;
+  effectiveModelType?: string;
+  modelFallbackReason?: string;
   predictions: ForecastData[];
   historicalData?: HistoricalData[];
   clusterData?: ForecastClusterGroup[];

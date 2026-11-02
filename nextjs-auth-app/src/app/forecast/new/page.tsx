@@ -123,8 +123,8 @@ export default withAuth(function NewForecastPage() {
       toast.error('Please load analysis data first');
       return;
     }
-    if (forecastParams.forecastPeriod < 1) {
-      toast.error('Forecast period must be at least 1 month');
+    if (forecastParams.forecastPeriod < 1 || forecastParams.forecastPeriod > 24) {
+      toast.error('Forecast period must be between 1 and 24 months');
       return;
     }
 
@@ -134,11 +134,6 @@ export default withAuth(function NewForecastPage() {
     try {
       const aggregated = aggregateByMonth(clusters);
       setHistoricalData(aggregated);
-
-      const historicalLookup = new Map<string, number>();
-      aggregated.forEach(h => {
-        historicalLookup.set(`${h.year}-${h.month}-${h.precinct}-${h.crimeType}`, h.count);
-      });
 
       const clusterGroups = clusters.map(c => ({
         clusterId: c.clusterId,
@@ -193,7 +188,7 @@ export default withAuth(function NewForecastPage() {
             confidence: f.confidence || forecastParams.confidence,
             lowerBound: f.lowerBound != null ? f.lowerBound : undefined,
             upperBound: f.upperBound != null ? f.upperBound : undefined,
-            lastYearActual: historicalLookup.get(`${year - 1}-${month}-${series.precinct}-${series.crimeType}`),
+            lastYearActual: f.lastYearActual ?? undefined,
             trend: f.trend || 'stable',
             riskLevel: f.riskLevel || 'medium',
           };
@@ -388,11 +383,17 @@ export default withAuth(function NewForecastPage() {
               <input
                 type="number"
                 min="1"
+                max="24"
                 value={forecastParams.forecastPeriod}
-                onChange={e => setForecastParams({ ...forecastParams, forecastPeriod: parseInt(e.target.value) || 6 })}
+                onChange={e => {
+                  const value = parseInt(e.target.value, 10);
+                  if (Number.isNaN(value)) return;
+                  const bounded = Math.min(24, Math.max(1, value));
+                  setForecastParams({ ...forecastParams, forecastPeriod: bounded });
+                }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
-              <p className="text-xs text-gray-500 mt-1">Recommended: 3-6 months</p>
+              <p className="text-xs text-gray-500 mt-1">Allowed range: 1–24 months.</p>
               </div>
           </div>
 

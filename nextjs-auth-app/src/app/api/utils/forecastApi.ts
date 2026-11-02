@@ -1,9 +1,8 @@
-import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult, HistoricalData } from '../../../types/forecast/ForecastBaseTypes';
 import type { MonthlyForecastRiskPeriodDto } from '../../../types/analysis/RiskPeriodsDto';
 import { getSession } from 'next-auth/react';
 
 const FORECAST_NAMES_KEY = 'forecastCustomNames';
-const FORECAST_CACHE_KEY = 'forecastLocalCache';
 
 function getStoredNames(): Record<string, string> {
   if (typeof window === 'undefined') return {};
@@ -28,39 +27,6 @@ function removeStoredName(id: string): void {
     delete all[id];
     localStorage.setItem(FORECAST_NAMES_KEY, JSON.stringify(all));
   } catch {}
-}
-
-/* Local cache: persists multi-barangay forecasts when the snapshot API is unavailable */
-function getLocalCache(): ForecastSnapshot[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    return JSON.parse(localStorage.getItem(FORECAST_CACHE_KEY) || '[]');
-  } catch { return []; }
-}
-
-function setLocalCache(snapshots: ForecastSnapshot[]): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(FORECAST_CACHE_KEY, JSON.stringify(snapshots));
-  } catch {}
-}
-
-function addToLocalCache(snapshot: ForecastSnapshot): void {
-  const cache = getLocalCache().filter(s => s.id !== snapshot.id);
-  cache.push(snapshot);
-  setLocalCache(cache);
-}
-
-function removeFromLocalCache(id: string): void {
-  setLocalCache(getLocalCache().filter(s => s.id !== id));
-}
-
-function generateId(): string {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = (Math.random() * 16) | 0;
-    return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
 }
 
 /* Mapping: Barangay enum int → name (matches backend seed data) */
@@ -103,6 +69,9 @@ interface ForecastRunResult {
   runAt: string;
   horizon: number;
   modelType: string;
+  requestedModelType?: string;
+  effectiveModelType?: string;
+  modelFallbackReason?: string;
   status: string;
   totalSeries: number;
   generatedById: string;
@@ -119,7 +88,11 @@ interface SaveForecastSnapshotResponse {
   name: string;
   createdAt: string;
   totalPredictions: number;
+  requestedModelType?: string;
+  effectiveModelType?: string;
+  modelFallbackReason?: string;
   monthlyRiskPeriods: MonthlyForecastRiskPeriodDto[];
+  historicalData?: HistoricalData[];
 }
 
 interface ForecastResultDto {
@@ -130,6 +103,7 @@ interface ForecastResultDto {
   month: number;
   year: number;
   predictedValue: number;
+  lastYearActual?: number | null;
   lowerBound: number;
   upperBound: number;
   confidence: number;
@@ -164,13 +138,10 @@ class ForecastApiService {
   }
 
   async list(): Promise<ForecastSummaryCard[]> {
-    const [response, localCache] = await Promise.all([
-      this.fetchApi<GetForecastRunsResponse>('/ForecastRun'),
-      Promise.resolve(getLocalCache()),
-    ]);
+    const response = await this.fetchApi<GetForecastRunsResponse>('/ForecastRun');
     const storedNames = getStoredNames();
 
-    const backendCards = response.runs.map(r => ({
+    return response.runs.map(r => ({
       id: r.id,
       name: r.name || storedNames[r.id] || `${r.precinctName}`,
       createdAt: r.runAt,
@@ -180,36 +151,24 @@ class ForecastApiService {
       precinctCount: 1,
       crimeTypeCount: 0,
     }));
-
-    const localCards: ForecastSummaryCard[] = localCache.map(s => ({
-      id: s.id,
-      name: s.name || storedNames[s.id] || `Forecast ${s.id.slice(0, 8)}`,
-      createdAt: s.createdAt,
-      forecastPeriod: s.forecastPeriod,
-      totalPredictions: s.metadata?.totalPredictions || s.predictions.length,
-      activeModel: s.metadata?.activeModel || 'Linear',
-      precinctCount: s.metadata?.precincts?.length || [...new Set(s.predictions.map(p => p.precinct))].length,
-      crimeTypeCount: s.metadata?.crimeTypes?.length || [...new Set(s.predictions.map(p => p.crimeType))].length,
-    }));
-
-    const localIds = new Set(localCards.map(c => c.id));
-    return [...backendCards.filter(c => !localIds.has(c.id)), ...localCards];
   }
 
   async getById(id: string): Promise<ForecastSnapshot> {
-    const local = getLocalCache().find(s => s.id === id);
-    if (local) return local;
-
     try {
       const runsResponse = await this.fetchApi<GetForecastRunsResponse>('/ForecastRun');
       const run = runsResponse.runs.find(r => r.id === id);
-      const [results, monthlyRiskPeriods] = await Promise.all([
+      if (!run) {
+        throw new Error('Forecast not found');
+      }
+
+      const [results, monthlyRiskPeriods, historicalData] = await Promise.all([
         this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`),
         this.fetchApi<MonthlyForecastRiskPeriodDto[]>(`/ForecastRun/${id}/monthly-risk-periods`),
+        this.fetchApi<HistoricalData[]>(`/ForecastRun/${id}/historical-data`).catch(() => []),
       ]);
 
-      const forecastPeriod = run?.horizon ?? 6;
-      const modelType = run?.modelType ?? 'ssa';
+      const forecastPeriod = run.horizon;
+      const modelType = run.modelType || run.effectiveModelType || run.requestedModelType || 'ssa';
       const storedNames = getStoredNames();
 
       const precincts = [...new Set(results.map(r => BARANGAY_NAME_TO_INT[r.precinct] ?? 0))];
@@ -217,8 +176,8 @@ class ForecastApiService {
 
       return {
         id,
-        name: storedNames[id] || `Forecast ${id.slice(0, 8)}`,
-        createdAt: run?.runAt ?? new Date().toISOString(),
+        name: storedNames[id] || run.name || `Forecast ${id.slice(0, 8)}`,
+        createdAt: run.runAt,
         forecastPeriod,
         predictions: results.map(r => ({
           year: r.year,
@@ -227,6 +186,7 @@ class ForecastApiService {
           crimeType: toCrimeTypeInt(r.crimeType),
           shift: (r.shift === 'Morning' || r.shift === 'Afternoon' || r.shift === 'Evening' ? r.shift : undefined) as ForecastData['shift'],
           predictedCount: Math.max(0, r.predictedValue),
+          lastYearActual: r.lastYearActual ?? undefined,
           confidence: r.confidence,
           trend: (r.trend === 'increasing' || r.trend === 'decreasing' || r.trend === 'stable' ? r.trend : 'stable') as ForecastData['trend'],
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
@@ -234,7 +194,7 @@ class ForecastApiService {
         monthlyRiskPeriods,
         params: {
           forecastPeriod,
-          model: modelType,
+          model: run.effectiveModelType || run.modelType || modelType,
           confidence: 0.95,
           includeSeasonality: true,
           weightRecentData: true,
@@ -246,7 +206,14 @@ class ForecastApiService {
           precincts,
           crimeTypes,
         },
-        historicalData: undefined,
+        historicalData,
+        apiResponse: {
+          requestedModel: run.requestedModelType || run.modelType || modelType,
+          effectiveModel: run.effectiveModelType || run.modelType || modelType,
+          modelUsed: run.effectiveModelType || run.modelType || modelType,
+          fallbackReason: run.modelFallbackReason,
+          monthlyRiskPeriods,
+        },
       };
     } catch {
       throw new Error(`Forecast ${id} not found`);
@@ -262,6 +229,19 @@ class ForecastApiService {
             name: data.name,
             forecastPeriod: data.forecastPeriod,
             confidenceLevel: data.params.confidence,
+            modelType: data.params.model,
+            requestedModelType: data.requestedModelType || data.params.model,
+            effectiveModelType: data.effectiveModelType || data.apiResponse?.effectiveModel || data.apiResponse?.modelUsed || data.params.model,
+            modelFallbackReason: data.modelFallbackReason || data.apiResponse?.fallbackReason,
+            historicalData: (data.historicalData || []).map(h => ({
+              precinct: h.precinct,
+              crimeType: h.crimeType,
+              month: h.month,
+              year: h.year,
+              count: h.count,
+              timeOfDay: h.timeOfDay,
+              clusterId: h.clusterId,
+            })),
             predictions: data.predictions.map(p => ({
               precinct: p.precinct,
               crimeType: p.crimeType,
@@ -316,10 +296,19 @@ class ForecastApiService {
           predictions: data.predictions,
           monthlyRiskPeriods: response.monthlyRiskPeriods,
           metrics: data.metrics,
-          params: data.params,
+          params: {
+            ...data.params,
+            model: response.effectiveModelType || response.requestedModelType || data.params.model,
+          },
           spatialData: data.spatialData,
           seasonalPredictions: data.seasonalPredictions,
-          apiResponse: data.apiResponse,
+          apiResponse: {
+            ...data.apiResponse,
+            requestedModel: response.requestedModelType || data.requestedModelType || data.params.model,
+            effectiveModel: response.effectiveModelType || data.effectiveModelType || data.apiResponse?.effectiveModel || data.apiResponse?.modelUsed || data.params.model,
+            modelUsed: response.effectiveModelType || data.effectiveModelType || data.apiResponse?.effectiveModel || data.apiResponse?.modelUsed || data.params.model,
+            fallbackReason: response.modelFallbackReason || data.modelFallbackReason || data.apiResponse?.fallbackReason,
+          },
           metadata: {
             ...data.metadata,
             totalPredictions: response.totalPredictions,
@@ -328,7 +317,6 @@ class ForecastApiService {
           },
           historicalData: data.historicalData,
         };
-        addToLocalCache(snapshot);
         return snapshot;
       } catch (error) {
         throw new Error(`Failed to save forecast snapshot: ${error instanceof Error ? error.message : String(error)}`);
@@ -380,11 +368,8 @@ class ForecastApiService {
           riskLevel: (r.riskLevel === 'low' || r.riskLevel === 'medium' || r.riskLevel === 'high' || r.riskLevel === 'critical' ? r.riskLevel : 'medium') as ForecastData['riskLevel'],
         }));
 
-        const localId = generateId();
-        storeName(localId, data.name);
-
         const snapshot: ForecastSnapshot = {
-          id: localId,
+          id: data.generatedById || `forecast-${Date.now()}`,
           name: data.name,
           createdAt: new Date().toISOString(),
           forecastPeriod: data.forecastPeriod,
@@ -402,7 +387,6 @@ class ForecastApiService {
           },
           historicalData: data.historicalData,
         };
-        addToLocalCache(snapshot);
         return snapshot;
       } catch {
         throw new Error('Failed to save forecast via ML endpoint');
@@ -413,11 +397,10 @@ class ForecastApiService {
   }
 
   async delete(id: string): Promise<void> {
-    removeFromLocalCache(id);
     try {
       await this.fetchApi<void>(`/ForecastRun/${id}`, { method: 'DELETE' });
     } catch {
-      // Local-only forecast; nothing to delete on backend
+      throw new Error(`Failed to delete forecast ${id}`);
     }
   }
 
