@@ -12,9 +12,70 @@ const ForecastMap = dynamic(() => import('../../../../components/ForecastMap'), 
   loading: () => <div className="h-[500px] rounded-lg border border-gray-200 bg-gray-50 animate-pulse flex items-center justify-center text-sm text-gray-400">Loading map...</div>,
 });
 import { ForecastTrendChart } from '../../../../components/ForecastTrendChart';
+import type { ForecastTimeOfDayData } from '../../../../types/forecast/ForecastBaseTypes';
+
+interface TimeOfDayRow {
+  timeOfDay: string;
+  totalForecast: number;
+  avgMonthly: number;
+  trend: string;
+}
+
+interface PrecinctTimeOfDaySummary {
+  precinct: number;
+  rows: TimeOfDayRow[];
+  totalAvg: number;
+  dominant: string;
+}
+
+function buildTimeOfDaySummaries(data: ForecastTimeOfDayData[]): PrecinctTimeOfDaySummary[] {
+  const monthCount = new Set(data.map(item => `${item.year}-${item.month}`)).size || 1;
+  const precincts = new Map<number, Map<string, { total: number; trends: string[] }>>();
+
+  for (const item of data) {
+    let timeOfDayMap = precincts.get(item.precinct);
+    if (!timeOfDayMap) {
+      timeOfDayMap = new Map();
+      precincts.set(item.precinct, timeOfDayMap);
+    }
+
+    let summary = timeOfDayMap.get(item.timeOfDay);
+    if (!summary) {
+      summary = { total: 0, trends: [] };
+      timeOfDayMap.set(item.timeOfDay, summary);
+    }
+    summary.total += item.forecast;
+    summary.trends.push(item.trend);
+  }
+
+  return [...precincts.entries()]
+    .map(([precinct, timeOfDayMap]) => {
+      const rows = [...timeOfDayMap.entries()].map(([timeOfDay, summary]) => {
+        const increasing = summary.trends.filter(trend => trend === 'increasing').length;
+        const decreasing = summary.trends.filter(trend => trend === 'decreasing').length;
+        return {
+          timeOfDay,
+          totalForecast: summary.total,
+          avgMonthly: summary.total / monthCount,
+          trend: increasing > decreasing ? 'increasing' : decreasing > increasing ? 'decreasing' : 'stable',
+        };
+      });
+      const totalAvg = rows.reduce((total, row) => total + row.avgMonthly, 0);
+      const top = rows.reduce((best, row) => row.avgMonthly > best.avgMonthly ? row : best, rows[0]);
+      const dominant = !top
+        ? '—'
+        : totalAvg > 0 && top.avgMonthly / totalAvg >= 0.45
+          ? `${top.timeOfDay}-dominant`
+          : 'Balanced';
+      return { precinct, rows, totalAvg, dominant };
+    })
+    .filter(summary => summary.rows.length > 0)
+    .sort((a, b) => b.totalAvg - a.totalAvg);
+}
 
 export default function OverviewPage() {
-  const { forecast, forecastData, forecastParams, historicalData, forecastId, loading, spatialData, apiResponse } = useForecast();
+  const { forecast, forecastData, timeOfDayData, forecastParams, historicalData, forecastId, loading, spatialData, apiResponse } = useForecast();
+  const timeOfDaySummaries = buildTimeOfDaySummaries(timeOfDayData);
 
   if (loading || forecastData.length === 0) {
     return (
@@ -101,7 +162,7 @@ export default function OverviewPage() {
             {[
               { key: 'temporal', label: 'Temporal', icon: '📈' },
               { key: 'spatial', label: 'Spatial (Forecast Map)', icon: '🗺️' },
-              { key: 'shift', label: 'Shift Distribution', icon: '🌙' },
+              { key: 'time-of-day', label: 'Time of Day', icon: '🌙' },
             ].map(tab => (
               <Tab
                 key={tab.key}
@@ -179,174 +240,59 @@ export default function OverviewPage() {
               )}
             </TabPanel>
 
-            {/* Shift Distribution Tab */}
+            {/* Time of Day Tab */}
             <TabPanel className="p-6 space-y-6">
               <div className="bg-gray-50 rounded-lg p-4">
-                <h3 className="font-medium text-gray-800 mb-2">Where &amp; When to Deploy</h3>
-                <p className="text-sm text-gray-600">Forecasted crime demand by precinct and shift (Morning/Afternoon/Evening). Use this to decide how to distribute officers across your patrol sectors.</p>
+                <h3 className="font-medium text-gray-800 mb-2">Forecasted Incidents by Time of Day</h3>
+                <p className="text-sm text-gray-600">Forecasted incidents are apportioned across Morning, Afternoon, and Evening using the analysis data. Values are forecast projections, not observed counts.</p>
               </div>
 
-              <div className="flex items-center justify-between bg-ubuntu-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-800">Ready to allocate officers based on this distribution?</p>
-                <Link
-                  href={`/precincts?forecastId=${forecastId}`}
-                  className="inline-flex items-center gap-2 bg-ubuntu-600 text-white px-4 py-2 rounded-lg hover:bg-ubuntu-700 transition text-sm font-medium whitespace-nowrap"
-                >
-                  Build Manpower Plan →
-                </Link>
-              </div>
-
-              {apiResponse?.explanation?.trendAnalysis && (
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
-                  {apiResponse.explanation.trendAnalysis}
+              {timeOfDaySummaries.length === 0 ? (
+                <p className="rounded-lg border border-gray-200 bg-white p-4 text-sm text-gray-600">
+                  No time-of-day forecast data is available for this saved forecast.
+                </p>
+              ) : (
+                <div className="space-y-4">
+                  {timeOfDaySummaries.map(summary => (
+                    <div key={summary.precinct} className="rounded-lg border border-gray-200 bg-white p-4">
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-semibold text-gray-800">
+                            {GetPrecinctsDictionary[summary.precinct] || `Precinct ${summary.precinct}`}
+                          </h4>
+                          <span className={`rounded-full px-2 py-0.5 text-xs ${summary.dominant === 'Balanced' ? 'bg-gray-100 text-gray-600' : 'bg-indigo-50 text-indigo-700'}`}>
+                            {summary.dominant}
+                          </span>
+                        </div>
+                        <span className="text-sm text-gray-500">Avg {Math.round(summary.totalAvg)} incidents/month</span>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        {summary.rows.map(row => {
+                          const share = summary.totalAvg > 0 ? (row.avgMonthly / summary.totalAvg) * 100 : 0;
+                          const trendColor = row.trend === 'increasing' ? 'text-red-600' : row.trend === 'decreasing' ? 'text-green-600' : 'text-gray-500';
+                          const trendIcon = row.trend === 'increasing' ? '↑' : row.trend === 'decreasing' ? '↓' : '→';
+                          const barColor = row.timeOfDay === 'Morning' ? 'bg-amber-400' : row.timeOfDay === 'Afternoon' ? 'bg-ubuntu-500' : 'bg-indigo-500';
+                          return (
+                            <div key={row.timeOfDay} className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="font-medium text-gray-700">{row.timeOfDay}</span>
+                                <span className="font-semibold text-gray-900">{share.toFixed(0)}%</span>
+                              </div>
+                              <div className="h-3 overflow-hidden rounded-full bg-gray-100">
+                                <div className={`h-full rounded-full transition-all ${barColor}`} style={{ width: `${Math.max(share, 2)}%` }} />
+                              </div>
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-gray-500">{row.avgMonthly.toFixed(1)}/mo</span>
+                                <span className={trendColor}>{trendIcon} {row.trend}</span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-
-              {(() => {
-                const shifts = ['Morning', 'Afternoon', 'Evening'] as const;
-                const apiForecasts = apiResponse?.forecasts;
-                const hasApiShiftData = Array.isArray(apiForecasts) && apiForecasts.some((f: any) => f.timeOfDay);
-                const hasForecastShiftData = forecastData.some(f => f.shift != null);
-
-                type ShiftRow = { shift: string; totalPredicted: number; avgMonthly: number; trend: string };
-                type PrecinctRow = { precinct: number; rows: ShiftRow[]; totalAvg: number; dominant: string };
-
-                let precinctRows: PrecinctRow[];
-
-                if (hasApiShiftData) {
-                  const items = (apiForecasts as any[])
-                    .filter((f: any) => f.timeOfDay)
-                    .map((f: any) => {
-                      const dt = new Date(f.timestamp);
-                      return {
-                        precinct: f.precinct,
-                        shift: f.timeOfDay as string,
-                        predictedCount: Math.max(0, f.forecast ?? 0),
-                        trend: (f.trend || 'stable') as string,
-                        year: dt.getFullYear(),
-                        month: dt.getMonth() + 1,
-                      };
-                    });
-
-                  const months = new Set(items.map(d => `${d.year}-${d.month}`));
-                  const monthCount = months.size || 1;
-
-                  const precinctMap = new Map<number, Map<string, { totalPredicted: number; trends: string[] }>>();
-                  for (const item of items) {
-                    if (!precinctMap.has(item.precinct)) precinctMap.set(item.precinct, new Map());
-                    const shiftMap = precinctMap.get(item.precinct)!;
-                    if (!shiftMap.has(item.shift)) shiftMap.set(item.shift, { totalPredicted: 0, trends: [] });
-                    const agg = shiftMap.get(item.shift)!;
-                    agg.totalPredicted += item.predictedCount;
-                    agg.trends.push(item.trend);
-                  }
-
-                  precinctRows = [...precinctMap.entries()]
-                    .map(([precinct, shiftMap]) => {
-                      const rows: ShiftRow[] = [];
-                      for (const s of shifts) {
-                        const agg = shiftMap.get(s);
-                        if (!agg) continue;
-                        const avgMonthly = agg.totalPredicted / monthCount;
-                        const inc = agg.trends.filter(t => t === 'increasing').length;
-                        const dec = agg.trends.filter(t => t === 'decreasing').length;
-                        const trend = inc > dec ? 'increasing' : dec > inc ? 'decreasing' : 'stable';
-                        rows.push({ shift: s, totalPredicted: agg.totalPredicted, avgMonthly, trend });
-                      }
-                      const totalAvg = rows.reduce((sum, r) => sum + r.avgMonthly, 0);
-                      const top = rows.reduce((a, b) => (b.avgMonthly > a.avgMonthly ? b : a), rows[0] || { shift: '', avgMonthly: 0 } as ShiftRow);
-                      const topShare = totalAvg > 0 ? (top.avgMonthly / totalAvg) * 100 : 0;
-                      const dominant = rows.length === 0 ? '—' : topShare >= 45 ? `${top.shift}-dominant` : 'Balanced';
-                      return { precinct, rows, totalAvg, dominant };
-                    })
-                    .filter(pr => pr.rows.length > 0)
-                    .sort((a, b) => b.totalAvg - a.totalAvg);
-                } else {
-                  const months = new Set(forecastData.map(f => `${f.year}-${f.month}`));
-                  const monthCount = months.size || 1;
-
-                  precinctRows = [...new Set(forecastData.map(f => f.precinct))]
-                    .map(p => {
-                      const precinctItems = forecastData.filter(f => f.precinct === p);
-                      const rows: ShiftRow[] = [];
-                      for (const s of shifts) {
-                        let shiftItems: typeof precinctItems;
-                        if (hasForecastShiftData) {
-                          shiftItems = precinctItems.filter(f => f.shift === s);
-                        } else {
-                          const share = s === 'Morning' ? 0.3 : s === 'Afternoon' ? 0.4 : 0.3;
-                          shiftItems = precinctItems.map(f => ({ ...f, predictedCount: f.predictedCount * share }));
-                        }
-                        if (shiftItems.length === 0) continue;
-                        const totalPredicted = shiftItems.reduce((sum, f) => sum + f.predictedCount, 0);
-                        const avgMonthly = totalPredicted / monthCount;
-                        const inc = shiftItems.filter(f => f.trend === 'increasing').length;
-                        const dec = shiftItems.filter(f => f.trend === 'decreasing').length;
-                        const trend = inc > dec ? 'increasing' : dec > inc ? 'decreasing' : 'stable';
-                        rows.push({ shift: s, totalPredicted, avgMonthly, trend });
-                      }
-                      const totalAvg = rows.reduce((sum, r) => sum + r.avgMonthly, 0);
-                      const top = rows.reduce((a, b) => (b.avgMonthly > a.avgMonthly ? b : a), rows[0] || { shift: '', avgMonthly: 0 } as ShiftRow);
-                      const topShare = totalAvg > 0 ? (top.avgMonthly / totalAvg) * 100 : 0;
-                      const dominant = rows.length === 0 ? '—' : topShare >= 45 ? `${top.shift}-dominant` : 'Balanced';
-                      return { precinct: p, rows, totalAvg, dominant };
-                    })
-                    .filter(pr => pr.rows.length > 0)
-                    .sort((a, b) => b.totalAvg - a.totalAvg);
-                }
-
-                const shiftColors: Record<string, string> = {
-                  Morning: 'bg-amber-400',
-                  Afternoon: 'bg-ubuntu-500',
-                  Evening: 'bg-indigo-500',
-                };
-
-                return (
-                  <div className="space-y-4">
-                    {precinctRows.map(pr => {
-                      const precinctName = GetPrecinctsDictionary[pr.precinct] || `Precinct ${pr.precinct}`;
-                      return (
-                        <div key={pr.precinct} className="bg-white border border-gray-200 rounded-lg p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              <h4 className="font-semibold text-gray-800">{precinctName}</h4>
-                              <span className={`text-xs px-2 py-0.5 rounded-full ${pr.dominant === 'Balanced' ? 'bg-gray-100 text-gray-600' : 'bg-indigo-50 text-indigo-700'}`}>
-                                {pr.dominant}
-                              </span>
-                            </div>
-                            <span className="text-sm text-gray-500">Avg {Math.round(pr.totalAvg)} incidents/month</span>
-                          </div>
-                          <div className="grid grid-cols-3 gap-4">
-                            {pr.rows.map(r => {
-                              const share = pr.totalAvg > 0 ? (r.avgMonthly / pr.totalAvg) * 100 : 0;
-                              const trendColor = r.trend === 'increasing' ? 'text-red-600' : r.trend === 'decreasing' ? 'text-green-600' : 'text-gray-500';
-                              const trendIcon = r.trend === 'increasing' ? '↑' : r.trend === 'decreasing' ? '↓' : '→';
-                              return (
-                                <div key={r.shift} className="space-y-2">
-                                  <div className="flex items-center justify-between text-sm">
-                                    <span className="font-medium text-gray-700">{r.shift}</span>
-                                    <span className="font-semibold text-gray-900">{share.toFixed(0)}%</span>
-                                  </div>
-                                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-                                    <div
-                                      className={`h-full rounded-full transition-all ${shiftColors[r.shift] || 'bg-ubuntu-500'}`}
-                                      style={{ width: `${Math.max(share, 2)}%` }}
-                                    />
-                                  </div>
-                                  <div className="flex items-center justify-between text-xs">
-                                    <span className="text-gray-500">{Math.round(r.avgMonthly)}/mo</span>
-                                    <span className={trendColor}>{trendIcon} {r.trend}</span>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
 
               {apiResponse?.explanation?.confidenceExplanation && (
                 <div className="bg-ubuntu-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">

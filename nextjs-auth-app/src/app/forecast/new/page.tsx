@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import type { Cluster } from '../../../types/analysis/ClusterDto';
-import type { ForecastData, ForecastMetrics, ForecastParams } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastData, ForecastMetrics, ForecastParams, ForecastTimeOfDayData } from '../../../types/forecast/ForecastBaseTypes';
 import type {
   MonthlyForecastRiskPeriodDto,
   StatisticalForecastResponseDto,
@@ -15,7 +15,7 @@ import type {
 import { format } from 'date-fns';
 import { CrimeTypesDictionary, GetPrecinctsDictionary } from '../../../constants/consts';
 import { apiService } from '../../api/utils/apiService';
-import { forecastApi } from '../../api/utils/forecastApi';
+import { forecastApi, mapTimeOfDayForecasts } from '../../api/utils/forecastApi';
 import { getSession } from 'next-auth/react';
 import ForecastSummary from '../ForecastSummary';
 
@@ -50,6 +50,7 @@ export default withAuth(function NewForecastPage() {
   });
 
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
+  const [timeOfDayData, setTimeOfDayData] = useState<ForecastTimeOfDayData[]>([]);
   const [forecastMetrics, setForecastMetrics] = useState<ForecastMetrics | null>(null);
   const [monthlyRiskPeriods, setMonthlyRiskPeriods] = useState<MonthlyForecastRiskPeriodDto[]>([]);
   const [forecastRecommendations, setForecastRecommendations] = useState<string[]>([]);
@@ -130,6 +131,7 @@ export default withAuth(function NewForecastPage() {
 
     setLoading(true);
     setStep('generate');
+    setTimeOfDayData([]);
 
     try {
       const aggregated = aggregateByMonth(clusters);
@@ -166,6 +168,7 @@ export default withAuth(function NewForecastPage() {
         modelUsed?: string;
       };
       const metrics = response.metrics as ForecastMetrics | undefined;
+      setTimeOfDayData(mapTimeOfDayForecasts(response.forecasts));
       setForecastMetrics(metrics ?? null);
       setMonthlyRiskPeriods(statisticalResponse.monthlyRiskPeriods);
       setForecastRecommendations(
@@ -231,6 +234,7 @@ export default withAuth(function NewForecastPage() {
         forecastPeriod: forecastParams.forecastPeriod,
         params: forecastParams,
         predictions: forecastData,
+        timeOfDayData,
         metrics: forecastMetrics,
         clusterData: clusters.map(c => ({
           clusterId: c.clusterId,
@@ -262,7 +266,7 @@ export default withAuth(function NewForecastPage() {
     } finally {
       setSaveLoading(false);
     }
-  }, [forecastName, forecastParams, forecastData, forecastMetrics, clusters, historicalData, spatialData, seasonalPredictions, router]);
+  }, [forecastName, forecastParams, forecastData, timeOfDayData, forecastMetrics, clusters, historicalData, spatialData, seasonalPredictions, router]);
 
   const dataLoaded = analysisLoaded && clusters.length > 0;
 
