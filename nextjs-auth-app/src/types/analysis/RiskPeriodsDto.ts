@@ -9,6 +9,7 @@ export interface StatisticalForecastRowDto {
   riskLevel: ForecastRiskLevel;
   compositeRiskScore: number;
   timeOfDay?: string | null;
+  trend?: string;
 }
 
 export interface ForecastPointDto {

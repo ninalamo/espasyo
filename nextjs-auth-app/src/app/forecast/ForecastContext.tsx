@@ -10,9 +10,11 @@ import type {
   ForecastParams,
   ForecastMetrics,
   ForecastApiResponse,
+  ForecastSpatialData,
+  ForecastTimeOfDayData,
 } from '../../types/forecast/ForecastBaseTypes';
 import type { ExtendedForecastData, ForecastMapPoint } from '../../types/forecast/ExtendedForecastTypes';
-import { forecastApi } from '../api/utils/forecastApi';
+import { forecastApi, mapTimeOfDayForecasts } from '../api/utils/forecastApi';
 import { apiService } from '../api/utils/apiService';
 import type { Cluster } from '../../types/analysis/ClusterDto';
 import { toast } from 'react-toastify';
@@ -25,8 +27,9 @@ interface ForecastContextValue {
   clusters: Cluster[];
   historicalData: HistoricalData[];
   forecastData: ForecastData[];
+  timeOfDayData: ForecastTimeOfDayData[];
   forecastMetrics: ForecastMetrics | null;
-  spatialData: any[];
+  spatialData: ForecastSpatialData[];
   seasonalPredictions: any[];
   apiResponse: ForecastApiResponse | null;
   extendedForecastData: ExtendedForecastData[];
@@ -51,10 +54,11 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [historicalData, setHistoricalData] = useState<HistoricalData[]>([]);
   const [forecastData, setForecastData] = useState<ForecastData[]>([]);
+  const [timeOfDayData, setTimeOfDayData] = useState<ForecastTimeOfDayData[]>([]);
   const [forecastMetrics, setForecastMetrics] = useState<ForecastMetrics | null>(null);
   const [extendedForecastData, setExtendedForecastData] = useState<ExtendedForecastData[]>([]);
   const [forecastMapPoints, setForecastMapPoints] = useState<ForecastMapPoint[]>([]);
-  const [spatialData, setSpatialData] = useState<any[]>([]);
+  const [spatialData, setSpatialData] = useState<ForecastSpatialData[]>([]);
   const [seasonalPredictions, setSeasonalPredictions] = useState<any[]>([]);
   const [apiResponse, setApiResponse] = useState<ForecastApiResponse | null>(null);
 
@@ -86,6 +90,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
       const predictions = data.predictions || [];
       setForecastData(predictions);
+      setTimeOfDayData(data.timeOfDayData ?? []);
       setForecastMetrics(data.metrics ?? null);
       setSpatialData(data.spatialData ?? []);
       setSeasonalPredictions(data.seasonalPredictions ?? []);
@@ -123,6 +128,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
   const generateForecast = useCallback(async (clustersData: Cluster[], params: ForecastParams): Promise<ForecastData[]> => {
     setLoading(true);
     setForecastData([]);
+    setTimeOfDayData([]);
 
     try {
       const aggregated = aggregateByMonth(clustersData);
@@ -153,6 +159,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       if (!response?.series) throw new Error('Invalid API response');
 
       setApiResponse(response);
+      setTimeOfDayData(mapTimeOfDayForecasts(response.forecasts));
 
       const metrics = response.metrics as ForecastMetrics | undefined;
       setForecastMetrics(metrics ?? null);
@@ -233,6 +240,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
         effectiveModelType: apiResponse?.effectiveModel || apiResponse?.modelUsed || effectiveParams.model || 'ssa',
         modelFallbackReason: apiResponse?.fallbackReason || undefined,
         predictions: forecastData,
+        timeOfDayData,
         metrics: forecastMetrics,
         clusterData: clusters.map(c => ({
           clusterId: c.clusterId,
@@ -266,7 +274,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
       toast.error(`Failed to save forecast: ${err.message}`);
       return null;
     }
-  }, [forecast, forecastData, forecastParams, clusters, historicalData, forecastMetrics, spatialData, seasonalPredictions, apiResponse]);
+  }, [forecast, forecastData, timeOfDayData, forecastParams, clusters, historicalData, forecastMetrics, spatialData, seasonalPredictions, apiResponse]);
 
   const clearForecast = useCallback(() => {
     setForecast(null);
@@ -274,6 +282,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     setClusters([]);
     setHistoricalData([]);
     setForecastData([]);
+    setTimeOfDayData([]);
     setForecastMetrics(null);
     setExtendedForecastData([]);
     setForecastMapPoints([]);
@@ -292,7 +301,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
 
   const value = useMemo(() => ({
     loading, forecastId, forecast, clusters, historicalData,
-    forecastData, forecastMetrics, spatialData, seasonalPredictions, apiResponse,
+    forecastData, timeOfDayData, forecastMetrics, spatialData, seasonalPredictions, apiResponse,
     extendedForecastData, forecastMapPoints,
     activeModelLabel: (() => {
       const requested = apiResponse?.requestedModel || forecast?.params?.model || forecastParams.model || 'ssa';
@@ -306,7 +315,7 @@ export function ForecastProvider({ children, forecastId: initialId }: { children
     generateForecast, saveCurrentForecast, loadForecast, clearForecast,
   }), [
     loading, forecastId, forecast, clusters, historicalData,
-    forecastData, forecastMetrics, spatialData, seasonalPredictions, apiResponse,
+    forecastData, timeOfDayData, forecastMetrics, spatialData, seasonalPredictions, apiResponse,
     extendedForecastData, forecastMapPoints,
     dataQuality,
     analysisLoaded, forecastParams,

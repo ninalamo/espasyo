@@ -1,5 +1,6 @@
-import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult, HistoricalData } from '../../../types/forecast/ForecastBaseTypes';
+import type { ForecastSnapshot, CreateForecastRequest, ForecastSummaryCard, ForecastData, ForecastEvaluationResult, ForecastSpatialData, ForecastTimeOfDayData, HistoricalData } from '../../../types/forecast/ForecastBaseTypes';
 import type { MonthlyForecastRiskPeriodDto } from '../../../types/analysis/RiskPeriodsDto';
+import type { StatisticalForecastRowDto } from '../../../types/analysis/RiskPeriodsDto';
 import { getSession } from 'next-auth/react';
 
 const FORECAST_NAMES_KEY = 'forecastCustomNames';
@@ -111,6 +112,45 @@ interface ForecastResultDto {
   trend: string;
 }
 
+interface ForecastSpatialResultDto {
+  precinct: number;
+  clusterId: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  month: number;
+  year: number;
+  predictedValue: number;
+  lowerBound: number;
+  upperBound: number;
+  confidence: number;
+  riskLevel: string;
+  trend: string;
+}
+
+type ForecastTimeOfDayResultDto = ForecastTimeOfDayData;
+
+export function mapTimeOfDayForecasts(rows: StatisticalForecastRowDto[] = []): ForecastTimeOfDayData[] {
+  return rows
+    .filter((row): row is StatisticalForecastRowDto & { timeOfDay: string } =>
+      typeof row.timeOfDay === 'string' && row.timeOfDay.length > 0
+    )
+    .map(row => {
+      const timestampParts = /^(\d{4})-(\d{2})-(\d{2})/.exec(row.timestamp);
+      if (!timestampParts) {
+        throw new Error(`Invalid forecast timestamp: ${row.timestamp}`);
+      }
+      return {
+        precinct: row.precinct,
+        crimeType: row.crimeType,
+        year: Number(timestampParts[1]),
+        month: Number(timestampParts[2]),
+        timeOfDay: row.timeOfDay,
+        forecast: Math.max(0, row.forecast ?? 0),
+        trend: row.trend || 'stable',
+      };
+    });
+}
+
 class ForecastApiService {
   private async fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${API_BASE_URL}${endpoint}`;
@@ -161,10 +201,12 @@ class ForecastApiService {
         throw new Error('Forecast not found');
       }
 
-      const [results, monthlyRiskPeriods, historicalData] = await Promise.all([
+      const [results, monthlyRiskPeriods, historicalData, spatialResults, timeOfDayData] = await Promise.all([
         this.fetchApi<ForecastResultDto[]>(`/ForecastRun/${id}/results`),
         this.fetchApi<MonthlyForecastRiskPeriodDto[]>(`/ForecastRun/${id}/monthly-risk-periods`),
         this.fetchApi<HistoricalData[]>(`/ForecastRun/${id}/historical-data`).catch(() => []),
+        this.fetchApi<ForecastSpatialResultDto[]>(`/ForecastRun/${id}/spatial-data`),
+        this.fetchApi<ForecastTimeOfDayResultDto[]>(`/ForecastRun/${id}/time-of-day-data`),
       ]);
 
       const forecastPeriod = run.horizon;
@@ -173,6 +215,14 @@ class ForecastApiService {
 
       const precincts = [...new Set(results.map(r => BARANGAY_NAME_TO_INT[r.precinct] ?? 0))];
       const crimeTypes = [...new Set(results.map(r => toCrimeTypeInt(r.crimeType)))];
+      const spatialData: ForecastSpatialData[] = spatialResults.map(({
+        predictedValue,
+        ...result
+      }) => ({
+        ...result,
+        forecast: predictedValue,
+        timestamp: new Date(Date.UTC(result.year, result.month - 1, 1)).toISOString(),
+      }));
 
       return {
         id,
@@ -207,6 +257,8 @@ class ForecastApiService {
           crimeTypes,
         },
         historicalData,
+        timeOfDayData,
+        spatialData,
         apiResponse: {
           requestedModel: run.requestedModelType || run.modelType || modelType,
           effectiveModel: run.effectiveModelType || run.modelType || modelType,
@@ -241,6 +293,15 @@ class ForecastApiService {
               count: h.count,
               timeOfDay: h.timeOfDay,
               clusterId: h.clusterId,
+            })),
+            timeOfDayPredictions: (data.timeOfDayData || []).map(item => ({
+              precinct: item.precinct,
+              crimeType: item.crimeType,
+              month: item.month,
+              year: item.year,
+              timeOfDay: item.timeOfDay,
+              forecast: item.forecast,
+              trend: item.trend,
             })),
             predictions: data.predictions.map(p => ({
               precinct: p.precinct,
@@ -316,6 +377,7 @@ class ForecastApiService {
             crimeTypes: [...new Set(data.predictions.map(f => f.crimeType))],
           },
           historicalData: data.historicalData,
+          timeOfDayData: data.timeOfDayData,
         };
         return snapshot;
       } catch (error) {

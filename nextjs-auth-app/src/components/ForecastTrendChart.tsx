@@ -110,9 +110,8 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
   }, [forecastData, selectedCrimeTypes, selectedPrecincts, selectedYears]);
 
   const displayTimeline = useMemo(() => {
-    const forecastDates = new Set(filteredForecast.map(f => `${f.year}-${f.month}`));
-    return timeline.filter(({ year, month }) => forecastDates.has(`${year}-${month}`));
-  }, [timeline, filteredForecast]);
+    return timeline.filter(({ year }) => selectedYears.length === 0 || selectedYears.includes(year));
+  }, [timeline, selectedYears]);
 
   const forecastMonths = useMemo(() => {
     const months = [...new Set(displayTimeline.map(t => t.month))].sort((a, b) => a - b);
@@ -138,7 +137,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
     const useYearly = interval === 'yearly' && showYearly;
 
     if (useYearly) {
-      const yearSet = [...new Set(filteredForecast.map(f => f.year))].sort((a, b) => a - b);
+      const yearSet = [...new Set(displayTimeline.map(f => f.year))].sort((a, b) => a - b);
       const labels = yearSet.map(String);
 
       const isIndividual = mode === 'individual' && selectedCrimeTypes.length > 0;
@@ -155,9 +154,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           const available = matchingRowsForYear(year).filter(
             f => f.lastYearActual !== undefined && f.lastYearActual !== null
           );
-          return available.length > 0
-            ? available.reduce((total, f) => total + (f.lastYearActual ?? 0), 0)
-            : null;
+          return available.reduce((total, f) => total + (f.lastYearActual ?? 0), 0);
         });
         const projections = yearSet.map(year =>
           matchingRowsForYear(year).reduce((total, f) => total + f.predictedCount, 0)
@@ -170,7 +167,8 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           backgroundColor: '#6B728022',
           pointBackgroundColor: '#6B7280',
           borderWidth: 2,
-          pointRadius: 3,
+          pointRadius: priorYearActuals.map(value => value === 0 ? 5 : 3),
+          pointStyle: priorYearActuals.map(value => value === 0 ? 'rectRot' : 'circle'),
           tension: 0.3,
           fill: false,
           spanGaps: false,
@@ -182,7 +180,8 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           backgroundColor: color + '22',
           pointBackgroundColor: color,
           borderWidth: 2,
-          pointRadius: 3,
+          pointRadius: projections.map(value => value === 0 ? 5 : 3),
+          pointStyle: projections.map(value => value === 0 ? 'rectRot' : 'circle'),
           tension: 0.3,
           fill: false,
           spanGaps: false,
@@ -201,7 +200,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
       const baseLabel = typeId === -1 ? 'Total' : (CrimeTypesDictionary[typeId] || String(typeId));
       const forecastSeries = displayTimeline.map(({ year, month }) => {
         const key = `${year}-${month}-${typeId}`;
-        return normalizedTimeline.get(key) ?? null;
+        return normalizedTimeline.get(key) ?? 0;
       });
       const historicalSeries = displayTimeline.map(({ year, month }) => {
         const matchingForecasts = filteredForecast.filter(f =>
@@ -212,9 +211,7 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
         const availableComparisons = matchingForecasts.filter(
           f => f.lastYearActual !== undefined && f.lastYearActual !== null
         );
-        return availableComparisons.length > 0
-          ? availableComparisons.reduce((total, f) => total + (f.lastYearActual ?? 0), 0)
-          : null;
+        return availableComparisons.reduce((total, f) => total + (f.lastYearActual ?? 0), 0);
       });
 
       const forecastColor = typeId === -1 ? YEAR_COLORS[0] : CRIME_TYPE_COLORS[typeId % CRIME_TYPE_COLORS.length];
@@ -228,7 +225,8 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           backgroundColor: previousYearColor + '22',
           pointBackgroundColor: previousYearColor,
           borderWidth: 2,
-          pointRadius: 3,
+          pointRadius: historicalSeries.map(value => value === 0 ? 5 : 3),
+          pointStyle: historicalSeries.map(value => value === 0 ? 'rectRot' : 'circle'),
           tension: 0.3,
           fill: false,
           spanGaps: false,
@@ -241,7 +239,8 @@ export const ForecastTrendChart: React.FC<Props> = ({ historicalData, forecastDa
           backgroundColor: forecastColor + '22',
           pointBackgroundColor: forecastColor,
           borderWidth: 2,
-          pointRadius: 3,
+          pointRadius: forecastSeries.map(value => value === 0 ? 5 : 3),
+          pointStyle: forecastSeries.map(value => value === 0 ? 'rectRot' : 'circle'),
           tension: 0.3,
           fill: false,
           spanGaps: false,

@@ -30,6 +30,32 @@ export interface HistoricalData {
   clusterId?: number;
 }
 
+export interface ForecastSpatialData {
+  precinct: number;
+  clusterId: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  month: number;
+  year: number;
+  forecast: number;
+  lowerBound: number;
+  upperBound: number;
+  confidence: number;
+  riskLevel: string;
+  trend: string;
+  timestamp: string;
+}
+
+export interface ForecastTimeOfDayData {
+  precinct: number;
+  crimeType: number;
+  month: number;
+  year: number;
+  timeOfDay: string;
+  forecast: number;
+  trend: string;
+}
+
 export interface ForecastParams {
   forecastPeriod: number;
   model: string;
@@ -104,7 +130,8 @@ export interface ForecastSnapshot {
   params: ForecastParams;
   dataQuality?: any;
   historicalData?: HistoricalData[];
-  spatialData?: any[];
+  timeOfDayData?: ForecastTimeOfDayData[];
+  spatialData?: ForecastSpatialData[];
   seasonalPredictions?: any[];
   apiResponse?: ForecastApiResponse;
   metadata: ForecastMetadata;
@@ -147,9 +174,10 @@ export interface CreateForecastRequest {
   modelFallbackReason?: string;
   predictions: ForecastData[];
   historicalData?: HistoricalData[];
+  timeOfDayData?: ForecastTimeOfDayData[];
   clusterData?: ForecastClusterGroup[];
   generatedById?: string;
-  spatialData?: any[];
+  spatialData?: ForecastSpatialData[];
   seasonalPredictions?: any[];
   apiResponse?: ForecastApiResponse;
   metrics?: ForecastMetrics | null;
