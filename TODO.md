@@ -27,7 +27,7 @@
 | F-08 | Align temporal preprocessing visualization with the actual backend forecast aggregation and input (monthly counts by precinct/crime type) | #7 | None | **2** | done |
 | F-09 | Dedicated hotspot recommendations screen; match forecast series to source incidents by precinct/crime type and handle empty results | #10 | None (recommendations only; manpower allocation remains separate) | **2** (unblocked per GA-01 decisions) | done |
 | F-10 | Unified Analysis-launched Forecast workflow with backend-generated monthly projected volume by existing risk band, available for saved forecasts; separate spatial hotspot recommendations | #11 | GA-01 decisions recorded; GA-05 patrol allocation remains separately gated | **2** | done |
-| F-11 | Calibrated forecast corrections: next full month, 1-24 month horizon, N year-qualified forecast months, backend-computed prior-year comparisons, full-history Linear/Seasonal trend with 12-month half-life recency weighting, saved-run history, effective-model transparency, and focused regression tests | #12 | Calibrated by user; remaining model methodology, thresholds, validation criteria, and performance claims remain GA-01 gated | **3** | partial (backend comparison and weighting implemented; remaining acceptance criteria pending; see `FORECAST_CALIBRATION_SPEC.md`) |
+| F-11 | Calibrated forecast corrections: next full month, 1-24 month horizon, N year-qualified forecast months, backend-computed prior-year comparisons, full-history Linear/Seasonal trend with 12-month half-life recency weighting, saved-run history, effective-model transparency, and focused regression tests | #12 | Calibrated by user; model methodology, thresholds, validation criteria, and performance claims remain GA-01 gated | **3** | partial (temporal zero-display behavior, saved spatial data, and new saved-run time-of-day persistence implemented; legacy runs may lack spatial/time-of-day data; F-11 acceptance and Figure #12 methodology/validation remain incomplete; see `../FORECAST_CALIBRATION_SPEC.md`) |
 
 **Status key (calibration items):** `done` = verified complete; `partial` = some criterion remains incomplete; `todo` = not implemented.
 
@@ -52,7 +52,7 @@
 - Files are mirrored at workspace root and inside both `espasyo/` and `nin-architecture/`.
 - Only one item may be active at a time. When an item is complete, move it from active to dead and update TODO.md status.
 
-**Current active step:** Step 3 — Forecast technical calibration. F-11 implementation is in progress; the backend comparison and calibrated history weighting are implemented, with remaining acceptance criteria to verify. Figure #12 methodology/validation remains deferred under GA-01.
+**Current active step:** Step 3 — Forecast technical calibration (F-11, partial). In addition to backend prior-year comparisons and calibrated Linear/Seasonal weighting, the Temporal chart displays missing comparison/forecast records as zero; the saved-run overview retrieves persisted spatial data and presents backend-generated time-of-day forecast allocations. New snapshots preserve time-of-day allocations; legacy runs may not contain them. Full F-11 acceptance remains unverified, and Figure #12 methodology/validation remains deferred under GA-01.
 
 ***Figure Status (all 12 vs. study objectives RQ1–RQ5)***
 
@@ -69,11 +69,12 @@
 | 9 | Generated temporal analysis report | CORRECT | No | No | 2 |
 | 10 | Summary of identified hotspots → crime prevention recommendations | CORRECT (dedicated screen shows API risk summary, recommendations, and hotspot details; backend matches forecast series to source incidents by precinct/crime type; empty results handled explicitly; no personnel allocation) | Yes (decisions recorded) | Separate allocation remains gated | 2 |
 | 11 | High-risk time periods + action plan | CORRECT (Analysis launches one configurable forecast workflow; backend monthly summaries group projected volume using existing forecast risk labels and are available with saved forecasts; spatial hotspot recommendations are a distinct linked workflow; no personnel assignment) | Yes (decisions recorded) | Yes (Step 4 patrol allocation remains gated; Step 2 guidance is informational) | 2 / 4 |
-| 12 | Sample prediction / forecasted crime pattern | INCORRECT (temporal chart can mislabel/misrepresent forecasts crossing a year; saved runs lack generation-time history; effective SSA-to-linear fallback is not exposed. Technical correction plan calibrated; methodology/validation still pending) | Yes (methodology/validation deferred to post-initial phase; technical corrections scoped) | No | 3 |
+| 12 | Sample prediction / forecasted crime pattern | PARTIAL (year-qualified forecast comparisons and saved analysis history are implemented; absent comparison/forecast records display as zero in the Temporal chart; saved Spatial and Time of Day data paths are implemented. New saved runs can retain backend-generated time-of-day allocations, but older snapshots may not contain these or spatial rows. Effective-model behavior, full acceptance, and methodology/validation are not signed off) | Yes (methodology/validation deferred to post-initial phase; technical corrections scoped) | No | 3 |
 
 **Key:**
 - **CORRECT** — Figure exists and aligns with study objective
 - **INCORRECT** — Figure exists but misaligned (model identity, missing auth, wrong constants)
+- **PARTIAL** — Technical corrections exist, but at least one stated behavior or validation/sign-off criterion remains incomplete
 - **MISSING** — Figure not implemented; no UI/module exists
 - **GA-01** — Blocked until thesis evaluation protocol sign-off (decisions recorded for #4, #10, #11)
 - **GA-05** — Blocked until patrol allocation model sign-off (required for #10, #11 in Step 4)
